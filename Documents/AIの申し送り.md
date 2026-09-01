@@ -29,7 +29,11 @@
 
 | 日付 | 書いたAI | 場面 | やり方 |
 | --- | --- | --- | --- |
+| 2026/9/1 | Claude Code | 日付を書くとき | **必ず `date` コマンドで今日の日付を確認してから書くこと。** 直前のコミットメッセージや変更ログの日付から推測すると1日ずれる。実際にこれで `9/1` の作業を `8/31` と書いてしまい、あとで直した |
 | 2026/8/31 | Claude Code | ドキュメントを点検するとき | 「書いてあるルール」と「実際の表の列」が食い違っている所を探すと、実害のある不備が見つかる。実際に、リスクリストは「対応内容を書く」と書いてあるのに書く列が無く、使用素材は表に無い「改変内容」列を指していた |
+| 2026/9/1 | Claude Code | **シーンやプレハブを作るとき** | **手でYAMLを書かず、Unityに作らせる。** エディタ用スクリプト（`Assets/Scripts/Player/Editor/PlayerRigSetup.cs` が実例）を書いてから、コマンドでUnityを動かせば、正しいシーン・プレハブ・`.meta` が生成される。手書きのYAMLは参照（GUID）を間違えるとシーンが開かなくなるため、絶対にやらないこと |
+| 2026/9/1 | Claude Code | Unityをコマンドで動かすとき | `D:\011_Unity\Editor\6000.3.14f1\Editor\Unity.exe -batchmode -quit -nographics -projectPath "D:\010_GitHub\Mirai01\Mirai01" -executeMethod クラス名.メソッド名 -logFile ログの出力先`。**注意点が2つ。** ①PowerShellの `&` では完了を待たない（GUIアプリのため）。`Start-Process -Wait` を使うこと。②**Unityエディタが開いていると失敗する**（同じプロジェクトを2つ開けない）。実行前に閉じてもらうこと。③ログは日本語が文字化けするので、成否は `Batchmode quit successfully` と `return code 0` で判断する |
+| 2026/9/1 | Claude Code | private な `[SerializeField]` にエディタから値を入れるとき | `new SerializedObject(コンポーネント)` → `FindProperty("フィールド名")` → `objectReferenceValue` に代入 → `ApplyModifiedPropertiesWithoutUndo()`。これでインスペクターの参照を自動で繋げるので、「プレハブは作ったが参照が空」という事故を防げる |
 | 2026/8/31 | Claude Code | ドキュメントの記述が実物と合っているかを確かめるとき | `git ls-files Mirai01/Assets/` と `cat Mirai01/ProjectSettings/ProjectVersion.txt` で、READMEに書かれたUnityバージョン・シーン名・入力設定ファイルが実在するか確認できる。**Unityを起動しなくても照合できる** |
 
 ---
@@ -62,3 +66,5 @@
 | --- | --- | --- |
 | 2026/8/30 | 大槻 海斗 | ファイルを新規作成 |
 | 2026/8/31 | Claude Code | ドキュメント全体の点検で分かった、失敗した手順2件・うまくいったやり方2件・作業サイクルへの提案3件を記録 |
+| 2026/9/1 | Claude Code | 日付は `date` コマンドで確認してから書くこと、という教訓を追加（1日ずれた記録を書いてしまったため） |
+| 2026/9/1 | Claude Code | Unityをコマンドで動かす手順と、シーン・プレハブをUnityに生成させる方法を記録 |
