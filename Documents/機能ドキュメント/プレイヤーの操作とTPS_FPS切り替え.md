@@ -38,6 +38,9 @@
 - FPSでは、カプセルの体は**まるごと自動で隠れる**（目の中から見ると視界が埋まるため）
 - TPSでは腕が消え、カプセルが表示される。カプセルの前面には小さな箱が付いていて、
   **どちらを向いているか**が分かる
+- **画面の中央に照準（レティクル）が出る。** マウスカーソルを消しているため、
+  どこを狙っているかを示すためのもの。**他の機能から色や大きさを変えられる**
+  （複製配置システムが、狙っている物に合わせて色を変えている）
 
 ---
 
@@ -63,6 +66,7 @@
 | --- | --- |
 | スクリプト | `Assets/Scripts/Player/PlayerController.cs` |
 | スクリプト | `Assets/Scripts/Player/PlayerViewSwitcher.cs` |
+| スクリプト | `Assets/Scripts/Player/Reticle.cs`（画面中央の照準） |
 | スクリプト（エディタ用） | `Assets/Scripts/Player/Editor/PlayerRigSetup.cs` |
 | プレハブ | `Assets/Prefabs/PlayerRig.prefab` |
 | シーン | `Assets/Scenes/Test/PlayerRigTest.unity` |
@@ -78,11 +82,13 @@
 PlayerRig                 ← CharacterController / PlayerController / PlayerViewSwitcher
 ├── Body                  ← カプセルの見た目。TPSのときだけ表示
 │   └── FrontMark         ← 前を示す小さな箱
-└── CameraPivot           ← 上下の首振りをする場所（目の高さ 1.6m）
-    └── PlayerCamera      ← カメラ。TPSとFPSでこの位置が動く
-        └── FirstPersonArms   ← FPSのときだけ表示
-            ├── ArmLeft       ← Sleeve（腕）＋ Hand（手）
-            └── ArmRight      ← Sleeve（腕）＋ Hand（手）
+├── CameraPivot           ← 上下の首振りをする場所（目の高さ 1.6m）
+│   └── PlayerCamera      ← カメラ。TPSとFPSでこの位置が動く
+│       └── FirstPersonArms   ← FPSのときだけ表示
+│           ├── ArmLeft       ← Sleeve（腕）＋ Hand（手）
+│           └── ArmRight      ← Sleeve（腕）＋ Hand（手）
+└── ReticleCanvas         ← 画面中央の照準
+    └── Reticle           ← 中央の点と、上下左右の線
 ```
 
 腕は**カメラの子**にしてある。視点を動かしても腕が画面に付いてくるのはこのため。
@@ -173,3 +179,4 @@ PlayerRig                 ← CharacterController / PlayerController / PlayerVie
 | 2026/9/1 | Claude Code | 新規作成。WASD移動・マウス視点・TPS/FPS切り替え・プレハブ化まで |
 | 2026/9/1 | Claude Code | FPSに腕（袖＋手）を追加。FPSで向き目印が映り込んでいた不具合を修正し、体をまるごと隠すようにした。マテリアルを `Assets/Art/Materials/` へ移動 |
 | 2026/9/1 | Claude Code | マテリアル置き場のフォルダ名を `Matrials` から `Materials`（正しい綴り）に変更 |
+| 2026/9/1 | Claude Code | 画面中央の照準（レティクル）を追加。他の機能から色と大きさを変えられるようにした |
