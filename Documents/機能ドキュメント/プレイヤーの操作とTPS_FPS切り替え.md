@@ -131,6 +131,9 @@ PlayerRig                 ← CharacterController / PlayerController / PlayerVie
   他の人の作業とぶつからない
 - 視点は、**左右＝キャラクター本体を回す／上下＝`CameraPivot` だけを回す**という分け方をしている。
   体ごと傾けないための定番の作り
+- **`LookSuspended` を `true` にすると、マウスで視点が動かなくなる。**
+  「マウスで物を回す」ような、マウスを別の用途に使いたい機能から一時的に止めるためのもの
+  （複製配置システムが、物を回している間これを使っている）
 - TPS/FPSの切り替えは、`PlayerCamera` の**ローカル座標を動かしているだけ**。
   カメラを2つ用意して切り替える方式にはしていない（片方の設定を変え忘れる事故を防ぐため）
 - **他のオブジェクトを名前で探していない**（`GameObject.Find` を使っていない）ので、
@@ -180,3 +183,4 @@ PlayerRig                 ← CharacterController / PlayerController / PlayerVie
 | 2026/9/1 | Claude Code | FPSに腕（袖＋手）を追加。FPSで向き目印が映り込んでいた不具合を修正し、体をまるごと隠すようにした。マテリアルを `Assets/Art/Materials/` へ移動 |
 | 2026/9/1 | Claude Code | マテリアル置き場のフォルダ名を `Matrials` から `Materials`（正しい綴り）に変更 |
 | 2026/9/1 | Claude Code | 画面中央の照準（レティクル）を追加。他の機能から色と大きさを変えられるようにした |
+| 2026/9/2 | Claude Code | 視点を一時的に止める仕組み（LookSuspended）を追記 |

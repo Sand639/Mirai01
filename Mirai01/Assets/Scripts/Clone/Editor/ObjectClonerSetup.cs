@@ -181,8 +181,20 @@ public static class ObjectClonerSetup
         SerializedObject serialized = new SerializedObject(cloner);
         serialized.FindProperty("aimCamera").objectReferenceValue = camera;
         serialized.FindProperty("playerRoot").objectReferenceValue = player.transform;
+
+        // 距離を測る基準は、カメラの親（CameraPivot＝頭の位置）にする。
+        // TPSでカメラが後ろに下がっても、置く位置が自分の位置にならないようにするため
+        if (camera != null && camera.transform.parent != null)
+        {
+            serialized.FindProperty("aimOrigin").objectReferenceValue = camera.transform.parent;
+        }
         serialized.FindProperty("inputActions").objectReferenceValue = inputActions;
         serialized.FindProperty("reticle").objectReferenceValue = reticle;
+
+        // 物を回している間、視点を止めるためにつなぐ
+        serialized.FindProperty("playerController").objectReferenceValue =
+            player.GetComponent<PlayerController>();
+
         serialized.ApplyModifiedPropertiesWithoutUndo();
     }
 

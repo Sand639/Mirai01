@@ -55,6 +55,12 @@ public class PlayerController : MonoBehaviour
     /// <summary>上下の首振り角度。カメラ側から見たいときのために公開している。</summary>
     public float Pitch { get; private set; }
 
+    /// <summary>
+    /// true の間、マウスで視点が動かなくなる。
+    /// 「マウスで物を回す」ような操作をしたい機能から、一時的に止めるために使う。
+    /// </summary>
+    public bool LookSuspended { get; set; }
+
     private float verticalVelocity;
 
     private void Awake()
@@ -101,7 +107,13 @@ public class PlayerController : MonoBehaviour
     private void Update()
     {
         UpdateCursor();
-        Look();
+
+        // 他の機能がマウスを使っている間は、視点を動かさない
+        if (!LookSuspended)
+        {
+            Look();
+        }
+
         Move();
     }
 
