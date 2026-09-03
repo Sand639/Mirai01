@@ -23,6 +23,7 @@
 | 2026/9/2 | Claude Code | 2つの体をJointで繋いで、合体と分離をするロボットを作った | **合体中にガクガクし、視点も滑らかにならず、分割時は動かなかった。** 原因は3つとも似ていて、**物理演算（固定間隔）と、速度の直接指定やカメラの追従（可変間隔）がぶつかっていた**こと | **「合体中は1体・分けたら2体」の入れ替え方式にする。** 見た目が繋がっていればよいだけなら、物理で繋ぐ必要はない。あわせて **CharacterController** にすると揺れない。**カメラは体の子にしない**（体が動くたびに引っ張られてカクつく）。`RobotController.cs` が実例 |
 | 2026/9/1 | Claude Code | オブジェクトの色を一時的に変えて元に戻そうとした | `renderer.material.color` を変えたあと `renderer.sharedMaterial.color` で元の色に戻そうとしたが、**一度 `material` に触るとそのオブジェクト専用のマテリアルが作られ、`sharedMaterial` もそちらを指すようになる**ため、元の色が取り出せなくなっていた | **色を変える前に、元の色を配列などに控えておく。** `ObjectCloner.cs` の `CaptureColors` / `RestoreColors` が実例 |
 | 2026/8/31 | Claude Code | `Documents/` 配下のファイルをコミットした | 毎回 `LF will be replaced by CRLF` という警告が出た。失敗ではないが、**`.gitattributes` が無い**ため環境ごとに改行コードが揺れる状態。放置すると「中身を変えていないのに差分が出る」原因になる | `リスクリスト.md` に登録済み・`質問リスト.md` で大槻さんに確認中。**警告が出ても慌てなくてよい**が、勝手に `.gitattributes` を作らないこと |
+| 2026/9/3 | Claude Code | `perl -0777 -i -pe` でC#のコードに1行足そうとした | **C#の `$"..."`（文字列に変数を埋める書き方）が壊れた。** Perlでは `$"` が特別な意味を持つ変数なので、置換後の文字列の中に書くと消えてしまう。`Debug.Log($"[LAN] ...")` が `Debug.Log( ...")` になった | **C#のコードにPerlで書き足すときは `$"` を含めない。** 含める必要があるなら、**Perlを使わず、ファイル編集用のツールで直接書くこと。** 書き換えたあとは**その行を必ず目で見て確認する**（この教訓を書いたときも、同じ理由で1回書き損じた） |
 
 ---
 
@@ -39,6 +40,10 @@
 | 2026/9/1 | Claude Code | Unityをコマンドで動かすとき | `D:\011_Unity\Editor\6000.3.14f1\Editor\Unity.exe -batchmode -quit -nographics -projectPath "D:\010_GitHub\Mirai01\Mirai01" -executeMethod クラス名.メソッド名 -logFile ログの出力先`。**注意点が2つ。** ①PowerShellの `&` では完了を待たない（GUIアプリのため）。`Start-Process -Wait` を使うこと。②**Unityエディタが開いていると失敗する**（同じプロジェクトを2つ開けない）。実行前に閉じてもらうこと。③ログは日本語が文字化けするので、成否は `Batchmode quit successfully` と `return code 0` で判断する |
 | 2026/9/1 | Claude Code | private な `[SerializeField]` にエディタから値を入れるとき | `new SerializedObject(コンポーネント)` → `FindProperty("フィールド名")` → `objectReferenceValue` に代入 → `ApplyModifiedPropertiesWithoutUndo()`。これでインスペクターの参照を自動で繋げるので、「プレハブは作ったが参照が空」という事故を防げる |
 | 2026/8/31 | Claude Code | ドキュメントの記述が実物と合っているかを確かめるとき | `git ls-files Mirai01/Assets/` と `cat Mirai01/ProjectSettings/ProjectVersion.txt` で、READMEに書かれたUnityバージョン・シーン名・入力設定ファイルが実在するか確認できる。**Unityを起動しなくても照合できる** |
+| 2026/9/3 | Claude Code | **通信（マルチプレイ）が本当に動くか確かめるとき** | **エディタの再生では1人分しか動かないので、確かめられない。** `Tools > Mirai01 > LAN検証用のビルドを作る` で `.exe` を作り、**2つ同時に起動する**。画面を見なくてよいので `-batchmode -nographics -logFile ログの出力先` を付けて起動し、**ログの `[LAN]` の行**で「2人分が生まれたか」を確認するのが速い。片方に `-host`、もう片方に `-client 127.0.0.1` を付ける。**実際にこの方法で接続を確認した** |
+| 2026/9/3 | Claude Code | Netcode for GameObjects でキャラクターを同期するとき | **①`NetworkTransform` の `AuthorityMode` を `Owner` にする**（動かしている本人が位置を送る形になり、操作が軽い）。**②自分以外のキャラクターは `CharacterController` を切る**（切らないと、送られてきた位置へ移そうとしても押し戻してしまう）。**③色や番号のような、計算で決まるものは通信で送らない**（`OwnerClientId` から計算すれば、どのPCでも同じ結果になる）。`NetworkPlayer.cs` が実例 |
+| 2026/9/3 | Claude Code | **Unityでビルドを作ったあと** | **URPの設定ファイル（`Assets/Settings/` の3つ）と `ProjectSettings.asset` が自動で書き換わる。** シェーダーの絞り込み設定などをUnityが作り直すため。実装とは関係のない差分なので、**コミットする前に `git status` を見て、身に覚えのない変更は元に戻す**（`git checkout develop -- ＜ファイル＞`）。戻しても、次に誰かがビルドすればまた出てくる種類のものなので消えて困ることはない |
+| 2026/9/3 | Claude Code | Unityのパッケージを追加するとき | **バージョンを推測で書かない。** `curl -s https://packages.unity.com/＜パッケージ名＞` で本物の一覧が取れる。`dist-tags` の `latest` が最新版で、各版の `unity` の欄に必要なUnityバージョンが書いてある。`Packages/manifest.json` に書き足してからUnityを起動すれば、依存パッケージも含めて自動で入る |
 
 ---
 
@@ -74,3 +79,4 @@
 | 2026/9/1 | Claude Code | Unityをコマンドで動かす手順と、シーン・プレハブをUnityに生成させる方法を記録 |
 | 2026/9/1 | Claude Code | 複製配置システムの実装で分かった、Markdownの表を壊す書き方・マテリアルの色を戻せなくなる罠・一人称のRaycastの注意を記録 |
 | 2026/9/2 | Claude Code | 物理で2つの体を繋ぐとガタつく件と、その回避方法を記録 |
+| 2026/9/3 | Claude Code | LAN通信の実装で分かった、通信の確かめ方・同期の要点・パッケージ版数の調べ方を記録。あわせて Perl で C# の文字列補間を壊した失敗を記録 |
