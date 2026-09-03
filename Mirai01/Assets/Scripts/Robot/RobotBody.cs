@@ -25,11 +25,19 @@ public class RobotBody : MonoBehaviour
     [Tooltip("落ちる強さ。マイナスの値にすること")]
     [SerializeField] private float gravity = -20f;
 
+    [Header("ジャンプ")]
+    [Tooltip("ジャンプで上がる高さ（メートル）。0にするとその場で跳ねなくなる")]
+    [Range(0f, 5f)]
+    [SerializeField] private float jumpHeight = 1.2f;
+
     private CharacterController characterController;
     private float verticalVelocity;
 
     /// <summary>この体の進む速さ。</summary>
     public float MoveSpeed => moveSpeed;
+
+    /// <summary>いま地面に足が付いているか。UIの表示などに使える。</summary>
+    public bool IsGrounded => characterController != null && characterController.isGrounded;
 
     private void Awake()
     {
@@ -42,17 +50,36 @@ public class RobotBody : MonoBehaviour
     /// </summary>
     public void Tick(Vector3 direction)
     {
+        Tick(direction, false);
+    }
+
+    /// <summary>
+    /// 1フレーム分動かす。
+    /// jumpRequested に true を渡すと、**地面に付いていればジャンプする**。
+    /// 「誰がジャンプできるか」は <see cref="RobotController"/> が決めるので、
+    /// ここでは渡されたとおりに動くだけにしてある。
+    /// </summary>
+    public void Tick(Vector3 direction, bool jumpRequested)
+    {
         if (characterController == null)
         {
             return;
         }
 
-        if (characterController.isGrounded)
+        bool grounded = characterController.isGrounded;
+
+        if (grounded && verticalVelocity <= 0f)
         {
             // 地面に押し付けておかないと、坂で浮いてガタつく
             verticalVelocity = -2f;
         }
-        else
+
+        if (jumpRequested && grounded && jumpHeight > 0f)
+        {
+            // 「この高さまで上がる」速さを逆算して入れる
+            verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
+        }
+        else if (!grounded)
         {
             verticalVelocity += gravity * Time.deltaTime;
         }

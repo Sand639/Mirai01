@@ -11,6 +11,7 @@ using UnityEngine.InputSystem;
 ///   Q             … 切り離す
 ///   Tab           … 操作する方を切り替える（上半身 ⇔ 下半身）
 ///   E             … 近づいていれば合体する
+///   Space         … ジャンプする（合体中と、分離中の下半身だけ）
 ///
 /// **合体しているときは1体、分けたときは2体**という作りにしている。
 /// 2つを物理的に繋いで動かすとガタつくため、繋ぐのをやめて
@@ -63,6 +64,10 @@ public class RobotController : MonoBehaviour
     [Tooltip("ONにすると、下半身を操作中もカメラは上半身のまま。OFFなら操作している方を追いかける")]
     [SerializeField] private bool cameraAlwaysOnUpper = false;
 
+    [Header("ジャンプ")]
+    [Tooltip("ONにすると、分離中の上半身もジャンプできるようになる。OFFなら足（下半身）だけ")]
+    [SerializeField] private bool upperCanJump = false;
+
     [Header("キーの割り当て")]
     [Tooltip("切り離すキー")]
     [SerializeField] private Key splitKey = Key.Q;
@@ -110,8 +115,15 @@ public class RobotController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// いまジャンプが許されている状態か。**分離中の上半身は跳べない**。
+    /// （地面に付いているかどうかは見ていない。それは体の側で判断する）
+    /// </summary>
+    public bool CanJump => State != RobotState.SplitUpper || upperCanJump;
+
     private InputActionMap playerMap;
     private InputAction moveAction;
+    private InputAction jumpAction;
 
     private void Awake()
     {
@@ -131,6 +143,7 @@ public class RobotController : MonoBehaviour
 
         playerMap = inputActions.FindActionMap("Player", true);
         moveAction = playerMap.FindAction("Move", true);
+        jumpAction = playerMap.FindAction("Jump", true);
 
         ApplyState(RobotState.Combined);
     }
@@ -290,21 +303,24 @@ public class RobotController : MonoBehaviour
     {
         Vector3 direction = GetMoveDirection();
 
+        // ジャンプできるのは「合体中」と「分離中の下半身」だけ
+        bool jump = jumpAction.WasPressedThisFrame() && CanJump;
+
         if (State == RobotState.Combined)
         {
-            combinedBody.Tick(direction);
+            combinedBody.Tick(direction, jump);
             return;
         }
 
         // 操作していない方も、重力だけは効かせる（勝手には動かない）
         if (State == RobotState.SplitUpper)
         {
-            upperBody.Tick(direction);
+            upperBody.Tick(direction, jump);
             lowerBody.Tick(Vector3.zero);
         }
         else
         {
-            lowerBody.Tick(direction);
+            lowerBody.Tick(direction, jump);
             upperBody.Tick(Vector3.zero);
         }
     }
