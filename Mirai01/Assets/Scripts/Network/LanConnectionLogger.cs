@@ -1,3 +1,4 @@
+using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -43,9 +44,67 @@ public class LanConnectionLogger : MonoBehaviour
         manager.OnClientDisconnectCallback -= HandleClientDisconnected;
     }
 
+    [Tooltip("遅れ（ping）をログに残す間隔（秒）。0にすると残さない")]
+    [Range(0f, 60f)]
+    [SerializeField] private float pingLogSeconds = 10f;
+
     private void HandleServerStarted()
     {
         Debug.Log("[LAN] ホストとして待ち受けを始めました");
+    }
+
+    private void Start()
+    {
+        if (pingLogSeconds > 0f)
+        {
+            StartCoroutine(LogPingLoop());
+        }
+    }
+
+    /// <summary>
+    /// 遅れ（ping）を、ときどきログに残す。
+    ///
+    /// **画面を見られない状況で役に立つ。**
+    /// 展示当日に「なんか重い」と言われたとき、
+    /// ログを見れば通信のせいかどうかが分かる。
+    /// </summary>
+    private IEnumerator LogPingLoop()
+    {
+        WaitForSeconds wait = new WaitForSeconds(pingLogSeconds);
+
+        while (true)
+        {
+            yield return wait;
+
+            if (manager == null || (!manager.IsClient && !manager.IsServer))
+            {
+                continue;
+            }
+
+            NetworkTransport transport = manager.NetworkConfig.NetworkTransport;
+
+            if (transport == null)
+            {
+                continue;
+            }
+
+            if (manager.IsServer)
+            {
+                foreach (ulong id in manager.ConnectedClientsIds)
+                {
+                    if (id == manager.LocalClientId)
+                    {
+                        continue;
+                    }
+
+                    Debug.Log($"[PING] 番号 {id} までの遅れ：{transport.GetCurrentRtt(id)} ms");
+                }
+            }
+            else
+            {
+                Debug.Log($"[PING] ホストまでの遅れ：{transport.GetCurrentRtt(NetworkManager.ServerClientId)} ms");
+            }
+        }
     }
 
     private void HandleClientConnected(ulong clientId)

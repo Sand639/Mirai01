@@ -10,9 +10,14 @@ using UnityEngine;
 ///
 /// 使い方（ショートカットの「リンク先」の末尾に足す）：
 ///
-///   ゲーム.exe -host                     … このPCがホストになる
-///   ゲーム.exe -client 192.168.0.10      … そのIPのホストへ参加する
+///   ゲーム.exe -host                     … このPCがホストになる（LAN）
+///   ゲーム.exe -client 192.168.0.10      … そのIPのホストへ参加する（LAN）
 ///   ゲーム.exe -client 192.168.0.10 -port 7777
+///
+/// インターネット越しの場合：
+///
+///   ゲーム.exe -nethost                  … 部屋を作る（合言葉が画面に出る）
+///   ゲーム.exe -netjoin ABCDEF           … その合言葉の部屋に入る
 ///
 /// 引数が無ければ何もしない（画面のボタンで操作する）。
 /// </summary>
@@ -56,6 +61,14 @@ public class LanAutoStart : MonoBehaviour
                         port = parsed;
                     }
                     break;
+
+                case "-nethost":
+                    StartInternet(null);
+                    return;
+
+                case "-netjoin":
+                    StartInternet(i + 1 < args.Length ? args[i + 1] : null);
+                    return;
             }
         }
 
@@ -70,6 +83,34 @@ public class LanAutoStart : MonoBehaviour
         }
 
         StartAs(wantHost, address, port);
+    }
+
+    /// <summary>
+    /// インターネット越しでつなぐ。
+    /// `code` が null なら部屋を作る側、入っていればその合言葉で参加する側。
+    /// </summary>
+    private void StartInternet(string code)
+    {
+        InternetConnection internet = GetComponent<InternetConnection>();
+
+        if (internet == null)
+        {
+            Debug.LogError("InternetConnection が見つかりません。自動接続を中止します。");
+            return;
+        }
+
+        StartedFromCommandLine = true;
+
+        if (string.IsNullOrEmpty(code))
+        {
+            Debug.Log("[NET] 起動時の引数で 部屋を作る を開始しました");
+            internet.HostGame();
+        }
+        else
+        {
+            Debug.Log($"[NET] 起動時の引数で 参加 を開始しました（合言葉：{code}）");
+            internet.JoinGame(code);
+        }
     }
 
     private void StartAs(bool asHost, string address, ushort port)

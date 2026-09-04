@@ -23,6 +23,26 @@ public static class LanPlayTestSetup
     private const string ScenePath = SceneFolder + "/LanPlayTest.unity";
     private const string InputActionsPath = "Assets/InputSystem_Actions.inputactions";
 
+    // ------------------------------------------------------------
+    // 遅れ（ラグ）に効く設定
+    //
+    // インターネット越しだと、次の3つが積み上がって「重い」と感じる。
+    //   ① 通信そのものの往復（中継サーバー経由で 60〜80ms 前後）
+    //   ② 送る回数（下の TickRate）
+    //   ③ なめらかに見せるための待ち時間（下の InterpolationTime）
+    //
+    // ①は変えられないが、②と③は調整できる。
+    // ------------------------------------------------------------
+
+    /// <summary>1秒あたり何回、位置などを送るか。初期値は30。増やすと反応が良くなる</summary>
+    private const uint NetworkTickRate = 60;
+
+    /// <summary>プレイヤーをなめらかに見せるための待ち時間（秒）。初期値は0.1</summary>
+    private const float PlayerInterpolationTime = 0.05f;
+
+    /// <summary>箱をなめらかに見せるための待ち時間（秒）。物理なので少し長めにする</summary>
+    private const float BoxInterpolationTime = 0.075f;
+
     [MenuItem("Tools/Mirai01/LAN通信の検証シーンを作り直す")]
     public static void CreateAll()
     {
@@ -70,6 +90,16 @@ public static class LanPlayTestSetup
         networkTransform.SyncScaleX = false;
         networkTransform.SyncScaleY = false;
         networkTransform.SyncScaleZ = false;
+
+        // ★遅れの体感に一番効く設定。
+        //   初期値の 0.1 秒は「なめらかに見せるための待ち時間」で、
+        //   そのぶん相手の動きが遅れて見える。半分にして反応を良くする
+        networkTransform.PositionMaxInterpolationTime = PlayerInterpolationTime;
+        networkTransform.RotationMaxInterpolationTime = PlayerInterpolationTime;
+
+        // 位置は「届かなかったら次で埋まる」ものなので、
+        // 届くまで待ち直さない送り方にすると引っかかりが減る
+        networkTransform.UseUnreliableDeltas = true;
 
         // 見た目（当たり判定は CharacterController が持つので外す）
         GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Capsule);
@@ -164,7 +194,11 @@ public static class LanPlayTestSetup
         manager.NetworkConfig.NetworkTransport = transport;
         manager.NetworkConfig.PlayerPrefab = prefab;
 
+        // 送る回数を増やして、反応を良くする（初期値は30）
+        manager.NetworkConfig.TickRate = NetworkTickRate;
+
         managerObject.AddComponent<LanConnectionUi>();
+        managerObject.AddComponent<InternetConnection>();
         managerObject.AddComponent<LanAutoStart>();
         managerObject.AddComponent<LanConnectionLogger>();
         managerObject.AddComponent<NetworkStatusHud>();
@@ -242,6 +276,11 @@ public static class LanPlayTestSetup
         networkTransform.SyncScaleX = false;
         networkTransform.SyncScaleY = false;
         networkTransform.SyncScaleZ = false;
+
+        // 物理で動くものなので、プレイヤーより少しだけ長めに待つ。
+        // 短くしすぎると、転がる動きがカクつく
+        networkTransform.PositionMaxInterpolationTime = BoxInterpolationTime;
+        networkTransform.RotationMaxInterpolationTime = BoxInterpolationTime;
 
         box.AddComponent<PushableBox>();
     }

@@ -55,7 +55,7 @@ public class LanConnectionUi : MonoBehaviour
         Matrix4x4 saved = GUI.matrix;
         GUI.matrix = Matrix4x4.Scale(new Vector3(uiScale, uiScale, 1f));
 
-        GUILayout.BeginArea(new Rect(12f, 12f, 320f, 400f), GUI.skin.box);
+        GUILayout.BeginArea(new Rect(12f, 12f, 340f, 480f), GUI.skin.box);
 
         if (manager == null)
         {
@@ -82,20 +82,33 @@ public class LanConnectionUi : MonoBehaviour
 
         /// <summary>LANでつなぐ画面</summary>
         Lan,
+
+        /// <summary>インターネットでつなぐ画面</summary>
+        Internet,
     }
 
     private UiPage page = UiPage.ModeSelect;
 
+    /// <summary>参加するときに入力する合言葉。</summary>
+    private string joinCode = string.Empty;
+
     /// <summary>まだつながっていないときの表示。</summary>
     private void DrawDisconnected()
     {
-        if (page == UiPage.ModeSelect)
+        switch (page)
         {
-            DrawModeSelect();
-            return;
-        }
+            case UiPage.ModeSelect:
+                DrawModeSelect();
+                break;
 
-        DrawLan();
+            case UiPage.Internet:
+                DrawInternet();
+                break;
+
+            default:
+                DrawLan();
+                break;
+        }
     }
 
     /// <summary>
@@ -116,12 +129,10 @@ public class LanConnectionUi : MonoBehaviour
 
         GUILayout.Space(4f);
 
-        // インターネット対応は工程6で入れる。いまは押せないようにしておく
-        GUI.enabled = false;
-        GUILayout.Button("インターネットで遊ぶ（準備中）");
-        GUI.enabled = true;
-
-        GUILayout.Label("　※ 離れた人とつなぐ機能は、これから作ります");
+        if (GUILayout.Button("インターネットで遊ぶ（離れた人と）"))
+        {
+            page = UiPage.Internet;
+        }
 
         GUILayout.Space(8f);
 
@@ -130,6 +141,97 @@ public class LanConnectionUi : MonoBehaviour
             Apply("0.0.0.0");
             manager.StartHost();
         }
+    }
+
+    /// <summary>
+    /// インターネットでつなぐ画面。
+    ///
+    /// **合言葉でつなぐ。** ホストが作った合言葉を相手に伝えると、
+    /// 相手はそれを入れて入ってこられる。
+    /// </summary>
+    private void DrawInternet()
+    {
+        GUILayout.Label("■ インターネットでつなぐ");
+
+        InternetConnection internet = GetComponent<InternetConnection>();
+
+        if (internet == null)
+        {
+            GUILayout.Label("InternetConnection が付いていません");
+
+            if (GUILayout.Button("戻る"))
+            {
+                page = UiPage.ModeSelect;
+            }
+
+            return;
+        }
+
+        // 作業中はボタンを押せなくする（二重に押されると事故のもと）
+        GUI.enabled = !internet.IsBusy;
+
+        GUILayout.Space(4f);
+
+        if (GUILayout.Button("部屋を作る（合言葉が出ます）"))
+        {
+            internet.HostGame();
+        }
+
+        GUILayout.Space(8f);
+        GUILayout.Label("合言葉を入れて参加する");
+
+        joinCode = GUILayout.TextField(joinCode);
+
+        if (GUILayout.Button("参加する"))
+        {
+            internet.JoinGame(joinCode);
+        }
+
+        GUI.enabled = true;
+
+        // 合言葉ができていたら、大きめに出す（読み上げて伝えるため）
+        if (!string.IsNullOrEmpty(internet.JoinCode))
+        {
+            GUILayout.Space(8f);
+            GUILayout.Label($"あなたの合言葉：{internet.JoinCode}");
+        }
+
+        if (!string.IsNullOrEmpty(internet.Message))
+        {
+            GUILayout.Space(4f);
+            GUILayout.Label(internet.Message);
+        }
+
+        GUILayout.Space(8f);
+
+        if (GUILayout.Button("戻る"))
+        {
+            page = UiPage.ModeSelect;
+        }
+    }
+
+    /// <summary>
+    /// インターネットでつないでいる場合に、**合言葉を出す。**
+    ///
+    /// 文字を選んでコピーできるように、ただの文字ではなく入力欄の形にしてある。
+    /// Discordなどに貼り付けて相手に伝えるため。
+    /// </summary>
+    private void DrawJoinCodeIfAny()
+    {
+        InternetConnection internet = GetComponent<InternetConnection>();
+
+        if (internet == null || string.IsNullOrEmpty(internet.JoinCode))
+        {
+            return;
+        }
+
+        GUILayout.Space(4f);
+        GUILayout.Label("■ 合言葉（相手に伝える）");
+
+        // 戻り値は使わない。選んでコピーできるようにするためだけの入力欄
+        GUILayout.TextField(internet.JoinCode);
+
+        GUILayout.Space(4f);
     }
 
     /// <summary>LANでつなぐ画面。</summary>
@@ -181,6 +283,12 @@ public class LanConnectionUi : MonoBehaviour
         string role = manager.IsHost ? "ホスト（親）" : manager.IsServer ? "サーバー" : "参加者";
 
         GUILayout.Label($"■ {role} として動作中");
+
+        // ★つながったあとも合言葉を出し続ける。
+        //   ここに出していないと、部屋を作った本人が自分の合言葉を見られない
+        //   （部屋ができた瞬間にこの画面へ切り替わるため）
+        DrawJoinCodeIfAny();
+
         GUILayout.Label($"自分の番号：{manager.LocalClientId}");
 
         if (manager.IsServer)
@@ -203,7 +311,18 @@ public class LanConnectionUi : MonoBehaviour
 
         if (GUILayout.Button("切断する"))
         {
-            manager.Shutdown();
+            InternetConnection internet = GetComponent<InternetConnection>();
+
+            // インターネットでつないでいた場合は、部屋からも抜ける必要がある
+            if (internet != null && internet.State == InternetConnection.Phase.Connected)
+            {
+                internet.LeaveGame();
+            }
+            else
+            {
+                manager.Shutdown();
+            }
+
             page = UiPage.ModeSelect;
         }
     }

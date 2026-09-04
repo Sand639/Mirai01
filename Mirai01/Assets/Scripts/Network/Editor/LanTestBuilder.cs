@@ -105,6 +105,9 @@ public static class LanTestBuilder
             $"start \"CLIENT\" \"%~dp0{ExeName}\" -client 127.0.0.1 {WindowArgs}\r\n";
 
         // ② 画面のボタンで操作したい版（本番と同じ手順を試すとき）
+        //
+        //    「同じ人」として扱われる問題は、ゲーム側が起動順で自動的に分けるので
+        //    ここでは何も指定しなくてよい
         string manual =
             "@echo off\r\n" +
             "rem Just start two players. Connect with the on-screen buttons.\r\n" +
