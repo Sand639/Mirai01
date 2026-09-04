@@ -538,6 +538,7 @@ GameObject:
   - component: {fileID: 1699931797619006251}
   - component: {fileID: 1940952984381040433}
   - component: {fileID: 1845051293016657956}
+  - component: {fileID: 5814354594311116773}
   m_Layer: 0
   m_Name: RobotRig
   m_TagString: Untagged
@@ -582,11 +583,12 @@ MonoBehaviour:
   lowerBody: {fileID: 543306445282268922}
   cameraLook: {fileID: 2922520908710612770}
   inputActions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  autoSplitHeight: 1
   upperSplitHeight: 1.2
-  upperSplitDistance: 0.2
-  upperLaunchSpeed: 0.005
-  upperLaunchUp: 0.7
-  upperSplitDefaultDirection: {x: 0, y: 0, z: -1}
+  upperSplitDistance: 0
+  upperLaunchSpeed: 0.1
+  upperLaunchUp: 6
+  upperLaunchUpOnly: 6
   lowerSplitOffset: {x: 0, y: 0, z: 0}
   combineDistance: 2.5
   cameraAlwaysOnUpper: 0
@@ -635,6 +637,29 @@ MonoBehaviour:
   switchSmooth: 12
   startInFirstPerson: 0
   faceLookDirection: 1
+--- !u!114 &5814354594311116773
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2218864357901974731}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 27465b1de2a3c8f40a1833eae220ac46, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RobotRopeClimber
+  reach: 2.5
+  maxAngle: 90
+  climbSpeed: 3.5
+  snapSpeed: 8
+  releaseAtBottom: 1
+  jumpOffSpeed: 4
+  jumpOffUp: 3
+  grabKey: 20
+  reticle: {fileID: 4560348626833704126}
+  highlightColor: {r: 1, g: 0.85, b: 0.35, a: 1}
+  highlightStrength: 0.6
 --- !u!1 &2518083337689708994
 GameObject:
   m_ObjectHideFlags: 0

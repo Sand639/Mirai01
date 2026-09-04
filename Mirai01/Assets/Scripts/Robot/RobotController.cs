@@ -13,6 +13,7 @@ using UnityEngine.InputSystem;
 ///   E             … 近づいていれば合体する
 ///   Space         … ジャンプする（合体中と、分離中の下半身だけ）
 ///   F             … 目の前の物を持つ／離す（合体中と、分離中の上半身だけ）
+///                    目の前がロープなら、つかまる／手を離す
 ///   V             … 一人称と三人称を切り替える
 ///
 /// **合体しているときは1体、分けたときは2体**という作りにしている。
@@ -148,6 +149,34 @@ public class RobotController : MonoBehaviour
     private InputActionMap playerMap;
     private InputAction moveAction;
     private InputAction jumpAction;
+
+    // ------------------------------------------------------------
+    // 外から使うための窓口
+    //
+    // ロープなど「体を別の動かし方で動かす部品」が、
+    // 入力やカメラの向きを自分で読み直さずに済むように公開している
+    // ------------------------------------------------------------
+
+    /// <summary>
+    /// **通常の移動を止める。**
+    /// ONの間、操作している体は <see cref="RobotBody.Tick"/> で動かされなくなる。
+    ///
+    /// ロープにつかまっている間のように、
+    /// **別の部品が体を動かしたいとき**にONにする（<see cref="RobotRopeClimber"/>）。
+    /// 操作していない方の体は、これまでどおり重力だけ効く。
+    /// </summary>
+    public bool MovementSuspended { get; set; }
+
+    /// <summary>スティック・WASDの入力そのもの。y が前後、x が左右。</summary>
+    public Vector2 MoveInput =>
+        moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
+
+    /// <summary>このフレームにジャンプが押されたか。</summary>
+    public bool JumpPressedThisFrame => jumpAction != null && jumpAction.WasPressedThisFrame();
+
+    /// <summary>カメラが向いている水平方向。ロープから飛び降りる向きなどに使う。</summary>
+    public Vector3 LookForward =>
+        cameraLook != null ? cameraLook.FlatForward : transform.forward;
 
     private void Awake()
     {
@@ -404,21 +433,37 @@ public class RobotController : MonoBehaviour
             ? cameraLook.FlatForward
             : (Vector3?)null;
 
+        // ロープにつかまっている間は、操作している体をここでは動かさない。
+        // **動かすのはロープ側**（二重に動かすと引っ張り合いになる）
+        bool suspended = MovementSuspended;
+
         if (State == RobotState.Combined)
         {
-            combinedBody.Tick(direction, jump, facing);
+            if (!suspended)
+            {
+                combinedBody.Tick(direction, jump, facing);
+            }
+
             return;
         }
 
         // 操作していない方も、重力だけは効かせる（勝手には動かない）
         if (State == RobotState.SplitUpper)
         {
-            upperBody.Tick(direction, jump, facing);
+            if (!suspended)
+            {
+                upperBody.Tick(direction, jump, facing);
+            }
+
             lowerBody.Tick(Vector3.zero);
         }
         else
         {
-            lowerBody.Tick(direction, jump, facing);
+            if (!suspended)
+            {
+                lowerBody.Tick(direction, jump, facing);
+            }
+
             upperBody.Tick(Vector3.zero);
         }
     }

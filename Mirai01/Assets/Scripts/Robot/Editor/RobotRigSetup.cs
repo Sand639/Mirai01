@@ -125,6 +125,13 @@ public static class RobotRigSetup
         grabberSerialized.FindProperty("reticle").objectReferenceValue = reticle;
         grabberSerialized.ApplyModifiedPropertiesWithoutUndo();
 
+        // ロープにつかまる機能。こちらも手のある体だけ
+        RobotRopeClimber climber = root.AddComponent<RobotRopeClimber>();
+
+        SerializedObject climberSerialized = new SerializedObject(climber);
+        climberSerialized.FindProperty("reticle").objectReferenceValue = reticle;
+        climberSerialized.ApplyModifiedPropertiesWithoutUndo();
+
         // ----- 一人称・三人称の切り替え -----
         RobotViewSwitcher viewSwitcher = root.AddComponent<RobotViewSwitcher>();
 
@@ -259,6 +266,11 @@ public static class RobotRigSetup
         CreateGrabbableBox("GrabBox_Small", new Vector3(-2f, 0.25f, 2.5f), 0.5f, 1f, grabMaterial);
         CreateGrabbableBox("GrabBox_Medium", new Vector3(0f, 0.35f, 3f), 0.7f, 2f, grabMaterial);
         CreateGrabbableBox("GrabBox_Large", new Vector3(2f, 0.5f, 2.5f), 1f, 5f, grabMaterial);
+
+        // ----- ロープ（上下に移動できる紐） -----
+        // 上の足場は高すぎてジャンプでは届かない。**ロープでしか上がれない**
+        CreateBox("RopeTop", new Vector3(-8f, 6f, 6f), new Vector3(4f, 0.4f, 4f), stepMaterial);
+        RobotRopeSetup.CreateRopeAt("Rope", new Vector3(-5.4f, 0f, 6f), 6.6f);
 
         if (prefab != null)
         {

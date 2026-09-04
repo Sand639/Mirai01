@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -58,9 +57,11 @@ public class RobotGrabber : MonoBehaviour
 
     private RobotController controller;
 
+    /// <summary>ロープ側。同じ F キーをどちらが受け取るか決めるために見ている（無くてもよい）。</summary>
+    private RobotRopeClimber ropeClimber;
+
     private readonly Collider[] candidates = new Collider[32];
-    private readonly List<Renderer> highlightRenderers = new List<Renderer>();
-    private readonly List<Color> highlightOriginalColors = new List<Color>();
+    private readonly InteractHighlight highlight = new InteractHighlight();
 
     /// <summary>いま狙えている物。無ければ null。</summary>
     public Grabbable Aimed { get; private set; }
@@ -68,9 +69,13 @@ public class RobotGrabber : MonoBehaviour
     /// <summary>いま持っている物。無ければ null。</summary>
     public Grabbable Held { get; private set; }
 
-    /// <summary>いま物を持てる状態か（手のある体を操作しているか）。</summary>
+    /// <summary>
+    /// いま物を持てる状態か（手のある体を操作しているか）。
+    /// **ロープにつかまっている間は持てない。**
+    /// </summary>
     public bool CanGrabNow =>
-        controller != null && controller.ActiveBody != null && controller.ActiveBody.CanHold;
+        controller != null && controller.ActiveBody != null && controller.ActiveBody.CanHold
+        && (ropeClimber == null || !ropeClimber.IsAttached);
 
     // 持つ前の状態。離すときに元へ戻すために control しておく
     private Transform heldOriginalParent;
@@ -90,6 +95,7 @@ public class RobotGrabber : MonoBehaviour
     private void Awake()
     {
         controller = GetComponent<RobotController>();
+        ropeClimber = GetComponent<RobotRopeClimber>();
     }
 
     private void OnEnable()
@@ -125,11 +131,15 @@ public class RobotGrabber : MonoBehaviour
             UpdateAim();
         }
 
-        if (WasGrabKeyPressed())
+        // ロープを狙っている・つかまっているときは、F キーはロープに譲る
+        if (WasGrabKeyPressed() && !RopeHandlesInteract)
         {
             ToggleGrab();
         }
     }
+
+    /// <summary>このフレームの F キーを、ロープ側が受け取るか。</summary>
+    private bool RopeHandlesInteract => ropeClimber != null && ropeClimber.WantsInteract;
 
     // ------------------------------------------------------------
     // 狙う
@@ -415,46 +425,17 @@ public class RobotGrabber : MonoBehaviour
     // ------------------------------------------------------------
     // 色を変える
     //
-    // ※ `renderer.material` に一度触ると、その物だけのマテリアルが作られ、
-    //    `sharedMaterial` もそちらを指すようになる。
-    //    そのため、**変える前に元の色を控えておく**必要がある
+    // 中身は <see cref="InteractHighlight"/> にまとめてある（ロープと共通）
     // ------------------------------------------------------------
 
     private void ApplyHighlight(GameObject target)
     {
-        target.GetComponentsInChildren(highlightRenderers);
-
-        foreach (Renderer renderer in highlightRenderers)
-        {
-            if (renderer.material == null || !renderer.material.HasProperty("_BaseColor"))
-            {
-                highlightOriginalColors.Add(Color.white);
-                continue;
-            }
-
-            Color original = renderer.material.color;
-            highlightOriginalColors.Add(original);
-
-            renderer.material.color = Color.Lerp(original, highlightColor, highlightStrength);
-        }
+        highlight.Apply(target, highlightColor, highlightStrength);
     }
 
     private void ClearHighlight()
     {
-        for (int i = 0; i < highlightRenderers.Count; i++)
-        {
-            Renderer renderer = highlightRenderers[i];
-
-            if (renderer == null || i >= highlightOriginalColors.Count)
-            {
-                continue;
-            }
-
-            renderer.material.color = highlightOriginalColors[i];
-        }
-
-        highlightRenderers.Clear();
-        highlightOriginalColors.Clear();
+        highlight.Clear();
     }
 
     private bool WasGrabKeyPressed()

@@ -219,6 +219,31 @@ public class RobotBody : MonoBehaviour
     }
 
     /// <summary>
+    /// **重力を無視して、そのまま動かす。**
+    /// ロープにつかまっている間など、**落ちてほしくないとき**に使う。
+    ///
+    /// 落ちる勢いも、切り離しで与えられた勢いも、毎回ゼロに戻している。
+    /// つかまっている間に落ちる速さが溜まっていると、
+    /// **手を離した瞬間に急降下してしまう**ため。
+    ///
+    /// 壁や天井にはぶつかる（<see cref="CharacterController"/> 越しに動かしているため）。
+    /// </summary>
+    public void MoveWithoutGravity(Vector3 delta, Vector3? faceDirection)
+    {
+        if (characterController == null)
+        {
+            return;
+        }
+
+        verticalVelocity = 0f;
+        launchVelocity = Vector3.zero;
+
+        characterController.Move(delta);
+
+        ApplyRotation(Vector3.zero, faceDirection);
+    }
+
+    /// <summary>
     /// **進む向きによって速さを変える。**
     ///
     /// 体が「見ている方向」を向いているとき（＝向きが固定されているとき）だけ働く。
