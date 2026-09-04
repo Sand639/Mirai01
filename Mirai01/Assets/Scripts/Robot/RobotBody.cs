@@ -53,8 +53,19 @@ public class RobotBody : MonoBehaviour
     /// <summary>この体自身の見た目。持った物は含まない（起動時に控えておく）。</summary>
     private Renderer[] ownVisuals;
 
+    [Header("外から与えられた勢い")]
+    [Tooltip("勢いが弱まる速さ。大きいほど早く止まる")]
+    [Range(0.5f, 20f)]
+    [SerializeField] private float launchDamping = 3f;
+
     private CharacterController characterController;
     private float verticalVelocity;
+
+    /// <summary>
+    /// 切り離しなどで外から与えられた勢い（水平方向）。
+    /// 自分で歩く速さとは別に足され、だんだん弱まる。
+    /// </summary>
+    private Vector3 launchVelocity;
 
     /// <summary>この体の進む速さ。</summary>
     public float MoveSpeed => moveSpeed;
@@ -161,10 +172,32 @@ public class RobotBody : MonoBehaviour
         }
 
         Vector3 velocity = direction * (moveSpeed * GetSpeedRate(direction, faceDirection));
+
+        // 切り離しなどで与えられた勢いを足す。時間とともに弱まる
+        velocity += launchVelocity;
+        launchVelocity = Vector3.Lerp(
+            launchVelocity, Vector3.zero, 1f - Mathf.Exp(-launchDamping * Time.deltaTime));
+
         velocity.y = verticalVelocity;
         characterController.Move(velocity * Time.deltaTime);
 
         ApplyRotation(direction, faceDirection);
+    }
+
+    /// <summary>
+    /// **外から勢いを与える。** 切り離したときに飛ばすのに使う。
+    ///
+    /// 水平方向の勢いはだんだん弱まる。
+    /// 上向きの成分は、ジャンプと同じ扱いになる（重力で落ちてくる）。
+    /// </summary>
+    public void Launch(Vector3 velocity)
+    {
+        launchVelocity = new Vector3(velocity.x, 0f, velocity.z);
+
+        if (velocity.y > 0f)
+        {
+            verticalVelocity = velocity.y;
+        }
     }
 
     /// <summary>
@@ -268,5 +301,6 @@ public class RobotBody : MonoBehaviour
 
         characterController.enabled = wasEnabled;
         verticalVelocity = 0f;
+        launchVelocity = Vector3.zero;
     }
 }

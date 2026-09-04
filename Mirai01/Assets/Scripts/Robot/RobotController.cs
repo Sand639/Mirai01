@@ -50,9 +50,25 @@ public class RobotController : MonoBehaviour
     [Tooltip("Assets/InputSystem_Actions を入れる")]
     [SerializeField] private InputActionAsset inputActions;
 
-    [Header("切り離したときの置き場所")]
-    [Tooltip("合体した体の足元から見た、上半身の出てくる位置")]
-    [SerializeField] private Vector3 upperSplitOffset = new Vector3(0f, 1.0f, -0.9f);
+    [Header("切り離したときの飛び方")]
+    [Tooltip("上半身が出てくる高さ（合体した体の足元から）")]
+    [Range(0f, 3f)]
+    [SerializeField] private float upperSplitHeight = 1.0f;
+
+    [Tooltip("上半身が離れる距離（メートル）")]
+    [Range(0f, 3f)]
+    [SerializeField] private float upperSplitDistance = 0.9f;
+
+    [Tooltip("上半身が飛んでいく勢い（1秒あたりのメートル）。0にすると置くだけ")]
+    [Range(0f, 15f)]
+    [SerializeField] private float upperLaunchSpeed = 5f;
+
+    [Tooltip("上半身が上へ跳ねる勢い。0にすると水平に飛ぶ")]
+    [Range(0f, 10f)]
+    [SerializeField] private float upperLaunchUp = 2.5f;
+
+    [Tooltip("キーを何も押していないときに、上半身が離れる向き（体から見て）")]
+    [SerializeField] private Vector3 upperSplitDefaultDirection = Vector3.back;
 
     [Tooltip("合体した体の足元から見た、下半身の出てくる位置")]
     [SerializeField] private Vector3 lowerSplitOffset = Vector3.zero;
@@ -204,17 +220,54 @@ public class RobotController : MonoBehaviour
         Vector3 basePosition = combinedBody.transform.position;
         Quaternion baseRotation = combinedBody.transform.rotation;
 
+        // **押しているキーの方向へ飛ばす。**
+        // W なら前、S なら後ろ。何も押していなければ、体から見た初期方向
+        Vector3 launchDirection = GetSplitDirection(baseRotation);
+
         // 合体した体を隠してから、2つを置く
         combinedBody.gameObject.SetActive(false);
 
         PlaceBody(lowerBody, basePosition + baseRotation * lowerSplitOffset, baseRotation);
-        PlaceBody(upperBody, basePosition + baseRotation * upperSplitOffset, baseRotation);
+
+        Vector3 upperPosition = basePosition
+            + launchDirection * upperSplitDistance
+            + Vector3.up * upperSplitHeight;
+
+        PlaceBody(upperBody, upperPosition, baseRotation);
+
+        // 置いたあとに勢いを与える（置く処理が勢いを消すため、順番が大事）
+        upperBody.Launch(launchDirection * upperLaunchSpeed + Vector3.up * upperLaunchUp);
 
         ApplyState(RobotState.SplitUpper);
 
         // 拡張ポイント：ここで切り離しのエフェクトや音を鳴らせる
         Split?.Invoke();
         ControlSwitched?.Invoke(State);
+    }
+
+    /// <summary>
+    /// 切り離したときに、上半身が飛んでいく向きを決める。
+    ///
+    /// **押しているキーの方向へ飛ぶ。**
+    /// W なら前、S なら後ろ、A / D なら横。斜めもそのまま反映される。
+    ///
+    /// 何も押していないときは、体から見た決まった向き
+    /// （初期設定では後ろ）へ離れる。
+    /// </summary>
+    private Vector3 GetSplitDirection(Quaternion baseRotation)
+    {
+        Vector3 input = GetMoveDirection();
+
+        if (input.sqrMagnitude > 0.01f)
+        {
+            input.y = 0f;
+            return input.normalized;
+        }
+
+        Vector3 fallback = baseRotation * upperSplitDefaultDirection;
+        fallback.y = 0f;
+
+        return fallback.sqrMagnitude > 0.0001f ? fallback.normalized : baseRotation * Vector3.back;
     }
 
     // ------------------------------------------------------------
