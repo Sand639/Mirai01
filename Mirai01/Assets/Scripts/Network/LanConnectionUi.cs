@@ -74,8 +74,66 @@ public class LanConnectionUi : MonoBehaviour
         GUI.matrix = saved;
     }
 
+    /// <summary>つながっていないときに、いまどの画面を出しているか。</summary>
+    private enum UiPage
+    {
+        /// <summary>遊び方を選ぶ画面</summary>
+        ModeSelect,
+
+        /// <summary>LANでつなぐ画面</summary>
+        Lan,
+    }
+
+    private UiPage page = UiPage.ModeSelect;
+
     /// <summary>まだつながっていないときの表示。</summary>
     private void DrawDisconnected()
+    {
+        if (page == UiPage.ModeSelect)
+        {
+            DrawModeSelect();
+            return;
+        }
+
+        DrawLan();
+    }
+
+    /// <summary>
+    /// 遊び方を選ぶ画面。
+    ///
+    /// **本番のタイトル画面は、ここと同じ選択肢になる予定。**
+    /// いまは中身を確かめるための仮の見た目。
+    /// </summary>
+    private void DrawModeSelect()
+    {
+        GUILayout.Label("■ 遊び方を選ぶ");
+        GUILayout.Space(6f);
+
+        if (GUILayout.Button("LANで遊ぶ（同じ場所のPC同士）"))
+        {
+            page = UiPage.Lan;
+        }
+
+        GUILayout.Space(4f);
+
+        // インターネット対応は工程6で入れる。いまは押せないようにしておく
+        GUI.enabled = false;
+        GUILayout.Button("インターネットで遊ぶ（準備中）");
+        GUI.enabled = true;
+
+        GUILayout.Label("　※ 離れた人とつなぐ機能は、これから作ります");
+
+        GUILayout.Space(8f);
+
+        if (GUILayout.Button("1人で練習する（通信を使わない）"))
+        {
+            Apply("0.0.0.0");
+            manager.StartHost();
+        }
+    }
+
+    /// <summary>LANでつなぐ画面。</summary>
+    private void DrawLan()
     {
         GUILayout.Label("■ LANでつなぐ");
         GUILayout.Space(4f);
@@ -108,6 +166,13 @@ public class LanConnectionUi : MonoBehaviour
             Apply(null);
             manager.StartClient();
         }
+
+        GUILayout.Space(8f);
+
+        if (GUILayout.Button("戻る"))
+        {
+            page = UiPage.ModeSelect;
+        }
     }
 
     /// <summary>つながっているときの表示。</summary>
@@ -139,6 +204,7 @@ public class LanConnectionUi : MonoBehaviour
         if (GUILayout.Button("切断する"))
         {
             manager.Shutdown();
+            page = UiPage.ModeSelect;
         }
     }
 

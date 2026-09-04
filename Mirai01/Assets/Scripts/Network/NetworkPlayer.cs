@@ -183,6 +183,48 @@ public class NetworkPlayer : NetworkBehaviour
     }
 
     // ------------------------------------------------------------
+    // 物を押す
+    // ------------------------------------------------------------
+
+    [Header("物を押す")]
+    [Tooltip("「押している」をホストへ伝える間隔（秒）。短いほど反応がよく、通信量は増える")]
+    [Range(0.02f, 0.5f)]
+    [SerializeField] private float pushSendInterval = 0.1f;
+
+    private float nextPushSendTime;
+
+    /// <summary>
+    /// 歩いていて何かにぶつかったときに、Unityが呼んでくれる。
+    /// **押せる箱だったら、ホストに「押した」と伝える。**
+    ///
+    /// 自分では力を加えない。加えてしまうと、
+    /// **自分の画面でだけ箱が動いて、他の人の画面では動かない**という食い違いが起きるため。
+    ///
+    /// **ぶつかっている間、毎フレーム呼ばれる。**
+    /// 毎フレーム送ると通信量が無駄なので、少し間隔をあけて送る。
+    ///
+    /// ホスト側は、これを**「押している状態」として預かり、その間ずっと力を加える。**
+    /// 1回の指示で1発叩く形ではないので、**途中で1回届かなくても体感が変わらない。**
+    /// </summary>
+    private void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        if (!IsOwner || !IsSpawned || Time.time < nextPushSendTime)
+        {
+            return;
+        }
+
+        PushableBox box = hit.collider.GetComponentInParent<PushableBox>();
+
+        if (box == null)
+        {
+            return;
+        }
+
+        nextPushSendTime = Time.time + pushSendInterval;
+        box.PushServerRpc(hit.moveDirection);
+    }
+
+    // ------------------------------------------------------------
     // 出てくる場所とカメラ
     // ------------------------------------------------------------
 

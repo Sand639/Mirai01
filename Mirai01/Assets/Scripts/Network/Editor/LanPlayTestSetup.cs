@@ -92,6 +92,9 @@ public static class LanPlayTestSetup
 
         NetworkPlayer player = root.AddComponent<NetworkPlayer>();
 
+        // 得点。ホストだけが書き換えられる
+        root.AddComponent<PlayerScore>();
+
         var inputActions = AssetDatabase.LoadAssetAtPath<InputActionAsset>(InputActionsPath);
         if (inputActions == null)
         {
@@ -164,10 +167,83 @@ public static class LanPlayTestSetup
         managerObject.AddComponent<LanConnectionUi>();
         managerObject.AddComponent<LanAutoStart>();
         managerObject.AddComponent<LanConnectionLogger>();
+        managerObject.AddComponent<NetworkStatusHud>();
 
         EditorUtility.SetDirty(manager);
 
+        // ----- 中身の同期を確かめるもの -----
+        // 位置が合うだけでは「遊べるか」は分からないので、
+        // 得点と物理も同期されることを確かめられるようにしておく
+        Material itemMaterial = CreateMaterial(MaterialFolder + "/NetworkItem.mat", new Color(0.95f, 0.85f, 0.25f));
+        Material boxMaterial = CreateMaterial(MaterialFolder + "/NetworkPushBox.mat", new Color(0.80f, 0.55f, 0.35f));
+
+        CreatePickupItem("Item_North", new Vector3(0f, 1f, 6f), itemMaterial);
+        CreatePickupItem("Item_South", new Vector3(0f, 1f, -6f), itemMaterial);
+        CreatePickupItem("Item_East", new Vector3(6f, 1f, 0f), itemMaterial);
+        CreatePickupItem("Item_West", new Vector3(-6f, 1f, 0f), itemMaterial);
+
+        CreatePushableBox("PushBox_1", new Vector3(-2.5f, 0.5f, 2.5f), boxMaterial);
+        CreatePushableBox("PushBox_2", new Vector3(2.5f, 0.5f, 2.5f), boxMaterial);
+
         EditorSceneManager.SaveScene(scene, ScenePath);
+    }
+
+    /// <summary>
+    /// 触ると点が入るアイテムを1つ置く。
+    /// **取った判定はホストだけが行う**ので、二重取りにならない。
+    /// </summary>
+    private static void CreatePickupItem(string name, Vector3 position, Material material)
+    {
+        GameObject item = new GameObject(name);
+        item.transform.position = position;
+
+        item.AddComponent<NetworkObject>();
+
+        // 当たり判定は付けない。
+        // 取った判定は「ホストが距離を測る」形にしてあるため
+        // （自分以外のキャラクターは CharacterController を切ってあり、
+        //   切ると当たり判定ごと無くなって、ホスト以外が取れなくなる）
+        GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        visual.name = "Visual";
+        visual.transform.SetParent(item.transform, false);
+        visual.transform.localScale = new Vector3(0.6f, 0.6f, 0.6f);
+        visual.transform.localRotation = Quaternion.Euler(45f, 0f, 45f);
+        Object.DestroyImmediate(visual.GetComponent<Collider>());
+        visual.GetComponent<MeshRenderer>().sharedMaterial = material;
+
+        PickupItem pickup = item.AddComponent<PickupItem>();
+
+        SerializedObject serialized = new SerializedObject(pickup);
+        serialized.FindProperty("visual").objectReferenceValue = visual;
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    /// <summary>
+    /// みんなで押せる箱を1つ置く。
+    /// **物理はホストだけが回し、その結果の位置を全員へ配る。**
+    /// </summary>
+    private static void CreatePushableBox(string name, Vector3 position, Material material)
+    {
+        GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        box.name = name;
+        box.transform.position = position;
+        box.GetComponent<MeshRenderer>().sharedMaterial = material;
+
+        Rigidbody body = box.AddComponent<Rigidbody>();
+        body.mass = 2f;
+        body.linearDamping = 1.5f;
+        body.angularDamping = 2f;
+
+        box.AddComponent<NetworkObject>();
+
+        // 権限は初期設定のまま（＝ホストが位置を送る）。
+        // プレイヤーと違い、押される側なので本人権限にはしない
+        NetworkTransform networkTransform = box.AddComponent<NetworkTransform>();
+        networkTransform.SyncScaleX = false;
+        networkTransform.SyncScaleY = false;
+        networkTransform.SyncScaleZ = false;
+
+        box.AddComponent<PushableBox>();
     }
 
     private static void CreateBox(string name, Vector3 position, Material material)

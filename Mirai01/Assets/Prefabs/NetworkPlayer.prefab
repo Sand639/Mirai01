@@ -103,6 +103,7 @@ GameObject:
   - component: {fileID: 9098585878876153013}
   - component: {fileID: 5870734331001776955}
   - component: {fileID: 6471577313015338759}
+  - component: {fileID: 6317181381839049489}
   m_Layer: 0
   m_Name: NetworkPlayer
   m_TagString: Untagged
@@ -249,6 +250,20 @@ MonoBehaviour:
   - {r: 0.45, g: 0.85, b: 0.45, a: 1}
   - {r: 0.95, g: 0.8, b: 0.3, a: 1}
   spawnRadius: 3
+  pushSendInterval: 0.1
+--- !u!114 &6317181381839049489
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5568158001258972430}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a2ac474e045c9444486420d818d739d1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerScore
+  ShowTopMostFoldoutHeaderGroup: 1
 --- !u!1 &6807069122846669884
 GameObject:
   m_ObjectHideFlags: 0
