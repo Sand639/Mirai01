@@ -51,11 +51,15 @@ public class RobotController : MonoBehaviour
     [SerializeField] private InputActionAsset inputActions;
 
     [Header("切り離したときの飛び方")]
-    [Tooltip("上半身が出てくる高さ（合体した体の足元から）")]
+    [Tooltip("ONにすると、上半身が出てくる高さを**体の大きさから自動で計算する**。" +
+             "合体していたときに上半身があった位置から、そのまま出てくる")]
+    [SerializeField] private bool autoSplitHeight = true;
+
+    [Tooltip("自動計算を使わないときの高さ（合体した体の足元から）")]
     [Range(0f, 3f)]
     [SerializeField] private float upperSplitHeight = 1.0f;
 
-    [Tooltip("上半身が離れる距離（メートル）")]
+    [Tooltip("上半身が離れる距離（メートル）。何も押していないときは使わない")]
     [Range(0f, 3f)]
     [SerializeField] private float upperSplitDistance = 0.9f;
 
@@ -63,12 +67,14 @@ public class RobotController : MonoBehaviour
     [Range(0f, 15f)]
     [SerializeField] private float upperLaunchSpeed = 5f;
 
-    [Tooltip("上半身が上へ跳ねる勢い。0にすると水平に飛ぶ")]
+    [Tooltip("キーを押しているときに、上へ跳ねる勢い。0にすると水平に飛ぶ")]
     [Range(0f, 10f)]
     [SerializeField] private float upperLaunchUp = 2.5f;
 
-    [Tooltip("キーを何も押していないときに、上半身が離れる向き（体から見て）")]
-    [SerializeField] private Vector3 upperSplitDefaultDirection = Vector3.back;
+    [Tooltip("**キーを何も押していないときに、真上へ飛ぶ勢い。**横には動かない。" +
+             "4なら約0.4m、6なら約0.9m上がる")]
+    [Range(0f, 15f)]
+    [SerializeField] private float upperLaunchUpOnly = 4f;
 
     [Tooltip("合体した体の足元から見た、下半身の出てくる位置")]
     [SerializeField] private Vector3 lowerSplitOffset = Vector3.zero;
@@ -221,8 +227,9 @@ public class RobotController : MonoBehaviour
         Quaternion baseRotation = combinedBody.transform.rotation;
 
         // **押しているキーの方向へ飛ばす。**
-        // W なら前、S なら後ろ。何も押していなければ、体から見た初期方向
-        Vector3 launchDirection = GetSplitDirection(baseRotation);
+        // W なら前、S なら後ろ。何も押していなければ、横には動かず真上へ飛ぶ
+        Vector3 launchDirection = GetSplitDirection();
+        bool hasInput = launchDirection.sqrMagnitude > 0.0001f;
 
         // 合体した体を隠してから、2つを置く
         combinedBody.gameObject.SetActive(false);
@@ -231,12 +238,13 @@ public class RobotController : MonoBehaviour
 
         Vector3 upperPosition = basePosition
             + launchDirection * upperSplitDistance
-            + Vector3.up * upperSplitHeight;
+            + Vector3.up * GetSplitHeight();
 
         PlaceBody(upperBody, upperPosition, baseRotation);
 
         // 置いたあとに勢いを与える（置く処理が勢いを消すため、順番が大事）
-        upperBody.Launch(launchDirection * upperLaunchSpeed + Vector3.up * upperLaunchUp);
+        float upSpeed = hasInput ? upperLaunchUp : upperLaunchUpOnly;
+        upperBody.Launch(launchDirection * upperLaunchSpeed + Vector3.up * upSpeed);
 
         ApplyState(RobotState.SplitUpper);
 
@@ -246,28 +254,45 @@ public class RobotController : MonoBehaviour
     }
 
     /// <summary>
-    /// 切り離したときに、上半身が飛んでいく向きを決める。
+    /// 切り離したときに、上半身が飛んでいく**横方向**を決める。
     ///
     /// **押しているキーの方向へ飛ぶ。**
     /// W なら前、S なら後ろ、A / D なら横。斜めもそのまま反映される。
     ///
-    /// 何も押していないときは、体から見た決まった向き
-    /// （初期設定では後ろ）へ離れる。
+    /// **何も押していないときは、横には動かない**（ゼロを返す）。
+    /// その場合は真上へ飛ぶ。
     /// </summary>
-    private Vector3 GetSplitDirection(Quaternion baseRotation)
+    private Vector3 GetSplitDirection()
     {
         Vector3 input = GetMoveDirection();
+        input.y = 0f;
 
-        if (input.sqrMagnitude > 0.01f)
+        return input.sqrMagnitude > 0.01f ? input.normalized : Vector3.zero;
+    }
+
+    /// <summary>
+    /// 切り離したときに、上半身が出てくる高さを決める。
+    ///
+    /// **決め打ちの数字を書かず、体の大きさから計算する。**
+    /// 合体した体の高さから上半身の高さを引くと、
+    /// **合体していたときに上半身の足元があった高さ**になる。
+    ///
+    /// 例：合体2.0m − 上半身0.9m ＝ 1.1m
+    ///
+    /// こうしておくと、**体の大きさを変えても位置がずれない。**
+    /// 自動計算を使いたくない場合は `Auto Split Height` を OFF にする。
+    /// </summary>
+    private float GetSplitHeight()
+    {
+        if (!autoSplitHeight)
         {
-            input.y = 0f;
-            return input.normalized;
+            return upperSplitHeight;
         }
 
-        Vector3 fallback = baseRotation * upperSplitDefaultDirection;
-        fallback.y = 0f;
+        float height = combinedBody.Height - upperBody.Height;
 
-        return fallback.sqrMagnitude > 0.0001f ? fallback.normalized : baseRotation * Vector3.back;
+        // 大きさが取れなかった場合の保険
+        return height > 0f ? height : upperSplitHeight;
     }
 
     // ------------------------------------------------------------

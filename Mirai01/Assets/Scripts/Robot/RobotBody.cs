@@ -88,6 +88,24 @@ public class RobotBody : MonoBehaviour
     /// <summary>いま地面に足が付いているか。UIの表示などに使える。</summary>
     public bool IsGrounded => characterController != null && characterController.isGrounded;
 
+    /// <summary>
+    /// この体の高さ（メートル）。
+    /// **切り離したときに、上半身をどの高さに出すかを計算するのに使う。**
+    /// 決め打ちの数字を書かずに済む。
+    /// </summary>
+    public float Height
+    {
+        get
+        {
+            if (characterController == null)
+            {
+                characterController = GetComponent<CharacterController>();
+            }
+
+            return characterController != null ? characterController.height : 0f;
+        }
+    }
+
     private void Awake()
     {
         characterController = GetComponent<CharacterController>();
