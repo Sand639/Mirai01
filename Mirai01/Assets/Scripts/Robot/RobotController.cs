@@ -12,6 +12,8 @@ using UnityEngine.InputSystem;
 ///   Tab           … 操作する方を切り替える（上半身 ⇔ 下半身）
 ///   E             … 近づいていれば合体する
 ///   Space         … ジャンプする（合体中と、分離中の下半身だけ）
+///   F             … 目の前の物を持つ／離す（合体中と、分離中の上半身だけ）
+///   V             … 一人称と三人称を切り替える
 ///
 /// **合体しているときは1体、分けたときは2体**という作りにしている。
 /// 2つを物理的に繋いで動かすとガタつくため、繋ぐのをやめて
@@ -299,6 +301,19 @@ public class RobotController : MonoBehaviour
     // 動かす
     // ------------------------------------------------------------
 
+    /// <summary>
+    /// **体を「見ている方向」に向けるか。**
+    ///
+    /// ONにすると、**一人称でも三人称でも**カメラの向きに体が揃う（フォートナイト型）。
+    /// 向きが固定されるぶん、**横歩き・後ろ歩きが表現できる**ようになる
+    /// （速さの違いは <see cref="RobotBody"/> 側で付けている）。
+    ///
+    /// OFFにすると、進む方向へ向き直る昔の作りに戻る。
+    ///
+    /// 切り替えるのは <see cref="RobotViewSwitcher"/>。
+    /// </summary>
+    public bool FaceLookDirection { get; set; }
+
     private void MoveBodies()
     {
         Vector3 direction = GetMoveDirection();
@@ -306,21 +321,26 @@ public class RobotController : MonoBehaviour
         // ジャンプできるのは「合体中」と「分離中の下半身」だけ
         bool jump = jumpAction.WasPressedThisFrame() && CanJump;
 
+        // 見ている方向を向かせる（一人称・三人称とも）
+        Vector3? facing = FaceLookDirection && cameraLook != null
+            ? cameraLook.FlatForward
+            : (Vector3?)null;
+
         if (State == RobotState.Combined)
         {
-            combinedBody.Tick(direction, jump);
+            combinedBody.Tick(direction, jump, facing);
             return;
         }
 
         // 操作していない方も、重力だけは効かせる（勝手には動かない）
         if (State == RobotState.SplitUpper)
         {
-            upperBody.Tick(direction, jump);
+            upperBody.Tick(direction, jump, facing);
             lowerBody.Tick(Vector3.zero);
         }
         else
         {
-            lowerBody.Tick(direction, jump);
+            lowerBody.Tick(direction, jump, facing);
             upperBody.Tick(Vector3.zero);
         }
     }

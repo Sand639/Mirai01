@@ -25,10 +25,33 @@ public class RobotBody : MonoBehaviour
     [Tooltip("落ちる強さ。マイナスの値にすること")]
     [SerializeField] private float gravity = -20f;
 
+    [Header("向きによる速さの違い")]
+    [Tooltip("横に動くときの速さ（前を1としたときの割合）。0.5なら50%減")]
+    [Range(0.1f, 1f)]
+    [SerializeField] private float sideSpeedRate = 0.5f;
+
+    [Tooltip("後ろに動くときの速さ（前を1としたときの割合）。0.7なら30%減")]
+    [Range(0.1f, 1f)]
+    [SerializeField] private float backSpeedRate = 0.7f;
+
     [Header("ジャンプ")]
     [Tooltip("ジャンプで上がる高さ（メートル）。0にするとその場で跳ねなくなる")]
     [Range(0f, 5f)]
     [SerializeField] private float jumpHeight = 1.2f;
+
+    [Header("物を持つ")]
+    [Tooltip("持った物を置く場所。**手のある体だけ**に入れる（下半身には入れない）")]
+    [SerializeField] private Transform holdPoint;
+
+    [Header("一人称のとき")]
+    [Tooltip("足元から目の高さまで（メートル）。一人称のとき、ここにカメラが来る")]
+    [SerializeField] private float eyeHeight = 1.5f;
+
+    /// <summary>この体の目の高さ。一人称のカメラ位置に使う。</summary>
+    public float EyeHeight => eyeHeight;
+
+    /// <summary>この体自身の見た目。持った物は含まない（起動時に控えておく）。</summary>
+    private Renderer[] ownVisuals;
 
     private CharacterController characterController;
     private float verticalVelocity;
@@ -36,12 +59,53 @@ public class RobotBody : MonoBehaviour
     /// <summary>この体の進む速さ。</summary>
     public float MoveSpeed => moveSpeed;
 
+    /// <summary>
+    /// 持った物を置く場所。**入っていなければ、この体は物を持てない。**
+    ///
+    /// 「合体中と上半身は持てる、下半身は持てない」という決まりを、
+    /// 状態を見て分岐するのではなく**体そのものに持たせている。**
+    /// あとから体を増やしても、ここを入れるかどうかだけで決まる。
+    /// </summary>
+    public Transform HoldPoint => holdPoint;
+
+    /// <summary>この体は物を持てるか。</summary>
+    public bool CanHold => holdPoint != null;
+
+    /// <summary>当たり判定。持った物とぶつからないようにするために使う。</summary>
+    public Collider BodyCollider => characterController;
+
     /// <summary>いま地面に足が付いているか。UIの表示などに使える。</summary>
     public bool IsGrounded => characterController != null && characterController.isGrounded;
 
     private void Awake()
     {
         characterController = GetComponent<CharacterController>();
+
+        // **物を持つ前に**控えておくのが大事。
+        // 持った物は手の下にぶら下がるので、あとから数えると一緒に消えてしまう
+        ownVisuals = GetComponentsInChildren<Renderer>(true);
+    }
+
+    /// <summary>
+    /// この体の見た目を出したり隠したりする。
+    /// **一人称のときに、自分の体で視界がふさがるのを防ぐ**ために使う。
+    ///
+    /// 持っている物は隠さない（手に持った物は見えていてよい）。
+    /// </summary>
+    public void SetVisualVisible(bool visible)
+    {
+        if (ownVisuals == null)
+        {
+            ownVisuals = GetComponentsInChildren<Renderer>(true);
+        }
+
+        foreach (Renderer renderer in ownVisuals)
+        {
+            if (renderer != null)
+            {
+                renderer.enabled = visible;
+            }
+        }
     }
 
     /// <summary>
@@ -60,6 +124,18 @@ public class RobotBody : MonoBehaviour
     /// ここでは渡されたとおりに動くだけにしてある。
     /// </summary>
     public void Tick(Vector3 direction, bool jumpRequested)
+    {
+        Tick(direction, jumpRequested, null);
+    }
+
+    /// <summary>
+    /// 1フレーム分動かす。
+    ///
+    /// `faceDirection` に向きを渡すと、**進む方向ではなくその向きを向く。**
+    /// 一人称のときに「見ている方向を向く」ために使う。
+    /// null を渡すと、これまでどおり進む方向へ向き直る。
+    /// </summary>
+    public void Tick(Vector3 direction, bool jumpRequested, Vector3? faceDirection)
     {
         if (characterController == null)
         {
@@ -84,9 +160,86 @@ public class RobotBody : MonoBehaviour
             verticalVelocity += gravity * Time.deltaTime;
         }
 
-        Vector3 velocity = direction * moveSpeed;
+        Vector3 velocity = direction * (moveSpeed * GetSpeedRate(direction, faceDirection));
         velocity.y = verticalVelocity;
         characterController.Move(velocity * Time.deltaTime);
+
+        ApplyRotation(direction, faceDirection);
+    }
+
+    /// <summary>
+    /// **進む向きによって速さを変える。**
+    ///
+    /// 体が「見ている方向」を向いているとき（＝向きが固定されているとき）だけ働く。
+    /// 進む方向へ向き直る作りのときは、常に前を向いているので差が出ない。
+    ///
+    /// | 進む向き | 速さ |
+    /// | 前 | そのまま |
+    /// | 横 | `sideSpeedRate`（初期値0.5＝50%減） |
+    /// | 後ろ | `backSpeedRate`（初期値0.7＝30%減） |
+    ///
+    /// 斜めのときは、前後と左右の割合で混ぜる。
+    /// 「斜め前」なら前と横の中間の速さになる。
+    /// </summary>
+    private float GetSpeedRate(Vector3 direction, Vector3? faceDirection)
+    {
+        if (!faceDirection.HasValue || direction.sqrMagnitude < 0.0001f)
+        {
+            return 1f;
+        }
+
+        Vector3 forward = faceDirection.Value;
+        forward.y = 0f;
+
+        if (forward.sqrMagnitude < 0.0001f)
+        {
+            return 1f;
+        }
+
+        forward.Normalize();
+
+        Vector3 move = direction;
+        move.y = 0f;
+        move.Normalize();
+
+        // 前後の成分と、左右の成分に分ける
+        float forwardAmount = Vector3.Dot(move, forward);
+        float sideAmount = Mathf.Abs(Vector3.Dot(move, Vector3.Cross(Vector3.up, forward)));
+
+        float forwardRate = forwardAmount >= 0f ? 1f : backSpeedRate;
+        float total = Mathf.Abs(forwardAmount) + sideAmount;
+
+        if (total < 0.0001f)
+        {
+            return 1f;
+        }
+
+        // それぞれの割合で混ぜる。まっすぐ前なら1、真横なら sideSpeedRate になる
+        return (Mathf.Abs(forwardAmount) * forwardRate + sideAmount * sideSpeedRate) / total;
+    }
+
+    /// <summary>
+    /// 体の向きを決める。
+    ///
+    /// - `faceDirection` が渡されていれば、**止まっていてもその向きを向く**（一人称のとき）
+    /// - 渡されていなければ、**進む方向へ向き直る**（三人称のとき）
+    /// </summary>
+    private void ApplyRotation(Vector3 direction, Vector3? faceDirection)
+    {
+        if (faceDirection.HasValue)
+        {
+            Vector3 look = faceDirection.Value;
+            look.y = 0f;
+
+            if (look.sqrMagnitude > 0.0001f)
+            {
+                // 見ている方向にぴったり合わせる。
+                // 遅れて付いてくると、狙った所と体の向きがずれて分かりにくいため
+                transform.rotation = Quaternion.LookRotation(look.normalized, Vector3.up);
+            }
+
+            return;
+        }
 
         if (direction.sqrMagnitude > 0.01f)
         {

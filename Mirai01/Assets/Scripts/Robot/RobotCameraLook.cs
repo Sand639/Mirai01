@@ -104,6 +104,18 @@ public class RobotCameraLook : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 追いかける相手の足元から、どれだけ上を見るか（メートル）。
+    ///
+    /// **一人称と三人称で変える**ため、外から書き換えられるようにしてある。
+    /// 一人称のときは、その体の目の高さに合わせる。
+    /// </summary>
+    public float TargetHeight
+    {
+        get => targetHeight;
+        set => targetHeight = value;
+    }
+
     /// <summary>追いかける相手を決める。切り替わっても位置は滑らかに移る。</summary>
     public void SetTarget(Transform target)
     {

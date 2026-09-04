@@ -90,18 +90,48 @@ public static class RobotRigSetup
         AddVisual(combined.transform, "UpperVisual", new Vector3(0f, LowerSize.y + UpperSize.y * 0.5f, 0f), UpperSize, upperMaterial);
         AddFrontMark(combined.transform, new Vector3(0f, LowerSize.y + UpperSize.y * 0.5f, UpperSize.z * 0.6f), upperMaterial);
 
+        // 持った物を置く場所。**手のある体にだけ付ける**
+        AddHoldPoint(combined, new Vector3(0f, LowerSize.y + UpperSize.y * 0.5f, 0.9f));
+
+        // 一人称のときのカメラの高さ。体ごとに違う
+        SetEyeHeight(combined, LowerSize.y + UpperSize.y * 0.8f);
+
         // ----- 上半身（分けたとき） -----
         GameObject upper = CreateBody(root.transform, "UpperBody", height: UpperSize.y, radius: 0.4f);
         AddVisual(upper.transform, "Visual", new Vector3(0f, UpperSize.y * 0.5f, 0f), UpperSize, upperMaterial);
         AddFrontMark(upper.transform, new Vector3(0f, UpperSize.y * 0.5f, UpperSize.z * 0.6f), upperMaterial);
 
+        AddHoldPoint(upper, new Vector3(0f, UpperSize.y * 0.5f, 0.9f));
+        SetEyeHeight(upper, UpperSize.y * 0.8f);
+
         // ----- 下半身（分けたとき） -----
+        // **下半身には手を付けない。** これだけで「下半身は物を持てない」が決まる
         GameObject lower = CreateBody(root.transform, "LowerBody", height: LowerSize.y, radius: 0.38f);
         AddVisual(lower.transform, "Visual", new Vector3(0f, LowerSize.y * 0.5f, 0f), LowerSize, lowerMaterial);
         AddFrontMark(lower.transform, new Vector3(0f, LowerSize.y * 0.5f, LowerSize.z * 0.6f), lowerMaterial);
+        SetEyeHeight(lower, LowerSize.y * 0.8f);
+
+        // ----- 画面中央のレティクル -----
+        // プレイヤーのプロトタイプと同じものを使っている（ReticleFactory）
+        Reticle reticle = ReticleFactory.Create(root.transform);
 
         // ----- まとめ役 -----
         RobotController controller = root.AddComponent<RobotController>();
+
+        // 物を持つ機能。手のある体を操作しているときだけ働く
+        RobotGrabber grabber = root.AddComponent<RobotGrabber>();
+
+        SerializedObject grabberSerialized = new SerializedObject(grabber);
+        grabberSerialized.FindProperty("reticle").objectReferenceValue = reticle;
+        grabberSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+        // ----- 一人称・三人称の切り替え -----
+        RobotViewSwitcher viewSwitcher = root.AddComponent<RobotViewSwitcher>();
+
+        SerializedObject viewSerialized = new SerializedObject(viewSwitcher);
+        viewSerialized.FindProperty("cameraLook").objectReferenceValue = cameraLook;
+        viewSerialized.FindProperty("cameraTransform").objectReferenceValue = cameraObject.transform;
+        viewSerialized.ApplyModifiedPropertiesWithoutUndo();
 
         SerializedObject serialized = new SerializedObject(controller);
         serialized.FindProperty("combinedBody").objectReferenceValue = combined.GetComponent<RobotBody>();
@@ -119,6 +149,38 @@ public static class RobotRigSetup
         Object.DestroyImmediate(root);
 
         return saved;
+    }
+
+    /// <summary>
+    /// 持った物を置く場所を作り、その体に登録する。
+    ///
+    /// **ここを付けた体だけが、物を持てるようになる。**
+    /// 状態を見て分岐するのではなく、体そのものに持たせている。
+    /// </summary>
+    private static void AddHoldPoint(GameObject body, Vector3 localPosition)
+    {
+        GameObject hold = new GameObject("HoldPoint");
+        hold.transform.SetParent(body.transform, false);
+        hold.transform.localPosition = localPosition;
+
+        RobotBody robotBody = body.GetComponent<RobotBody>();
+
+        SerializedObject serialized = new SerializedObject(robotBody);
+        serialized.FindProperty("holdPoint").objectReferenceValue = hold.transform;
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    /// <summary>
+    /// 一人称のときのカメラの高さを決める。
+    /// **体の大きさが違うので、体ごとに設定する**（上半身だけのときは低くなる）。
+    /// </summary>
+    private static void SetEyeHeight(GameObject body, float height)
+    {
+        RobotBody robotBody = body.GetComponent<RobotBody>();
+
+        SerializedObject serialized = new SerializedObject(robotBody);
+        serialized.FindProperty("eyeHeight").floatValue = height;
+        serialized.ApplyModifiedPropertiesWithoutUndo();
     }
 
     /// <summary>体を1つ作る。足元が原点になるように当たり判定を置く。</summary>
@@ -190,6 +252,14 @@ public static class RobotRigSetup
 
         CreateBox("Marker", new Vector3(0f, 0.5f, 12f), Vector3.one, stepMaterial);
 
+        // ----- 持てる箱 -----
+        // 大きさを変えて3つ置く。持ったまま隙間を通れるかも試せる
+        Material grabMaterial = CreateMaterial(MaterialFolder + "/RobotGrabBox.mat", new Color(0.85f, 0.60f, 0.85f));
+
+        CreateGrabbableBox("GrabBox_Small", new Vector3(-2f, 0.25f, 2.5f), 0.5f, 1f, grabMaterial);
+        CreateGrabbableBox("GrabBox_Medium", new Vector3(0f, 0.35f, 3f), 0.7f, 2f, grabMaterial);
+        CreateGrabbableBox("GrabBox_Large", new Vector3(2f, 0.5f, 2.5f), 1f, 5f, grabMaterial);
+
         if (prefab != null)
         {
             GameObject robot = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
@@ -197,6 +267,23 @@ public static class RobotRigSetup
         }
 
         EditorSceneManager.SaveScene(scene, ScenePath);
+    }
+
+    /// <summary>ロボットが持てる箱を1つ置く。</summary>
+    private static void CreateGrabbableBox(string name, Vector3 position, float size, float mass, Material material)
+    {
+        GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        box.name = name;
+        box.transform.position = position;
+        box.transform.localScale = new Vector3(size, size, size);
+        box.GetComponent<MeshRenderer>().sharedMaterial = material;
+
+        Rigidbody body = box.AddComponent<Rigidbody>();
+        body.mass = mass;
+        body.linearDamping = 0.5f;
+        body.angularDamping = 1f;
+
+        box.AddComponent<Grabbable>();
     }
 
     private static void CreateBox(string name, Vector3 position, Vector3 scale, Material material)
