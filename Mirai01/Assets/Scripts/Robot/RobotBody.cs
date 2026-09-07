@@ -50,11 +50,28 @@ public class RobotBody : MonoBehaviour
     /// <summary>この体の目の高さ。一人称のカメラ位置に使う。</summary>
     public float EyeHeight => eyeHeight;
 
+    /// <summary>
+    /// **この体の頭の位置**（足元から目の高さだけ上）。
+    /// 「それを狙えているか」を調べるときの中心に使う（<see cref="AimCheck"/>）。
+    /// </summary>
+    public Vector3 HeadPosition => transform.position + Vector3.up * eyeHeight;
+
     /// <summary>この体自身の見た目。持った物は含まない（起動時に控えておく）。</summary>
     private Renderer[] ownVisuals;
 
+    [Header("外から与えられた勢い")]
+    [Tooltip("勢いが弱まる速さ。大きいほど早く止まる")]
+    [Range(0.5f, 20f)]
+    [SerializeField] private float launchDamping = 3f;
+
     private CharacterController characterController;
     private float verticalVelocity;
+
+    /// <summary>
+    /// 切り離しなどで外から与えられた勢い（水平方向）。
+    /// 自分で歩く速さとは別に足され、だんだん弱まる。
+    /// </summary>
+    private Vector3 launchVelocity;
 
     /// <summary>この体の進む速さ。</summary>
     public float MoveSpeed => moveSpeed;
@@ -76,6 +93,24 @@ public class RobotBody : MonoBehaviour
 
     /// <summary>いま地面に足が付いているか。UIの表示などに使える。</summary>
     public bool IsGrounded => characterController != null && characterController.isGrounded;
+
+    /// <summary>
+    /// この体の高さ（メートル）。
+    /// **切り離したときに、上半身をどの高さに出すかを計算するのに使う。**
+    /// 決め打ちの数字を書かずに済む。
+    /// </summary>
+    public float Height
+    {
+        get
+        {
+            if (characterController == null)
+            {
+                characterController = GetComponent<CharacterController>();
+            }
+
+            return characterController != null ? characterController.height : 0f;
+        }
+    }
 
     private void Awake()
     {
@@ -161,10 +196,57 @@ public class RobotBody : MonoBehaviour
         }
 
         Vector3 velocity = direction * (moveSpeed * GetSpeedRate(direction, faceDirection));
+
+        // 切り離しなどで与えられた勢いを足す。時間とともに弱まる
+        velocity += launchVelocity;
+        launchVelocity = Vector3.Lerp(
+            launchVelocity, Vector3.zero, 1f - Mathf.Exp(-launchDamping * Time.deltaTime));
+
         velocity.y = verticalVelocity;
         characterController.Move(velocity * Time.deltaTime);
 
         ApplyRotation(direction, faceDirection);
+    }
+
+    /// <summary>
+    /// **外から勢いを与える。** 切り離したときに飛ばすのに使う。
+    ///
+    /// 水平方向の勢いはだんだん弱まる。
+    /// 上向きの成分は、ジャンプと同じ扱いになる（重力で落ちてくる）。
+    /// </summary>
+    public void Launch(Vector3 velocity)
+    {
+        launchVelocity = new Vector3(velocity.x, 0f, velocity.z);
+
+        if (velocity.y > 0f)
+        {
+            verticalVelocity = velocity.y;
+        }
+    }
+
+    /// <summary>
+    /// **重力を無視して、そのまま動かす。**
+    /// ロープにつかまっている間など、**落ちてほしくないとき**に使う。
+    ///
+    /// 落ちる勢いも、切り離しで与えられた勢いも、毎回ゼロに戻している。
+    /// つかまっている間に落ちる速さが溜まっていると、
+    /// **手を離した瞬間に急降下してしまう**ため。
+    ///
+    /// 壁や天井にはぶつかる（<see cref="CharacterController"/> 越しに動かしているため）。
+    /// </summary>
+    public void MoveWithoutGravity(Vector3 delta, Vector3? faceDirection)
+    {
+        if (characterController == null)
+        {
+            return;
+        }
+
+        verticalVelocity = 0f;
+        launchVelocity = Vector3.zero;
+
+        characterController.Move(delta);
+
+        ApplyRotation(Vector3.zero, faceDirection);
     }
 
     /// <summary>
@@ -268,5 +350,6 @@ public class RobotBody : MonoBehaviour
 
         characterController.enabled = wasEnabled;
         verticalVelocity = 0f;
+        launchVelocity = Vector3.zero;
     }
 }

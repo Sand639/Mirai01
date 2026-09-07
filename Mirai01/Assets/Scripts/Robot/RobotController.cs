@@ -13,6 +13,7 @@ using UnityEngine.InputSystem;
 ///   E             … 近づいていれば合体する
 ///   Space         … ジャンプする（合体中と、分離中の下半身だけ）
 ///   F             … 目の前の物を持つ／離す（合体中と、分離中の上半身だけ）
+///                    目の前がロープなら、つかまる／手を離す
 ///   V             … 一人称と三人称を切り替える
 ///
 /// **合体しているときは1体、分けたときは2体**という作りにしている。
@@ -50,17 +51,44 @@ public class RobotController : MonoBehaviour
     [Tooltip("Assets/InputSystem_Actions を入れる")]
     [SerializeField] private InputActionAsset inputActions;
 
-    [Header("切り離したときの置き場所")]
-    [Tooltip("合体した体の足元から見た、上半身の出てくる位置")]
-    [SerializeField] private Vector3 upperSplitOffset = new Vector3(0f, 1.0f, -0.9f);
+    [Header("切り離したときの飛び方")]
+    [Tooltip("ONにすると、上半身が出てくる高さを**体の大きさから自動で計算する**。" +
+             "合体していたときに上半身があった位置から、そのまま出てくる")]
+    [SerializeField] private bool autoSplitHeight = true;
+
+    [Tooltip("自動計算を使わないときの高さ（合体した体の足元から）")]
+    [Range(0f, 3f)]
+    [SerializeField] private float upperSplitHeight = 1.0f;
+
+    [Tooltip("上半身が離れる距離（メートル）。何も押していないときは使わない")]
+    [Range(0f, 3f)]
+    [SerializeField] private float upperSplitDistance = 0.9f;
+
+    [Tooltip("上半身が飛んでいく勢い（1秒あたりのメートル）。0にすると置くだけ")]
+    [Range(0f, 15f)]
+    [SerializeField] private float upperLaunchSpeed = 5f;
+
+    [Tooltip("キーを押しているときに、上へ跳ねる勢い。0にすると水平に飛ぶ")]
+    [Range(0f, 10f)]
+    [SerializeField] private float upperLaunchUp = 2.5f;
+
+    [Tooltip("**キーを何も押していないときに、真上へ飛ぶ勢い。**横には動かない。" +
+             "4なら約0.4m、6なら約0.9m上がる")]
+    [Range(0f, 15f)]
+    [SerializeField] private float upperLaunchUpOnly = 4f;
 
     [Tooltip("合体した体の足元から見た、下半身の出てくる位置")]
     [SerializeField] private Vector3 lowerSplitOffset = Vector3.zero;
 
     [Header("合体")]
-    [Tooltip("この距離まで近づくと合体できる（メートル）")]
+    [Tooltip("**真上から見たときの距離**が、これ以内なら合体できる（メートル）。高さは含まない")]
     [Range(0.5f, 10f)]
     [SerializeField] private float combineDistance = 2.5f;
+
+    [Tooltip("**高さの差**が、これ以内なら合体できる（メートル）。" +
+             "大きくすると、高い足場の上と下でも合体できるようになる")]
+    [Range(0.1f, 10f)]
+    [SerializeField] private float combineHeightGap = 1.5f;
 
     [Header("カメラ")]
     [Tooltip("ONにすると、下半身を操作中もカメラは上半身のまま。OFFなら操作している方を追いかける")]
@@ -99,7 +127,18 @@ public class RobotController : MonoBehaviour
     /// <summary>いま操作している体。</summary>
     public RobotBody ActiveBody { get; private set; }
 
-    /// <summary>いま合体できるか（近づいているか）。UIの表示に使える。</summary>
+    /// <summary>
+    /// いま合体できるか。**2つの条件を別々に見ている。**
+    ///
+    /// 1. **真上から見たときの距離**（XZ平面）が `combineDistance` 以内
+    /// 2. **高さの差**（Y）が `combineHeightGap` 以内
+    ///
+    /// まっすぐな距離ひとつで見ると、
+    /// **「真横で遠い」と「真上で近い」が同じ扱いになってしまう。**
+    /// 別々にすると、**「足元は近いが、高い足場の上にいる」を弾ける。**
+    ///
+    /// UIの表示にも使える。
+    /// </summary>
     public bool CanCombine
     {
         get
@@ -109,11 +148,38 @@ public class RobotController : MonoBehaviour
                 return false;
             }
 
-            // 高さの差は見ない。段差の上下でも近ければ合体できる
+            return FlatDistance <= combineDistance && HeightGap <= combineHeightGap;
+        }
+    }
+
+    /// <summary>上半身と下半身の、**真上から見たときの距離**（高さを含まない）。</summary>
+    public float FlatDistance
+    {
+        get
+        {
+            if (upperBody == null || lowerBody == null)
+            {
+                return float.MaxValue;
+            }
+
             Vector3 gap = upperBody.transform.position - lowerBody.transform.position;
             gap.y = 0f;
 
-            return gap.magnitude <= combineDistance;
+            return gap.magnitude;
+        }
+    }
+
+    /// <summary>上半身と下半身の、**高さの差**（上下どちらでも正の数になる）。</summary>
+    public float HeightGap
+    {
+        get
+        {
+            if (upperBody == null || lowerBody == null)
+            {
+                return float.MaxValue;
+            }
+
+            return Mathf.Abs(upperBody.transform.position.y - lowerBody.transform.position.y);
         }
     }
 
@@ -126,6 +192,43 @@ public class RobotController : MonoBehaviour
     private InputActionMap playerMap;
     private InputAction moveAction;
     private InputAction jumpAction;
+
+    // ------------------------------------------------------------
+    // 外から使うための窓口
+    //
+    // ロープなど「体を別の動かし方で動かす部品」が、
+    // 入力やカメラの向きを自分で読み直さずに済むように公開している
+    // ------------------------------------------------------------
+
+    /// <summary>
+    /// **この体だけ、普段の移動から外す。**
+    /// ここに入っている体は <see cref="RobotBody.Tick"/> で動かされなくなる（重力も効かない）。
+    ///
+    /// ロープにつかまっている間のように、
+    /// **別の部品が体を動かしたいとき**に入れる（<see cref="RobotRopeClimber"/>）。
+    ///
+    /// **操作していない体でも指定できる。**
+    /// そうしないと、**上半身をロープに残したまま下半身を操作しに行く**と、
+    /// 残した上半身が重力で落ちてしまう。
+    /// </summary>
+    public RobotBody SuspendedBody { get; set; }
+
+    /// <summary>スティック・WASDの入力そのもの。y が前後、x が左右。</summary>
+    public Vector2 MoveInput =>
+        moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
+
+    /// <summary>
+    /// **進みたい方向**（カメラの向きを基準にした、実際の向き）。
+    /// 横向きのロープのように、**「押した方向がどちらを向いているか」を知りたいとき**に使う。
+    /// </summary>
+    public Vector3 MoveWorldDirection => GetMoveDirection();
+
+    /// <summary>このフレームにジャンプが押されたか。</summary>
+    public bool JumpPressedThisFrame => jumpAction != null && jumpAction.WasPressedThisFrame();
+
+    /// <summary>カメラが向いている水平方向。ロープから飛び降りる向きなどに使う。</summary>
+    public Vector3 LookForward =>
+        cameraLook != null ? cameraLook.FlatForward : transform.forward;
 
     private void Awake()
     {
@@ -204,17 +307,73 @@ public class RobotController : MonoBehaviour
         Vector3 basePosition = combinedBody.transform.position;
         Quaternion baseRotation = combinedBody.transform.rotation;
 
+        // **押しているキーの方向へ飛ばす。**
+        // W なら前、S なら後ろ。何も押していなければ、横には動かず真上へ飛ぶ
+        Vector3 launchDirection = GetSplitDirection();
+        bool hasInput = launchDirection.sqrMagnitude > 0.0001f;
+
         // 合体した体を隠してから、2つを置く
         combinedBody.gameObject.SetActive(false);
 
         PlaceBody(lowerBody, basePosition + baseRotation * lowerSplitOffset, baseRotation);
-        PlaceBody(upperBody, basePosition + baseRotation * upperSplitOffset, baseRotation);
+
+        Vector3 upperPosition = basePosition
+            + launchDirection * upperSplitDistance
+            + Vector3.up * GetSplitHeight();
+
+        PlaceBody(upperBody, upperPosition, baseRotation);
+
+        // 置いたあとに勢いを与える（置く処理が勢いを消すため、順番が大事）
+        float upSpeed = hasInput ? upperLaunchUp : upperLaunchUpOnly;
+        upperBody.Launch(launchDirection * upperLaunchSpeed + Vector3.up * upSpeed);
 
         ApplyState(RobotState.SplitUpper);
 
         // 拡張ポイント：ここで切り離しのエフェクトや音を鳴らせる
         Split?.Invoke();
         ControlSwitched?.Invoke(State);
+    }
+
+    /// <summary>
+    /// 切り離したときに、上半身が飛んでいく**横方向**を決める。
+    ///
+    /// **押しているキーの方向へ飛ぶ。**
+    /// W なら前、S なら後ろ、A / D なら横。斜めもそのまま反映される。
+    ///
+    /// **何も押していないときは、横には動かない**（ゼロを返す）。
+    /// その場合は真上へ飛ぶ。
+    /// </summary>
+    private Vector3 GetSplitDirection()
+    {
+        Vector3 input = GetMoveDirection();
+        input.y = 0f;
+
+        return input.sqrMagnitude > 0.01f ? input.normalized : Vector3.zero;
+    }
+
+    /// <summary>
+    /// 切り離したときに、上半身が出てくる高さを決める。
+    ///
+    /// **決め打ちの数字を書かず、体の大きさから計算する。**
+    /// 合体した体の高さから上半身の高さを引くと、
+    /// **合体していたときに上半身の足元があった高さ**になる。
+    ///
+    /// 例：合体2.0m − 上半身0.9m ＝ 1.1m
+    ///
+    /// こうしておくと、**体の大きさを変えても位置がずれない。**
+    /// 自動計算を使いたくない場合は `Auto Split Height` を OFF にする。
+    /// </summary>
+    private float GetSplitHeight()
+    {
+        if (!autoSplitHeight)
+        {
+            return upperSplitHeight;
+        }
+
+        float height = combinedBody.Height - upperBody.Height;
+
+        // 大きさが取れなかった場合の保険
+        return height > 0f ? height : upperSplitHeight;
     }
 
     // ------------------------------------------------------------
@@ -326,23 +485,40 @@ public class RobotController : MonoBehaviour
             ? cameraLook.FlatForward
             : (Vector3?)null;
 
+        // ロープにつかまっている体は、ここでは動かさない。
+        // **動かすのはロープ側**（二重に動かすと引っ張り合いになる）
+
         if (State == RobotState.Combined)
         {
-            combinedBody.Tick(direction, jump, facing);
+            TickBody(combinedBody, direction, jump, facing);
             return;
         }
 
         // 操作していない方も、重力だけは効かせる（勝手には動かない）
         if (State == RobotState.SplitUpper)
         {
-            upperBody.Tick(direction, jump, facing);
-            lowerBody.Tick(Vector3.zero);
+            TickBody(upperBody, direction, jump, facing);
+            TickBody(lowerBody, Vector3.zero, false, null);
         }
         else
         {
-            lowerBody.Tick(direction, jump, facing);
-            upperBody.Tick(Vector3.zero);
+            TickBody(lowerBody, direction, jump, facing);
+            TickBody(upperBody, Vector3.zero, false, null);
         }
+    }
+
+    /// <summary>
+    /// 体を1つ動かす。
+    /// **ロープにつかまっている体だけは、ここでは触らない。**
+    /// </summary>
+    private void TickBody(RobotBody body, Vector3 direction, bool jump, Vector3? facing)
+    {
+        if (body == null || body == SuspendedBody)
+        {
+            return;
+        }
+
+        body.Tick(direction, jump, facing);
     }
 
     /// <summary>カメラの向きを基準に、進みたい方向を求める。</summary>

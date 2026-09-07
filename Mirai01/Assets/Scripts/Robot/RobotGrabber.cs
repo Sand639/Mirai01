@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -29,7 +28,8 @@ public class RobotGrabber : MonoBehaviour
     [Range(0.5f, 5f)]
     [SerializeField] private float reach = 2f;
 
-    [Tooltip("正面からどれだけ横にずれていても持てるか（度）")]
+    [Tooltip("**見ている方向からどれだけずれていても持てるか**（度）。" +
+             "頭を中心に、カメラの向きと、その水平の向きの2本で判断する")]
     [Range(10f, 180f)]
     [SerializeField] private float maxAngle = 70f;
 
@@ -58,9 +58,14 @@ public class RobotGrabber : MonoBehaviour
 
     private RobotController controller;
 
+    /// <summary>ロープ側。同じ F キーをどちらが受け取るか決めるために見ている（無くてもよい）。</summary>
+    private RobotRopeClimber ropeClimber;
+
+    /// <summary>鍵を使う側。こちらも同じ F キーを使う（無くてもよい）。</summary>
+    private RobotKeyUser keyUser;
+
     private readonly Collider[] candidates = new Collider[32];
-    private readonly List<Renderer> highlightRenderers = new List<Renderer>();
-    private readonly List<Color> highlightOriginalColors = new List<Color>();
+    private readonly InteractHighlight highlight = new InteractHighlight();
 
     /// <summary>いま狙えている物。無ければ null。</summary>
     public Grabbable Aimed { get; private set; }
@@ -68,9 +73,13 @@ public class RobotGrabber : MonoBehaviour
     /// <summary>いま持っている物。無ければ null。</summary>
     public Grabbable Held { get; private set; }
 
-    /// <summary>いま物を持てる状態か（手のある体を操作しているか）。</summary>
+    /// <summary>
+    /// いま物を持てる状態か（手のある体を操作しているか）。
+    /// **ロープにつかまっている間は持てない。**
+    /// </summary>
     public bool CanGrabNow =>
-        controller != null && controller.ActiveBody != null && controller.ActiveBody.CanHold;
+        controller != null && controller.ActiveBody != null && controller.ActiveBody.CanHold
+        && (ropeClimber == null || !ropeClimber.IsClimbing);
 
     // 持つ前の状態。離すときに元へ戻すために control しておく
     private Transform heldOriginalParent;
@@ -90,6 +99,8 @@ public class RobotGrabber : MonoBehaviour
     private void Awake()
     {
         controller = GetComponent<RobotController>();
+        ropeClimber = GetComponent<RobotRopeClimber>();
+        keyUser = GetComponent<RobotKeyUser>();
     }
 
     private void OnEnable()
@@ -125,11 +136,22 @@ public class RobotGrabber : MonoBehaviour
             UpdateAim();
         }
 
-        if (WasGrabKeyPressed())
+        // ロープや鍵が受け取るときは、F キーをそちらに譲る
+        if (WasGrabKeyPressed() && !OtherHandlesInteract)
         {
             ToggleGrab();
         }
     }
+
+    /// <summary>
+    /// このフレームの F キーを、**ロープか鍵のほうが受け取るか。**
+    ///
+    /// - ロープ … つかまっている、またはロープを狙っている（物を持っていないとき）
+    /// - 鍵 … **鍵を持っていて、開けられる扉を狙っている**
+    /// </summary>
+    private bool OtherHandlesInteract =>
+        (ropeClimber != null && ropeClimber.WantsInteract)
+        || (keyUser != null && keyUser.WantsInteract);
 
     // ------------------------------------------------------------
     // 狙う
@@ -206,15 +228,15 @@ public class RobotGrabber : MonoBehaviour
 
             checkedCount++;
 
-            Vector3 toTarget = grabbable.transform.position - hand.position;
-
-            // 正面から大きく外れているものは無視する
-            if (Vector3.Angle(body.transform.forward, toTarget) > maxAngle)
+            // **頭を中心に、見ている方向から大きく外れているものは無視する**
+            // （判断のしかたは AimCheck にまとめてある）
+            if (!AimCheck.IsAimed(
+                body.HeadPosition, grabbable.transform.position, maxAngle, body.transform.forward))
             {
                 continue;
             }
 
-            float distance = toTarget.magnitude;
+            float distance = Vector3.Distance(grabbable.transform.position, hand.position);
 
             if (distance < nearestDistance)
             {
@@ -334,6 +356,25 @@ public class RobotGrabber : MonoBehaviour
         Debug.Log($"[ROBOT] {target.name} を離しました");
     }
 
+    /// <summary>
+    /// **持っている物を使い切って、消す。** 鍵を扉に使ったときなどに呼ぶ。
+    ///
+    /// いきなり消さずに**いったん離してから消している。**
+    /// 持ったまま消すと、当たり判定を無視する設定などが後始末されずに残ってしまう。
+    /// </summary>
+    public void ConsumeHeld()
+    {
+        if (Held == null)
+        {
+            return;
+        }
+
+        GameObject target = Held.gameObject;
+
+        Release();
+        Destroy(target);
+    }
+
     /// <summary>持った物と、体の当たり判定をぶつけないようにする（または戻す）。</summary>
     private void IgnoreCollisionWithBody(RobotBody body, bool ignore)
     {
@@ -415,46 +456,17 @@ public class RobotGrabber : MonoBehaviour
     // ------------------------------------------------------------
     // 色を変える
     //
-    // ※ `renderer.material` に一度触ると、その物だけのマテリアルが作られ、
-    //    `sharedMaterial` もそちらを指すようになる。
-    //    そのため、**変える前に元の色を控えておく**必要がある
+    // 中身は <see cref="InteractHighlight"/> にまとめてある（ロープと共通）
     // ------------------------------------------------------------
 
     private void ApplyHighlight(GameObject target)
     {
-        target.GetComponentsInChildren(highlightRenderers);
-
-        foreach (Renderer renderer in highlightRenderers)
-        {
-            if (renderer.material == null || !renderer.material.HasProperty("_BaseColor"))
-            {
-                highlightOriginalColors.Add(Color.white);
-                continue;
-            }
-
-            Color original = renderer.material.color;
-            highlightOriginalColors.Add(original);
-
-            renderer.material.color = Color.Lerp(original, highlightColor, highlightStrength);
-        }
+        highlight.Apply(target, highlightColor, highlightStrength);
     }
 
     private void ClearHighlight()
     {
-        for (int i = 0; i < highlightRenderers.Count; i++)
-        {
-            Renderer renderer = highlightRenderers[i];
-
-            if (renderer == null || i >= highlightOriginalColors.Count)
-            {
-                continue;
-            }
-
-            renderer.material.color = highlightOriginalColors[i];
-        }
-
-        highlightRenderers.Clear();
-        highlightOriginalColors.Clear();
+        highlight.Clear();
     }
 
     private bool WasGrabKeyPressed()

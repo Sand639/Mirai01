@@ -104,6 +104,9 @@ public static class PlayerRigSetup
         camera.nearClipPlane = 0.05f;
         cameraObject.AddComponent<AudioListener>();
 
+        // 壁に遮られたとき、カメラを体の近くへ寄せる（壁の裏が見えないように）
+        cameraObject.AddComponent<CameraObstacleAvoid>();
+
         // 一人称のときに手前に見える腕。カメラの子にして、視点と一緒に動くようにする
         GameObject arms = new GameObject("FirstPersonArms");
         arms.transform.SetParent(cameraObject.transform, false);

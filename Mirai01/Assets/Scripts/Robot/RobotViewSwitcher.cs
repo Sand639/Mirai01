@@ -60,6 +60,12 @@ public class RobotViewSwitcher : MonoBehaviour
     private RobotController controller;
     private RobotBody shownBody;
 
+    /// <summary>
+    /// 壁に遮られたときにカメラを寄せる部品。カメラに付いていれば自動で見つける。
+    /// 無くても動く（そのときは壁の向こうが見えることがある）。
+    /// </summary>
+    private CameraObstacleAvoid obstacleAvoid;
+
     /// <summary>いま一人称か。</summary>
     public bool IsFirstPerson { get; private set; }
 
@@ -67,6 +73,11 @@ public class RobotViewSwitcher : MonoBehaviour
     {
         controller = GetComponent<RobotController>();
         IsFirstPerson = startInFirstPerson;
+
+        if (cameraTransform != null)
+        {
+            obstacleAvoid = cameraTransform.GetComponent<CameraObstacleAvoid>();
+        }
     }
 
     private void OnEnable()
@@ -163,6 +174,13 @@ public class RobotViewSwitcher : MonoBehaviour
                 cameraTransform.localPosition,
                 wantedLocal,
                 1f - Mathf.Exp(-switchSmooth * Time.deltaTime));
+        }
+
+        // **位置を決めたすぐあとに、壁に遮られていないか調べる。**
+        // 間に壁があれば、その手前までカメラを寄せる（向きは変えない）
+        if (obstacleAvoid != null)
+        {
+            obstacleAvoid.Apply();
         }
 
         if (cameraLook != null)

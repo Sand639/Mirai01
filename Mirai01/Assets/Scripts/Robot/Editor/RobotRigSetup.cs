@@ -69,6 +69,9 @@ public static class RobotRigSetup
         camera.nearClipPlane = 0.05f;
         cameraObject.AddComponent<AudioListener>();
 
+        // 壁に遮られたとき、カメラを体の近くへ寄せる（壁の裏が見えないように）
+        cameraObject.AddComponent<CameraObstacleAvoid>();
+
         RobotCameraLook cameraLook = cameraRig.AddComponent<RobotCameraLook>();
 
         var inputActions = AssetDatabase.LoadAssetAtPath<InputActionAsset>(InputActionsPath);
@@ -124,6 +127,20 @@ public static class RobotRigSetup
         SerializedObject grabberSerialized = new SerializedObject(grabber);
         grabberSerialized.FindProperty("reticle").objectReferenceValue = reticle;
         grabberSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+        // ロープにつかまる機能。こちらも手のある体だけ
+        RobotRopeClimber climber = root.AddComponent<RobotRopeClimber>();
+
+        SerializedObject climberSerialized = new SerializedObject(climber);
+        climberSerialized.FindProperty("reticle").objectReferenceValue = reticle;
+        climberSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+        // 持っている鍵を扉に使う機能
+        RobotKeyUser keyUser = root.AddComponent<RobotKeyUser>();
+
+        SerializedObject keySerialized = new SerializedObject(keyUser);
+        keySerialized.FindProperty("reticle").objectReferenceValue = reticle;
+        keySerialized.ApplyModifiedPropertiesWithoutUndo();
 
         // ----- 一人称・三人称の切り替え -----
         RobotViewSwitcher viewSwitcher = root.AddComponent<RobotViewSwitcher>();
@@ -259,6 +276,31 @@ public static class RobotRigSetup
         CreateGrabbableBox("GrabBox_Small", new Vector3(-2f, 0.25f, 2.5f), 0.5f, 1f, grabMaterial);
         CreateGrabbableBox("GrabBox_Medium", new Vector3(0f, 0.35f, 3f), 0.7f, 2f, grabMaterial);
         CreateGrabbableBox("GrabBox_Large", new Vector3(2f, 0.5f, 2.5f), 1f, 5f, grabMaterial);
+
+        // ----- ロープ（上下に移動できる紐） -----
+        // 上の足場は高すぎてジャンプでは届かない。**ロープでしか上がれない**
+        CreateBox("RopeTop", new Vector3(-8f, 6f, 6f), new Vector3(4f, 0.4f, 4f), stepMaterial);
+        RobotRopeSetup.CreateRopeAt("Rope", new Vector3(-5.4f, 0f, 6f), 6.6f);
+
+        // ----- 踏むボタンと、上下する壁 -----
+        // ボタンを踏むと、その先にある壁が下がって通れるようになる
+        PressButton button = StageGimmickSetup.CreateButton("PressButton", new Vector3(0f, 0f, -6f));
+        MoveObject wall = StageGimmickSetup.CreateWall("MovingWall", new Vector3(0f, 1.5f, -9f));
+        StageGimmickSetup.Connect(button, wall);
+
+        // ----- 横向きのロープ（うんてい） -----
+        // 下は通れないので、ぶら下がって渡る
+        RobotRopeSetup.CreateRopeAt("RopeHorizontal", new Vector3(8f, 2.8f, -8f), 6f,
+            Quaternion.Euler(90f, 0f, 0f));
+
+        // ----- ガラスの板 -----
+        // 透けるが通れない。ぶつかって初めて気づかないよう、ふちが光る作りになっている
+        StageGimmickSetup.CreateGlass("Glass", new Vector3(-3f, 1.25f, -6f));
+
+        // ----- 鍵と、鍵付きの扉 -----
+        // 鍵を持って扉まで運び、F で開ける
+        StageGimmickSetup.CreateKey("DoorKey", new Vector3(-6f, 0.3f, -6f), "");
+        StageGimmickSetup.CreateLockedDoor("LockedDoor", new Vector3(-9f, 1.5f, -9f), "");
 
         if (prefab != null)
         {

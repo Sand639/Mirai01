@@ -52,6 +52,12 @@ public class PlayerViewSwitcher : MonoBehaviour
     [Tooltip("切り替わるときの滑らかさ。0にすると一瞬で切り替わる")]
     [SerializeField] private float switchSmooth = 12f;
 
+    /// <summary>
+    /// 壁に遮られたときにカメラを寄せる部品。カメラに付いていれば自動で見つける。
+    /// 無くても動く（そのときは壁の向こうが見えることがある）。
+    /// </summary>
+    private CameraObstacleAvoid obstacleAvoid;
+
     /// <summary>今どちらのモードか。</summary>
     public ViewMode CurrentMode { get; private set; }
 
@@ -65,6 +71,8 @@ public class PlayerViewSwitcher : MonoBehaviour
             enabled = false;
             return;
         }
+
+        obstacleAvoid = cameraTransform.GetComponent<CameraObstacleAvoid>();
 
         // 開始時は滑らかにせず、いきなり目的の位置に置く
         cameraTransform.localPosition = GetTargetPosition();
@@ -91,6 +99,13 @@ public class PlayerViewSwitcher : MonoBehaviour
                 cameraTransform.localPosition,
                 target,
                 1f - Mathf.Exp(-switchSmooth * Time.deltaTime));
+        }
+
+        // **位置を決めたすぐあとに、壁に遮られていないか調べる。**
+        // 間に壁があれば、その手前までカメラを寄せる（向きは変えない）
+        if (obstacleAvoid != null)
+        {
+            obstacleAvoid.Apply();
         }
     }
 
