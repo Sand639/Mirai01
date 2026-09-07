@@ -106,6 +106,13 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        // **止まっている間は、視点もカーソルも触らない。**
+        // ポーズ画面がカーソルを出しているので、ここで奪い返すと選べなくなる
+        if (GamePause.IsPaused)
+        {
+            return;
+        }
+
         UpdateCursor();
 
         // 他の機能がマウスを使っている間は、視点を動かさない
@@ -120,7 +127,8 @@ public class PlayerController : MonoBehaviour
     /// <summary>マウスの動きで、体を左右に・カメラを上下に回す。</summary>
     private void Look()
     {
-        Vector2 look = lookAction.ReadValue<Vector2>() * mouseSensitivity;
+        // 設定画面で変えた感度を掛ける（初期値は1なので、変えなければ今までどおり）
+        Vector2 look = lookAction.ReadValue<Vector2>() * (mouseSensitivity * GameSettings.MouseSensitivity);
 
         // 左右は体ごと回す
         transform.Rotate(Vector3.up, look.x, Space.World);

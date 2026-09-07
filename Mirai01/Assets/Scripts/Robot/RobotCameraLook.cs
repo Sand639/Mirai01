@@ -147,9 +147,17 @@ public class RobotCameraLook : MonoBehaviour
 
     private void Update()
     {
+        // **止まっている間は、視点もカーソルも触らない。**
+        // ポーズ画面がカーソルを出しているので、ここで奪い返すと選べなくなる
+        if (GamePause.IsPaused)
+        {
+            return;
+        }
+
         UpdateCursor();
 
-        Vector2 look = lookAction.ReadValue<Vector2>() * sensitivity;
+        // 設定画面で変えた感度を掛ける（初期値は1なので、変えなければ今までどおり）
+        Vector2 look = lookAction.ReadValue<Vector2>() * (sensitivity * GameSettings.MouseSensitivity);
 
         // 左右はこのオブジェクトごと回す（体は回さない）
         transform.Rotate(Vector3.up, look.x, Space.World);
@@ -162,7 +170,13 @@ public class RobotCameraLook : MonoBehaviour
         }
     }
 
-    /// <summary>Escape でカーソルを出し、画面をクリックすると再び固定する。</summary>
+    /// <summary>
+    /// Escape でカーソルを出し、画面をクリックすると再び固定する。
+    ///
+    /// **ポーズ画面がある場合、Escape はそちらのもの**になる
+    /// （<see cref="GamePause"/> が true の間は、この処理自体を通らない）。
+    /// ポーズ画面を置いていないシーンでは、これまでどおり Escape でカーソルが出る。
+    /// </summary>
     private void UpdateCursor()
     {
         Keyboard keyboard = Keyboard.current;
