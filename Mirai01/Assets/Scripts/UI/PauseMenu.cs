@@ -29,7 +29,13 @@ using UnityEngine.UI;
 /// **空のゲームオブジェクトにこの部品を付けるだけ。**
 /// カメラもUIも要らない（足りない物はこちらで作る）。
 /// メニューの `Tools > Mirai01 > ポーズ画面を置く` でも置ける。
+///
+/// **置き忘れても動く。** シーンのどこにも無ければ、再生したときに自分で1つ作る
+/// （<see cref="AutoCreate"/>）。
 /// </summary>
+// Escape を**他の部品より先に**受け取る。
+// カメラ側も Escape を見ているので、順番が決まっていないと取り合いになる
+[DefaultExecutionOrder(-100)]
 public class PauseMenu : MonoBehaviour
 {
     [Header("キーの割り当て")]
@@ -69,10 +75,24 @@ public class PauseMenu : MonoBehaviour
     /// <summary>いまポーズ画面が開いているか。</summary>
     public bool IsOpen { get; private set; }
 
+    /// <summary>いま使われているポーズ画面。無ければ null。</summary>
+    public static PauseMenu Current { get; private set; }
+
+    /// <summary>
+    /// **このゲームにポーズ画面があるか。**
+    ///
+    /// カメラ側がこれを見て、「Escape は自分のものではない」と判断している。
+    /// </summary>
+    public static bool Exists => Current != null;
+
     private GameObject root;
     private GameObject mainPage;
     private GameObject settingsPage;
     private Font font;
+
+    // 開く前のカーソルの状態（閉じたときに戻すため）
+    private CursorLockMode cursorLockBeforeOpen = CursorLockMode.Locked;
+    private bool cursorVisibleBeforeOpen;
 
     // 画面の作り。1920x1080 を基準にした大きさ
     private const float ItemWidth = 420f;
@@ -81,10 +101,51 @@ public class PauseMenu : MonoBehaviour
 
     private void Awake()
     {
+        // **1つだけにする。** 2つあると Escape で開いた直後に閉じてしまう
+        if (Current != null && Current != this)
+        {
+            Debug.LogWarning("[UI] ポーズ画面が2つあったので、あとの1つを消しました。", gameObject);
+            Destroy(gameObject);
+
+            return;
+        }
+
+        Current = this;
+
         font = FindFont();
 
         Build();
         SetVisible(false);
+    }
+
+    private void OnDestroy()
+    {
+        if (Current == this)
+        {
+            Current = null;
+        }
+    }
+
+    /// <summary>
+    /// **シーンにポーズ画面が無ければ、再生したときに自分で作る。**
+    ///
+    /// 置き忘れると「Escape を押しても何も起きない」ことになり、
+    /// 原因が分かりにくいため。手で置いてあれば何もしない。
+    /// 一度作れば、シーンが変わっても残る。
+    /// </summary>
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void AutoCreate()
+    {
+        if (FindFirstObjectByType<PauseMenu>(FindObjectsInactive.Include) != null)
+        {
+            return;
+        }
+
+        GameObject created = new GameObject("PauseMenu (自動)");
+        created.AddComponent<PauseMenu>();
+        DontDestroyOnLoad(created);
+
+        Debug.Log("[UI] シーンにポーズ画面が無かったので、自動で用意しました。Escape で開きます。");
     }
 
     private void Update()
@@ -138,6 +199,10 @@ public class PauseMenu : MonoBehaviour
 
         GamePause.SetPaused(true);
 
+        // 閉じたときに元へ戻せるよう、開く前の状態を控えておく
+        cursorLockBeforeOpen = Cursor.lockState;
+        cursorVisibleBeforeOpen = Cursor.visible;
+
         // マウスで選ぶので、カーソルを出す
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -156,9 +221,9 @@ public class PauseMenu : MonoBehaviour
         SetVisible(false);
         GamePause.SetPaused(false);
 
-        // 遊びに戻るので、カーソルを画面に固定して消す
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        // 遊びに戻るので、**開く前の状態に戻す**
+        Cursor.lockState = cursorLockBeforeOpen;
+        Cursor.visible = cursorVisibleBeforeOpen;
     }
 
     /// <summary>設定の画面と、最初の画面を切り替える。</summary>
@@ -443,6 +508,12 @@ public class PauseMenu : MonoBehaviour
         {
             // 入れてあれば、そこにある「UI」の設定を使う
             module.actionsAsset = inputActions;
+        }
+        else
+        {
+            // **入れ忘れ・自動で作ったときの手当て。**
+            // 何も入っていないと、クリックが届かない
+            module.AssignDefaultActions();
         }
 
         Debug.Log("[UI] UIのクリックを受け取る EventSystem を作りました");

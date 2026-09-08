@@ -179,8 +179,10 @@ public class PlayerController : MonoBehaviour
     /// <summary>Escape でカーソルを出し、画面をクリックすると再び固定する。</summary>
     private void UpdateCursor()
     {
+        // **ポーズ画面があるときは、Escape はそちらのもの。**
+        // 同じフレームで両方が動くと、閉じた直後にカーソルが出たままになる
         var keyboard = Keyboard.current;
-        if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
+        if (!PauseMenu.Exists && keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
         {
             SetCursorLocked(false);
         }

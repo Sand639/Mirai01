@@ -179,8 +179,10 @@ public class RobotCameraLook : MonoBehaviour
     /// </summary>
     private void UpdateCursor()
     {
+        // **ポーズ画面があるときは、Escape はそちらのもの。**
+        // 同じフレームで両方が動くと、閉じた直後にカーソルが出たままになる
         Keyboard keyboard = Keyboard.current;
-        if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
+        if (!PauseMenu.Exists && keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
         {
             SetCursorLocked(false);
         }
