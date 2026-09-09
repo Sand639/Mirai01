@@ -50,6 +50,8 @@
 | 2026/9/3 | Claude Code | Unityのパッケージを追加するとき | **バージョンを推測で書かない。** `curl -s https://packages.unity.com/＜パッケージ名＞` で本物の一覧が取れる。`dist-tags` の `latest` が最新版で、各版の `unity` の欄に必要なUnityバージョンが書いてある。`Packages/manifest.json` に書き足してからUnityを起動すれば、依存パッケージも含めて自動で入る |
 | 2026/9/6 | Claude Code | **`Assets/` の中でファイルを別のフォルダへ移すとき** | **OSのファイル操作（`mv` や `git mv`）で動かさない。** `.meta` が置いていかれると、シーンやプレハブの参照が全部外れる。**使い捨てのエディタ用スクリプトを書いて `AssetDatabase.MoveAsset(移動元, 移動先)` で動かす**（`.meta` も一緒に付いてくる）。フォルダは `AssetDatabase.CreateFolder` で先に作っておくこと。**使い終わったスクリプトは、最後に `AssetDatabase.DeleteAsset` で自分を消させる**と後片付けが要らない。**移動とプレハブの編集は別々に実行する**（同じ実行の中でやると、コンパイルのタイミングと重なって危ない）。2026/9/6にこの手順で6ファイルを移し、参照は1つも外れなかった |
 | 2026/9/4 | Claude Code | **すでにあるプレハブに、機能（コンポーネント）を1つ足したいとき** | **「作り直すツール」を実行してはいけない。** メンバーがインスペクターで調整した値が、全部初期値に戻ってしまう。代わりに **`PrefabUtility.LoadPrefabContents(パス)` で開き、`AddComponent` して `SaveAsPrefabAsset` で保存する**（最後に `UnloadPrefabContents`）。調整済みの値はそのまま残る。`RobotRopeSetup.AddClimberToPrefab` が実例。**すでに付いていたら何もしない**ようにしておくと、何度実行しても安全 |
+| 2026/9/9 | Claude Code | **アプリ版のClaude Codeで、Unityを動かす作業を頼まれたとき** | **こちらから Unity は起動できない**（バッチ実行はメンバーがUnityを閉じている必要があり、そもそもアプリ版からは実行しづらい）。実際、依頼時に Unity は開きっぱなしだった。**シーンやプレハブは、生成用のエディタスクリプトを書くところまでで止め、メニュー（`Tools > Mirai01 > ...`）から実行してもらう**。スクリプトのコンパイルもメンバー側で走るので、**エラーが出たらConsoleの内容を教えてもらって直す**、という往復前提で進める。`FishingHookTestSetup.cs` はこの前提で作った |
+| 2026/9/9 | Claude Code | **既存プレイヤー（PlayerRig）と操作方式が合わない新機能を作るとき** | 釣りプロトタイプは「マウス方向を向く見下ろし操作」で、`PlayerRig` の一人称/三人称マウス視点（`PlayerController` / `PlayerViewSwitcher`）とは噛み合わない。**プレハブ本体は触らず、生成スクリプトの中で `InstantiatePrefab` → `UnpackPrefabInstance(Completely)` → 合わない `MonoBehaviour` を `enabled = false`、内蔵カメラを `DestroyImmediate`** して土台だけ流用した。「既存Prefabを使う」指示は満たしつつ、`PlayerRig.prefab` の差分は出ない。方向性が固まったら視点モードを増やすか専用の体を作るかは `質問リスト.md` に登録した |
 
 ---
 
@@ -92,3 +94,4 @@
 | 2026/9/4 | Claude Code | キリル文字を探すコマンドが**この環境のgrepでは動かない**ことが分かったため、動く書き方（`LC_ALL=C grep -rlP '[\xd0\xd1][\x80-\xbf]'`）に差し替えた |
 | 2026/9/4 | Claude Code | 調整済みのプレハブに機能を足す手順（作り直さずに `LoadPrefabContents` で足す）を記録 |
 | 2026/9/6 | Claude Code | Assets の中でファイルを移す正しい手順（`AssetDatabase.MoveAsset` を使う使い捨てスクリプト）を記録 |
+| 2026/9/9 | Claude Code | 釣りフックのプロトタイプ実装で分かった、アプリ版ではUnityを起動できず生成スクリプト＋メニュー実行の往復になる件と、操作方式の合わないPlayerRigを土台だけ流用するやり方を記録 |

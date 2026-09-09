@@ -1,0 +1,338 @@
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+/// <summary>
+/// **フック操作の中枢。** チャージ→発射→帰還→物資への接続、の流れを管理する。
+///
+/// 左クリックの流れ（仕様2）：
+///   1. 押す           → 構える（チャージ開始）
+///   2. 押している長さ  → チャージ量が 0〜1 まで増える
+///   3. 離す           → マウス方向へフックを発射。飛距離はチャージ量で決まる
+///   4. 物資に当たる    → フックした状態にして、引き寄せ・投げを ThrowController に渡す
+///   5. 何も当たらない  → 最大距離まで伸びて手元へ戻る
+///
+/// フックの実際の飛び方の計算はここに置き、HookProjectile は当たり判定だけにしている。
+/// 引き寄せ・投げは ThrowController、糸の見た目は HookLine に分けてある。
+/// </summary>
+public class HookController : MonoBehaviour
+{
+    /// <summary>フックがいまどの段階にいるか。</summary>
+    public enum HookPhase
+    {
+        Idle,       // 手元で待機
+        Charging,   // 構えてチャージ中
+        Flying,     // 発射して前へ伸びている
+        Returning,  // 手元へ戻っている
+        Attached    // 物資に刺さっている（引き寄せ・投げ中）
+    }
+
+    [Header("参照")]
+    [Tooltip("狙う方向の計算元。プレイヤーに付いている PlayerAimController")]
+    [SerializeField] private PlayerAimController aim;
+
+    [Tooltip("フックが出てくる手元の位置。プレイヤーの子に空オブジェクトを作って入れる")]
+    [SerializeField] private Transform handPoint;
+
+    [Tooltip("シーンに置いたフック先端（HookProjectile）")]
+    [SerializeField] private HookProjectile hook;
+
+    [Tooltip("糸の見た目（HookLine）")]
+    [SerializeField] private HookLine line;
+
+    [Tooltip("引き寄せ・投げを担当する ThrowController")]
+    [SerializeField] private ThrowController throwController;
+
+    [Tooltip("チャージ量やタイミングを表示する UI（無くても動く）")]
+    [SerializeField] private HookChargeUI ui;
+
+    [Tooltip("Assets/InputSystem_Actions を入れる")]
+    [SerializeField] private InputActionAsset inputActions;
+
+    [Header("チャージ")]
+    [Tooltip("押しっぱなしでチャージが最大になるまでの秒数")]
+    [SerializeField] private float chargeTime = 1.0f;
+
+    [Header("飛距離（メートル）")]
+    [Tooltip("チャージ 0 のときの飛距離")]
+    [SerializeField] private float minRange = 4f;
+
+    [Tooltip("チャージ最大のときの飛距離（最大値）")]
+    [SerializeField] private float maxRange = 16f;
+
+    [Header("フックの速さ（メートル毎秒）")]
+    [Tooltip("発射して前へ伸びる速さ")]
+    [SerializeField] private float flySpeed = 30f;
+
+    [Tooltip("手元へ戻る速さ")]
+    [SerializeField] private float returnSpeed = 45f;
+
+    [Tooltip("この距離まで戻ったら「回収完了」とみなす")]
+    [SerializeField] private float catchDistance = 0.5f;
+
+    [Header("当たり判定")]
+    [Tooltip("飛んでいるフックの先の、当たりを見る球の半径。大きいほど引っ掛けやすい")]
+    [SerializeField] private float hookCastRadius = 0.35f;
+
+    [Tooltip("フックが引っ掛かる相手のレイヤー。物資が乗っているレイヤーだけに絞ってもよい")]
+    [SerializeField] private LayerMask hookableMask = ~0;
+
+    private InputActionMap playerMap;
+    private InputAction attackAction;
+
+    private HookPhase phase = HookPhase.Idle;
+    private float charge;
+    private float traveled;
+    private float targetDistance;
+    private Vector3 launchDirection = Vector3.forward;
+    private Vector3 hookPosition;
+    private HookableObject attached;
+
+    // ---- 他のスクリプトが読む用 ----
+
+    /// <summary>フックが出てくる手元の位置。</summary>
+    public Transform HandPoint => handPoint;
+
+    /// <summary>狙う方向の計算元。</summary>
+    public PlayerAimController Aim => aim;
+
+    /// <summary>最後にフックを発射した向き（水平、長さ1）。投げる方向の基準になる。</summary>
+    public Vector3 LaunchDirection => launchDirection;
+
+    /// <summary>チャージ・タイミング表示の UI。</summary>
+    public HookChargeUI UI => ui;
+
+    /// <summary>いまの段階。UI などが参照する。</summary>
+    public HookPhase Phase => phase;
+
+    private void Awake()
+    {
+        if (aim == null)
+        {
+            aim = GetComponentInParent<PlayerAimController>();
+        }
+
+        if (inputActions == null)
+        {
+            Debug.LogError($"{name}: 入力の設定（InputSystem_Actions）が入っていません。", this);
+            enabled = false;
+            return;
+        }
+
+        playerMap = inputActions.FindActionMap("Player", true);
+        attackAction = playerMap.FindAction("Attack", true);
+    }
+
+    private void OnEnable()
+    {
+        playerMap?.Enable();
+
+        if (hook != null)
+        {
+            hook.HookableTouched += OnHookableTouched;
+        }
+    }
+
+    private void OnDisable()
+    {
+        playerMap?.Disable();
+
+        if (hook != null)
+        {
+            hook.HookableTouched -= OnHookableTouched;
+        }
+    }
+
+    private void Start()
+    {
+        hookPosition = handPoint != null ? handPoint.position : transform.position;
+        UpdateHookVisual();
+
+        if (ui != null)
+        {
+            ui.ShowCharge(false);
+            ui.ShowTiming(false);
+        }
+    }
+
+    private void Update()
+    {
+        if (GamePause.IsPaused)
+        {
+            return;
+        }
+
+        switch (phase)
+        {
+            case HookPhase.Idle:
+                TickIdle();
+                break;
+            case HookPhase.Charging:
+                TickCharging();
+                break;
+            case HookPhase.Flying:
+                TickFlying();
+                break;
+            case HookPhase.Returning:
+                TickReturning();
+                break;
+            case HookPhase.Attached:
+                TickAttached();
+                break;
+        }
+
+        UpdateHookVisual();
+    }
+
+    private void TickIdle()
+    {
+        // フックは手元にくっついている
+        hookPosition = handPoint.position;
+
+        if (attackAction.WasPressedThisFrame())
+        {
+            phase = HookPhase.Charging;
+            charge = 0f;
+            if (ui != null)
+            {
+                ui.ShowCharge(true);
+                ui.SetCharge(0f);
+            }
+        }
+    }
+
+    private void TickCharging()
+    {
+        hookPosition = handPoint.position;
+
+        charge = Mathf.Clamp01(charge + Time.deltaTime / Mathf.Max(0.01f, chargeTime));
+        if (ui != null)
+        {
+            ui.SetCharge(charge);
+        }
+
+        if (attackAction.WasReleasedThisFrame())
+        {
+            Fire();
+        }
+    }
+
+    private void Fire()
+    {
+        launchDirection = aim != null && aim.HasAim ? aim.AimDirection : transform.forward;
+        launchDirection.y = 0f;
+        launchDirection.Normalize();
+
+        targetDistance = Mathf.Lerp(minRange, maxRange, charge);
+        traveled = 0f;
+        hookPosition = handPoint.position;
+        phase = HookPhase.Flying;
+
+        if (ui != null)
+        {
+            ui.ShowCharge(false);
+        }
+    }
+
+    private void TickFlying()
+    {
+        float step = flySpeed * Time.deltaTime;
+
+        // 動いた区間に物資があれば、その手前で引っ掛ける（速いフックがすり抜けないように）
+        if (Physics.SphereCast(hookPosition, hookCastRadius, launchDirection,
+                out RaycastHit hit, step, hookableMask, QueryTriggerInteraction.Collide))
+        {
+            HookableObject touched = hit.collider.GetComponentInParent<HookableObject>();
+            if (touched != null && !touched.IsHooked)
+            {
+                OnHookableTouched(touched);
+                return;
+            }
+        }
+
+        hookPosition += launchDirection * step;
+        traveled += step;
+
+        if (traveled >= targetDistance)
+        {
+            phase = HookPhase.Returning;
+        }
+    }
+
+    private void TickReturning()
+    {
+        hookPosition = Vector3.MoveTowards(
+            hookPosition, handPoint.position, returnSpeed * Time.deltaTime);
+
+        if (Vector3.Distance(hookPosition, handPoint.position) <= catchDistance)
+        {
+            phase = HookPhase.Idle;
+        }
+    }
+
+    private void TickAttached()
+    {
+        // ThrowController が物資を引き寄せている。フックと糸の先は物資の結び目に貼り付く。
+        // 投げ終わると ThrowController が NotifyThrowFinished() を呼ぶ
+        if (attached != null)
+        {
+            hookPosition = attached.AnchorPoint;
+        }
+    }
+
+    /// <summary>飛んでいるフックが物資に触れたときに呼ばれる。</summary>
+    private void OnHookableTouched(HookableObject hookable)
+    {
+        if (phase != HookPhase.Flying || hookable == null || hookable.IsHooked)
+        {
+            return;
+        }
+
+        hookable.SetHooked(true);
+        attached = hookable;
+        hookPosition = hookable.AnchorPoint;
+        phase = HookPhase.Attached;
+
+        if (throwController != null)
+        {
+            throwController.Begin(hookable);
+        }
+        else
+        {
+            // 投げる係がいなければ、その場で解除して戻る
+            hookable.SetHooked(false);
+            attached = null;
+            phase = HookPhase.Returning;
+        }
+    }
+
+    /// <summary>ThrowController が投げ終わったら呼ぶ。フックを手元へ戻し始める。</summary>
+    public void NotifyThrowFinished()
+    {
+        attached = null;
+        phase = HookPhase.Returning;
+    }
+
+    /// <summary>糸とフックの見た目を、いまの段階に合わせて更新する。</summary>
+    private void UpdateHookVisual()
+    {
+        if (hook != null)
+        {
+            hook.MoveTo(hookPosition);
+        }
+
+        if (line == null)
+        {
+            return;
+        }
+
+        bool showLine = phase == HookPhase.Flying
+                     || phase == HookPhase.Returning
+                     || phase == HookPhase.Attached;
+
+        line.Show(showLine);
+        if (showLine)
+        {
+            line.SetEnds(handPoint.position, hookPosition);
+        }
+    }
+}

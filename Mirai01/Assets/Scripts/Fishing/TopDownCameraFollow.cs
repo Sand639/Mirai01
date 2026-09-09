@@ -1,0 +1,36 @@
+using UnityEngine;
+
+/// <summary>
+/// **見下ろしカメラがプレイヤーを追いかける。**
+///
+/// カメラをプレイヤーの子にすると、プレイヤーが向きを変えるたびに
+/// カメラごと回ってしまう。だから親子にせず、位置だけを追わせる。
+/// カメラの角度（見下ろす傾き）は、シーンでカメラに付けた回転をそのまま使う。
+///
+/// 使い方：カメラに付けて、Target にプレイヤーを入れる。
+/// </summary>
+public class TopDownCameraFollow : MonoBehaviour
+{
+    [Header("参照")]
+    [Tooltip("追いかける相手（プレイヤー）")]
+    [SerializeField] private Transform target;
+
+    [Header("位置")]
+    [Tooltip("相手から見た、カメラを置く相対位置。Y を上げるほど高く、Z をマイナスにするほど後ろから見る")]
+    [SerializeField] private Vector3 offset = new Vector3(0f, 16f, -9f);
+
+    [Tooltip("追従のなめらかさ。大きいほどキビキビ、小さいほどゆっくり付いてくる")]
+    [SerializeField] private float followSharpness = 10f;
+
+    private void LateUpdate()
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        Vector3 goal = target.position + offset;
+        float t = 1f - Mathf.Exp(-followSharpness * Time.deltaTime);
+        transform.position = Vector3.Lerp(transform.position, goal, t);
+    }
+}
