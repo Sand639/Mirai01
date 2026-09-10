@@ -197,9 +197,10 @@ public static class FishingHookTestSetup
         player.transform.position = Vector3.zero;
         player.transform.rotation = Quaternion.identity;
 
-        // 一人称/三人称のマウス視点操作は、見下ろしでは邪魔なので止める
-        DisableComponent(player, "PlayerController");
-        DisableComponent(player, "PlayerViewSwitcher");
+        // 一人称/三人称のマウス視点操作は見下ろしと噛み合わないので、丸ごと取り除く。
+        // （enabled = false だけだと Awake が走ってカーソルをロックしたりエラーを出したりする）
+        RemoveComponent<PlayerViewSwitcher>(player);
+        RemoveComponent<PlayerController>(player);
 
         // PlayerRig の中にカメラが入っているので取り除く（見下ろしカメラを別に置くため）
         foreach (Camera childCamera in player.GetComponentsInChildren<Camera>(true))
@@ -352,12 +353,17 @@ public static class FishingHookTestSetup
     // 補助
     // ------------------------------------------------------------
 
-    private static void DisableComponent(GameObject target, string typeName)
+    private static void RemoveComponent<T>(GameObject target) where T : Component
     {
-        Component component = target.GetComponent(typeName);
-        if (component is Behaviour behaviour)
+        // 依存（RequireComponent）で消せないことがあるので、消えるまで数回試す
+        for (int i = 0; i < 4; i++)
         {
-            behaviour.enabled = false;
+            T component = target.GetComponent<T>();
+            if (component == null)
+            {
+                return;
+            }
+            Object.DestroyImmediate(component, true);
         }
     }
 

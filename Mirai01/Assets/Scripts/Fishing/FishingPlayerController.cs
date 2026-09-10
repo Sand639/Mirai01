@@ -57,6 +57,14 @@ public class FishingPlayerController : MonoBehaviour
         moveAction = playerMap.FindAction("Move", true);
     }
 
+    private void Start()
+    {
+        // 見下ろしでマウスを狙いに使うので、カーソルは固定せず表示したままにする。
+        // （PlayerRig 由来の FPS 操作が万一残っていてカーソルをロックしても、ここで戻す）
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+
     private void OnEnable()
     {
         playerMap?.Enable();
