@@ -24,7 +24,7 @@ public class FishingMatchUI : MonoBehaviour
     [Tooltip("OFFにすると何も表示しない")]
     [SerializeField] private bool showUi = true;
 
-    [Tooltip("文字の大きさ")]
+    [Tooltip("文字の大きさ。**窓が小さいときは自動で縮む**ので、これは上限として使われる")]
     [Range(1f, 4f)]
     [SerializeField] private float uiScale = 1.6f;
 
@@ -35,6 +35,9 @@ public class FishingMatchUI : MonoBehaviour
     private GUIStyle resultStyle;
     private GUIStyle lineStyle;
 
+    /// <summary>今フレーム、実際に使っている縮小率（窓の大きさに合わせて変わる）。</summary>
+    private float activeScale = 1.6f;
+
     private void OnGUI()
     {
         if (!showUi || FishingMatch.Current == null)
@@ -44,10 +47,17 @@ public class FishingMatchUI : MonoBehaviour
 
         PrepareStyles();
 
-        Matrix4x4 saved = GUI.matrix;
-        GUI.matrix = Matrix4x4.Scale(new Vector3(uiScale, uiScale, 1f));
+        // **窓が小さいときは自動で縮める。**
+        // 4つ並べて起動すると1つの窓が小さくなり、
+        // そのままだと結果画面の「ロビーへ戻る」が画面の外へ出てしまう
+        float scale = Mathf.Min(uiScale, Screen.width / 520f, Screen.height / 330f);
+        scale = Mathf.Max(0.6f, scale);
 
-        float width = Screen.width / uiScale;
+        Matrix4x4 saved = GUI.matrix;
+        GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
+
+        activeScale = scale;
+        float width = Screen.width / scale;
         FishingMatch match = FishingMatch.Current;
 
         if (match.IsPlaying)
@@ -125,8 +135,8 @@ public class FishingMatchUI : MonoBehaviour
 
     private void DrawResult(FishingMatch match, float width)
     {
-        float height = Screen.height / uiScale;
-        float y = height * 0.24f;
+        float height = Screen.height / activeScale;
+        float y = height * 0.20f;
 
         // 勝ったチーム（引き分けもある）
         if (match.WinnerTeam < 0)

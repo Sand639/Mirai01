@@ -42,8 +42,14 @@ public static class FishingOnlineBuilder
     private const string OutputFolder = "Build/FishingOnlineTest";
     private const string ExeName = "FishingOnlineTest.exe";
 
-    /// <summary>4つ並べて見られるように、全画面ではなく小さめの窓で起動させる。</summary>
-    private const string WindowArgs = "-screen-fullscreen 0 -screen-width 800 -screen-height 450";
+    /// <summary>
+    /// 4つ並べて見られるように、全画面ではなく窓で起動させる。
+    ///
+    /// **960×540 は、1920×1080 の画面にちょうど2×2で並ぶ大きさ。**
+    /// 画面がこれより小さい場合は、`.bat` の数字を直接書き換えてよい
+    /// （UI側は窓の大きさに合わせて自動で縮むので、小さくしても押せなくならない）。
+    /// </summary>
+    private const string WindowArgs = "-screen-fullscreen 0 -screen-width 960 -screen-height 540";
 
     [MenuItem("Tools/Mirai01/釣りのオンライン検証用のビルドを作る")]
     public static void BuildFromMenu()

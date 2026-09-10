@@ -25,17 +25,59 @@ public class FishingLobbyUI : MonoBehaviour
     [Tooltip("OFFにすると何も表示しない")]
     [SerializeField] private bool showUi = true;
 
-    [Tooltip("文字の大きさ")]
+    [Tooltip("文字の大きさ。**窓が小さいときは自動で縮む**ので、これは上限として使われる")]
     [Range(1f, 4f)]
     [SerializeField] private float uiScale = 1.5f;
 
-    [Tooltip("画面の左からの位置（LanConnectionUi と重ならないようにずらす）")]
+    [Tooltip("画面の左からの位置（LanConnectionUi と重ならないようにずらす）。画面外に出る場合は自動で寄せる")]
     [SerializeField] private float panelX = 366f;
+
+    /// <summary>パネルの幅（縮める前の基準）。</summary>
+    private const float PanelWidth = 320f;
+
+    /// <summary>
+    /// この横幅・縦幅が入るように縮める。
+    /// 横は「つなぐ画面（340）＋このパネル（320）＋余白」、縦はパネルの高さぶん。
+    /// </summary>
+    private const float NeededWidth = 700f;
+    private const float NeededHeight = 460f;
 
     private GUIStyle labelStyle;
 
     /// <summary>「ゲーム開始」を押した結果。うまくいかなかった理由を画面に出すために持つ。</summary>
     private string startMessage = string.Empty;
+
+    /// <summary>中身が入りきらないときのスクロール位置。</summary>
+    private Vector2 scroll;
+
+    /// <summary>つなぐ画面。試合中だけ隠すために持っておく。</summary>
+    private LanConnectionUi connectionUi;
+
+    private void Awake()
+    {
+        connectionUi = GetComponent<LanConnectionUi>();
+    }
+
+    private void Update()
+    {
+        // **試合が始まったら、つなぐ画面も隠す。**
+        // NetworkManager はシーンをまたいで生き残るため、
+        // 隠さないとプレイ画面に「ホストとして動作中／切断する」が出っぱなしになる。
+        // 部品ごと止める（enabled = false）ので、OnGUI が呼ばれなくなる
+        if (connectionUi != null)
+        {
+            connectionUi.enabled = FishingMatch.Current == null;
+        }
+    }
+
+    private void OnDisable()
+    {
+        // ロビーへ戻ったときに、つなぐ画面が消えたままにならないよう戻しておく
+        if (connectionUi != null)
+        {
+            connectionUi.enabled = true;
+        }
+    }
 
     private void OnGUI()
     {
@@ -62,14 +104,35 @@ public class FishingLobbyUI : MonoBehaviour
 
         PrepareStyle();
 
+        // **窓が小さいときは自動で縮める。**
+        // 4つ並べて起動すると1つの窓が小さくなり、
+        // そのままだとパネルが画面の外へ出てボタンを押せなくなる
+        float scale = Mathf.Min(uiScale, Screen.width / NeededWidth, Screen.height / NeededHeight);
+        scale = Mathf.Max(0.6f, scale);
+
         Matrix4x4 saved = GUI.matrix;
-        GUI.matrix = Matrix4x4.Scale(new Vector3(uiScale, uiScale, 1f));
+        GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
 
-        GUILayout.BeginArea(new Rect(panelX, 12f, 320f, 420f), GUI.skin.box);
+        float viewWidth = Screen.width / scale;
+        float viewHeight = Screen.height / scale;
 
+        // 画面の外へ出ないところまで寄せる
+        float x = Mathf.Max(8f, Mathf.Min(panelX, viewWidth - PanelWidth - 8f));
+        float height = Mathf.Min(420f, viewHeight - 24f);
+
+        GUILayout.BeginArea(new Rect(x, 12f, PanelWidth, height), GUI.skin.box);
+
+        // **「ゲーム開始」を一番上に置く。**
+        // 下に置くと、中身が増えたときに画面外へ押し出されて押せなくなる
+        DrawStartButton(manager);
+
+        GUILayout.Space(6f);
+
+        // 入りきらない分はスクロールで読めるようにする
+        scroll = GUILayout.BeginScrollView(scroll);
         DrawRoster();
         DrawTeamRule();
-        DrawStartButton(manager);
+        GUILayout.EndScrollView();
 
         GUILayout.EndArea();
         GUI.matrix = saved;
@@ -136,11 +199,12 @@ public class FishingLobbyUI : MonoBehaviour
         }
     }
 
-    /// <summary>ホストだけに「ゲーム開始」を出す。</summary>
+    /// <summary>
+    /// ホストだけに「ゲーム開始」を出す。
+    /// **パネルの一番上に置いている**（下だと中身が増えたときに押せなくなるため）。
+    /// </summary>
     private void DrawStartButton(NetworkManager manager)
     {
-        GUILayout.Space(10f);
-
         if (!manager.IsServer)
         {
             GUILayout.Label("ホストが始めるのを待っています…", labelStyle);
