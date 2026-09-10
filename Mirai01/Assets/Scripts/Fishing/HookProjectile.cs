@@ -43,7 +43,7 @@ public class HookProjectile : MonoBehaviour
     {
         HookableObject hookable = other.GetComponentInParent<HookableObject>();
 
-        if (hookable != null && !hookable.IsHooked)
+        if (hookable != null && !hookable.IsHooked && !hookable.IsVanished)
         {
             HookableTouched?.Invoke(hookable);
         }

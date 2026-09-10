@@ -45,6 +45,9 @@ public class HookController : MonoBehaviour
     [Tooltip("チャージ量やタイミングを表示する UI（無くても動く）")]
     [SerializeField] private HookChargeUI ui;
 
+    [Tooltip("スタン（動けない状態）の管理。スタン中はフックを使えなくなる")]
+    [SerializeField] private PlayerStun stun;
+
     [Tooltip("Assets/InputSystem_Actions を入れる")]
     [SerializeField] private InputActionAsset inputActions;
 
@@ -95,11 +98,41 @@ public class HookController : MonoBehaviour
     /// <summary>狙う方向の計算元。</summary>
     public PlayerAimController Aim => aim;
 
-    /// <summary>最後にフックを発射した向き（水平、長さ1）。投げる方向の基準になる。</summary>
+    /// <summary>最後にフックを発射した向き（水平、長さ1）。フックが飛ぶ向き。</summary>
     public Vector3 LaunchDirection => launchDirection;
+
+    /// <summary>
+    /// **いまプレイヤーが向いている向き**（水平、長さ1）。
+    /// 投げる方向はこちらを基準にする（引っ張っている間に振り向いたら行き先も変わる）。
+    /// </summary>
+    public Vector3 CurrentAimDirection
+    {
+        get
+        {
+            if (aim != null && aim.HasAim)
+            {
+                Vector3 flat = aim.AimDirection;
+                flat.y = 0f;
+                if (flat.sqrMagnitude > 0.0001f)
+                {
+                    return flat.normalized;
+                }
+            }
+
+            Vector3 forward = transform.forward;
+            forward.y = 0f;
+            return forward.sqrMagnitude > 0.0001f ? forward.normalized : Vector3.forward;
+        }
+    }
+
+    /// <summary>プレイヤー本体。引き寄せの行き先の基準になる。</summary>
+    public Transform PlayerRoot => transform;
 
     /// <summary>チャージ・タイミング表示の UI。</summary>
     public HookChargeUI UI => ui;
+
+    /// <summary>プレイヤーがスタン中か。<see cref="ThrowController"/> も参照する。</summary>
+    public bool IsStunned => stun != null && stun.IsStunned;
 
     /// <summary>いまの段階。UI などが参照する。</summary>
     public HookPhase Phase => phase;
@@ -109,6 +142,11 @@ public class HookController : MonoBehaviour
         if (aim == null)
         {
             aim = GetComponentInParent<PlayerAimController>();
+        }
+
+        if (stun == null)
+        {
+            stun = GetComponent<PlayerStun>();
         }
 
         if (inputActions == null)
@@ -188,6 +226,12 @@ public class HookController : MonoBehaviour
         // フックは手元にくっついている
         hookPosition = handPoint.position;
 
+        // スタン中は釣りができない
+        if (IsStunned)
+        {
+            return;
+        }
+
         if (attackAction.WasPressedThisFrame())
         {
             phase = HookPhase.Charging;
@@ -242,7 +286,7 @@ public class HookController : MonoBehaviour
                 out RaycastHit hit, step, hookableMask, QueryTriggerInteraction.Collide))
         {
             HookableObject touched = hit.collider.GetComponentInParent<HookableObject>();
-            if (touched != null && !touched.IsHooked)
+            if (touched != null && !touched.IsHooked && !touched.IsVanished)
             {
                 OnHookableTouched(touched);
                 return;
@@ -273,16 +317,22 @@ public class HookController : MonoBehaviour
     {
         // ThrowController が物資を引き寄せている。フックと糸の先は物資の結び目に貼り付く。
         // 投げ終わると ThrowController が NotifyThrowFinished() を呼ぶ
-        if (attached != null)
+
+        // 引き寄せ中に物資が消えた（爆発した）場合は、ここで取り残されないよう戻る
+        if (attached == null || attached.IsVanished)
         {
-            hookPosition = attached.AnchorPoint;
+            attached = null;
+            phase = HookPhase.Returning;
+            return;
         }
+
+        hookPosition = attached.AnchorPoint;
     }
 
     /// <summary>飛んでいるフックが物資に触れたときに呼ばれる。</summary>
     private void OnHookableTouched(HookableObject hookable)
     {
-        if (phase != HookPhase.Flying || hookable == null || hookable.IsHooked)
+        if (phase != HookPhase.Flying || hookable == null || hookable.IsHooked || hookable.IsVanished)
         {
             return;
         }
@@ -291,6 +341,13 @@ public class HookController : MonoBehaviour
         attached = hookable;
         hookPosition = hookable.AnchorPoint;
         phase = HookPhase.Attached;
+
+        // **爆発物なら、ここで導火線に火がつく**（釣り上げられた瞬間から数え始める）
+        ExplosiveObject bomb = hookable.GetComponent<ExplosiveObject>();
+        if (bomb != null)
+        {
+            bomb.LightFuse();
+        }
 
         if (throwController != null)
         {

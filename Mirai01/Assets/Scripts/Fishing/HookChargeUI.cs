@@ -1,16 +1,35 @@
 using UnityEngine;
 
 /// <summary>
-/// **チャージ量と、投げのタイミングを見せる簡単な表示。**
+/// **チャージ量と、スキルチェックのゲージを見せる簡単な表示。**
 ///
 /// プロトタイプ用なので、画像は使わず四角を伸び縮みさせるだけ（仕様2・5の「簡単なUI/Visual」）。
 ///   ・チャージ … 押している間、下のバーが左から伸びる
-///   ・タイミング … 引き寄せ中、マーカーが左右に動く。色の付いた枠が“当たり”
+///   ・スキルチェック … 引き寄せ中、マーカーが左から右へ**1回だけ**動く。
+///     色の付いた枠が“当たり”で、**枠ごとに投げる方向が違う**
 ///
-/// 値の受け渡し：チャージは HookController、タイミングは ThrowController から呼ばれる。
+/// 値の受け渡し：チャージは <see cref="HookController"/>、
+/// ゲージは <see cref="ThrowController"/> から呼ばれる。
 /// </summary>
 public class HookChargeUI : MonoBehaviour
 {
+    /// <summary>スキルチェックの枠1つぶんの見た目（外枠・良い・最適の3つ）。</summary>
+    [System.Serializable]
+    public class ZoneVisual
+    {
+        [Tooltip("枠のまとまり（出す/隠すの対象）")]
+        public GameObject root;
+
+        [Tooltip("『通常成功』の範囲を表す四角")]
+        public RectTransform hitRect;
+
+        [Tooltip("『強い力』の範囲を表す四角")]
+        public RectTransform goodRect;
+
+        [Tooltip("『非常に強い力』の範囲を表す四角")]
+        public RectTransform perfectRect;
+    }
+
     [Header("チャージ表示")]
     [Tooltip("チャージ表示のまとまり（出す/隠すの対象）")]
     [SerializeField] private GameObject chargeRoot;
@@ -18,20 +37,17 @@ public class HookChargeUI : MonoBehaviour
     [Tooltip("伸びる部分。左端を軸にして横方向の拡大率を変える")]
     [SerializeField] private RectTransform chargeFill;
 
-    [Header("タイミング表示")]
-    [Tooltip("タイミング表示のまとまり（出す/隠すの対象）")]
+    [Header("スキルチェック表示")]
+    [Tooltip("スキルチェック表示のまとまり（出す/隠すの対象）")]
     [SerializeField] private GameObject timingRoot;
 
-    [Tooltip("左右に動くマーカー")]
+    [Tooltip("左から右へ動くマーカー")]
     [SerializeField] private RectTransform timingMarker;
 
-    [Tooltip("『強い力』の枠")]
-    [SerializeField] private RectTransform goodZone;
+    [Tooltip("枠の見た目。ThrowController の枠の数だけ用意しておく")]
+    [SerializeField] private ZoneVisual[] zoneVisuals;
 
-    [Tooltip("『非常に強い力』の枠")]
-    [SerializeField] private RectTransform perfectZone;
-
-    [Tooltip("タイミングバーの幅（ピクセル）。マーカーと枠の位置計算に使う")]
+    [Tooltip("ゲージの幅（ピクセル）。マーカーと枠の位置計算に使う")]
     [SerializeField] private float barWidth = 420f;
 
     /// <summary>チャージ表示を出す／隠す。</summary>
@@ -52,7 +68,7 @@ public class HookChargeUI : MonoBehaviour
         }
     }
 
-    /// <summary>タイミング表示を出す／隠す。</summary>
+    /// <summary>スキルチェック表示を出す／隠す。</summary>
     public void ShowTiming(bool visible)
     {
         if (timingRoot != null)
@@ -61,28 +77,72 @@ public class HookChargeUI : MonoBehaviour
         }
     }
 
+    /// <summary>使う枠の数を伝える。余った見た目は隠す。</summary>
+    public void SetZoneCount(int count)
+    {
+        if (zoneVisuals == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < zoneVisuals.Length; i++)
+        {
+            if (zoneVisuals[i] != null && zoneVisuals[i].root != null)
+            {
+                zoneVisuals[i].root.SetActive(i < count);
+            }
+        }
+
+        if (count > zoneVisuals.Length)
+        {
+            Debug.LogWarning(
+                $"{name}: 枠が {count} 個ありますが、表示は {zoneVisuals.Length} 個分しかありません。" +
+                "検証シーンを作り直すか、Zone Visuals を足してください。", this);
+        }
+    }
+
     /// <summary>
-    /// マーカーと枠の位置を更新する。
-    /// <paramref name="pos"/>・<paramref name="center"/> は 0〜1、
-    /// <paramref name="good"/>・<paramref name="perfect"/> は中心からの片側の広さ（0〜1）。
+    /// 枠1つの位置と広さを決める。
+    /// <paramref name="center"/> は 0〜1、広さは中心からの片側の広さ（0〜1）。
     /// </summary>
-    public void SetTiming(float pos, float center, float good, float perfect)
+    public void SetZone(int index, float center, float hit, float good, float perfect)
+    {
+        if (zoneVisuals == null || index < 0 || index >= zoneVisuals.Length)
+        {
+            return;
+        }
+
+        ZoneVisual visual = zoneVisuals[index];
+        if (visual == null)
+        {
+            return;
+        }
+
+        float x = (center - 0.5f) * barWidth;
+
+        PlaceRect(visual.hitRect, x, hit);
+        PlaceRect(visual.goodRect, x, good);
+        PlaceRect(visual.perfectRect, x, perfect);
+    }
+
+    private void PlaceRect(RectTransform rect, float x, float halfWidth01)
+    {
+        if (rect == null)
+        {
+            return;
+        }
+
+        rect.anchoredPosition = new Vector2(x, 0f);
+        rect.sizeDelta = new Vector2(halfWidth01 * 2f * barWidth, rect.sizeDelta.y);
+    }
+
+    /// <summary>マーカーの位置（0〜1）を反映する。</summary>
+    public void SetMarker(float position)
     {
         if (timingMarker != null)
         {
-            timingMarker.anchoredPosition = new Vector2((pos - 0.5f) * barWidth, 0f);
-        }
-
-        if (goodZone != null)
-        {
-            goodZone.anchoredPosition = new Vector2((center - 0.5f) * barWidth, 0f);
-            goodZone.sizeDelta = new Vector2(good * 2f * barWidth, goodZone.sizeDelta.y);
-        }
-
-        if (perfectZone != null)
-        {
-            perfectZone.anchoredPosition = new Vector2((center - 0.5f) * barWidth, 0f);
-            perfectZone.sizeDelta = new Vector2(perfect * 2f * barWidth, perfectZone.sizeDelta.y);
+            timingMarker.anchoredPosition =
+                new Vector2((Mathf.Clamp01(position) - 0.5f) * barWidth, 0f);
         }
     }
 }

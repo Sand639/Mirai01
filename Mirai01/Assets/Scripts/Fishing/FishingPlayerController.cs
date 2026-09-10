@@ -32,6 +32,9 @@ public class FishingPlayerController : MonoBehaviour
     [Tooltip("Assets/InputSystem_Actions を入れる")]
     [SerializeField] private InputActionAsset inputActions;
 
+    [Tooltip("スタン（動けない状態）の管理。スタン中は移動できなくなる")]
+    [SerializeField] private PlayerStun stun;
+
     private CharacterController characterController;
     private InputActionMap playerMap;
     private InputAction moveAction;
@@ -44,6 +47,11 @@ public class FishingPlayerController : MonoBehaviour
         if (aim == null)
         {
             aim = GetComponent<PlayerAimController>();
+        }
+
+        if (stun == null)
+        {
+            stun = GetComponent<PlayerStun>();
         }
 
         if (inputActions == null)
@@ -87,16 +95,22 @@ public class FishingPlayerController : MonoBehaviour
         FaceCursor();
     }
 
-    /// <summary>WASD で水平移動し、重力で下に落とす。</summary>
+    /// <summary>WASD で水平移動し、重力で下に落とす。**スタン中は横に動かない。**</summary>
     private void Move()
     {
-        Vector2 input = moveAction.ReadValue<Vector2>();
+        Vector3 direction = Vector3.zero;
 
-        // 画面の上下左右＝ワールドの XZ。見下ろしカメラは真上から見ているのでこれで合う
-        Vector3 direction = new Vector3(input.x, 0f, input.y);
-        if (direction.sqrMagnitude > 1f)
+        // スタン中は移動禁止（向きを変えることと、落ちることはできる）
+        if (stun == null || !stun.IsStunned)
         {
-            direction.Normalize();
+            Vector2 input = moveAction.ReadValue<Vector2>();
+
+            // 画面の上下左右＝ワールドの XZ。見下ろしカメラは真上から見ているのでこれで合う
+            direction = new Vector3(input.x, 0f, input.y);
+            if (direction.sqrMagnitude > 1f)
+            {
+                direction.Normalize();
+            }
         }
 
         if (characterController.isGrounded && verticalVelocity < 0f)
