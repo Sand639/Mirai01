@@ -161,6 +161,14 @@ public class ExplosiveObject : MonoBehaviour
         LitBombs.Remove(this);
         RestoreLook();
 
+        // オンラインでは、ホストが「火を消した」ことも全員に配る
+        // （消さないと、途中から入ってきた人に燃えたままの状態が届いてしまう）
+        FishingNetBomb netBomb = GetComponent<FishingNetBomb>();
+        if (netBomb != null)
+        {
+            netBomb.ServerResetFuse();
+        }
+
         hookable.Vanish();
     }
 

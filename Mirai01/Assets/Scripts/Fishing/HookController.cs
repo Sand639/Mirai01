@@ -48,6 +48,9 @@ public class HookController : MonoBehaviour
     [Tooltip("スタン（動けない状態）の管理。スタン中はフックを使えなくなる")]
     [SerializeField] private PlayerStun stun;
 
+    [Tooltip("オンライン用の部品。**1人用のシーンでは空のままでよい**（入っていればオンラインとして動く）")]
+    [SerializeField] private FishingNetPlayer netPlayer;
+
     [Tooltip("Assets/InputSystem_Actions を入れる")]
     [SerializeField] private InputActionAsset inputActions;
 
@@ -131,8 +134,35 @@ public class HookController : MonoBehaviour
     /// <summary>チャージ・タイミング表示の UI。</summary>
     public HookChargeUI UI => ui;
 
+    /// <summary>
+    /// 表示を後から結びつける。
+    /// **オンラインではプレイヤーがプレハブから生まれるため、
+    /// シーンに置いた UI をあらかじめ入れておけない。**
+    /// 自分のプレイヤーが生まれた時点で <see cref="FishingNetPlayer"/> から渡される。
+    /// </summary>
+    public void SetUI(HookChargeUI newUi)
+    {
+        ui = newUi;
+
+        if (ui != null)
+        {
+            ui.ShowCharge(false);
+            ui.ShowTiming(false);
+        }
+    }
+
     /// <summary>プレイヤーがスタン中か。<see cref="ThrowController"/> も参照する。</summary>
     public bool IsStunned => stun != null && stun.IsStunned;
+
+    /// <summary>
+    /// **オンラインとして動いているか。**
+    /// 通信部品が入っていて、実際に同期が始まっているときだけ true。
+    /// 1人用のシーンでは常に false になり、これまでどおり手元で完結する。
+    /// </summary>
+    public bool IsOnline => netPlayer != null && netPlayer.IsSpawned;
+
+    /// <summary>自分の参加番号。オンラインでないときは0。</summary>
+    public int LocalPlayerIndex => netPlayer != null ? Mathf.Max(0, netPlayer.PlayerIndex) : 0;
 
     /// <summary>いまの段階。UI などが参照する。</summary>
     public HookPhase Phase => phase;
@@ -147,6 +177,11 @@ public class HookController : MonoBehaviour
         if (stun == null)
         {
             stun = GetComponent<PlayerStun>();
+        }
+
+        if (netPlayer == null)
+        {
+            netPlayer = GetComponent<FishingNetPlayer>();
         }
 
         if (inputActions == null)
@@ -337,6 +372,24 @@ public class HookController : MonoBehaviour
             return;
         }
 
+        // オンラインでは、**早い者勝ちの判定をホストが行う。**
+        // ここでは先に手元で引っ掛けた形にしておき（待たせると操作が重くなる）、
+        // すでに取られていた場合はホストから断りが来て CancelAttachBecauseTaken() で戻す
+        if (IsOnline)
+        {
+            FishingNetSupply netSupply = hookable.GetComponent<FishingNetSupply>();
+
+            if (netSupply != null)
+            {
+                if (netSupply.IsClaimed)
+                {
+                    return;
+                }
+
+                netSupply.RequestClaim(LocalPlayerIndex);
+            }
+        }
+
         hookable.SetHooked(true);
         attached = hookable;
         hookPosition = hookable.AnchorPoint;
@@ -346,7 +399,18 @@ public class HookController : MonoBehaviour
         ExplosiveObject bomb = hookable.GetComponent<ExplosiveObject>();
         if (bomb != null)
         {
-            bomb.LightFuse();
+            // オンラインでは、火がついたことをホスト経由で全員に配る。
+            // 手元だけで火をつけると、他の人には突然爆発したように見えてしまう
+            FishingNetBomb netBomb = hookable.GetComponent<FishingNetBomb>();
+
+            if (IsOnline && netBomb != null)
+            {
+                netBomb.RequestLightFuse();
+            }
+            else
+            {
+                bomb.LightFuse();
+            }
         }
 
         if (throwController != null)
@@ -367,6 +431,32 @@ public class HookController : MonoBehaviour
     {
         attached = null;
         phase = HookPhase.Returning;
+    }
+
+    /// <summary>
+    /// **オンラインで、ホストから「その物資はもう取られている」と返ってきたとき。**
+    /// 手元で先に引っ掛けた形にしていたのを取り消して、フックを戻す。
+    /// </summary>
+    public void CancelAttachBecauseTaken()
+    {
+        if (phase != HookPhase.Attached)
+        {
+            return;
+        }
+
+        if (attached != null)
+        {
+            attached.SetHooked(false);
+        }
+        attached = null;
+
+        if (throwController != null)
+        {
+            throwController.AbandonBecauseLost();
+        }
+
+        phase = HookPhase.Returning;
+        Debug.Log("[FISH] その物資は先に取られていました。フックを戻します。");
     }
 
     /// <summary>糸とフックの見た目を、いまの段階に合わせて更新する。</summary>

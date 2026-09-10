@@ -352,11 +352,24 @@ public class ThrowController : MonoBehaviour
 
         Rigidbody body = target.Body;
         RestorePhysics(body);
-        body.linearVelocity = Vector3.zero;
-        body.angularVelocity = Vector3.zero;
-        body.AddForce(direction * force + Vector3.up * throwLift, ForceMode.Impulse);
 
         Debug.Log($"スキルチェック成功：{zone.label} / {tier} / {zone.direction} へ（力 {force}）");
+
+        // **オンラインでは、力を加えるのはホスト。**
+        // 手元で加えると、どこへ飛んだかが人によって変わってしまう
+        FishingNetSupply netSupply = GetNetSupply();
+
+        if (netSupply != null)
+        {
+            netSupply.RequestThrow(direction, force, throwLift, hook.LocalPlayerIndex);
+        }
+        else
+        {
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+            body.AddForce(direction * force + Vector3.up * throwLift, ForceMode.Impulse);
+        }
+
         EndPull();
     }
 
@@ -373,12 +386,56 @@ public class ThrowController : MonoBehaviour
             toPlayer = -hook.CurrentAimDirection;
         }
 
-        body.linearVelocity = Vector3.zero;
-        body.angularVelocity = Vector3.zero;
-        body.AddForce(toPlayer.normalized * missPullForce, ForceMode.Impulse);
-
         Debug.Log($"スキルチェック失敗（{reason}）：少しだけ引き寄せて終了");
+
+        FishingNetSupply netSupply = GetNetSupply();
+
+        if (netSupply != null)
+        {
+            netSupply.RequestRelease(toPlayer.normalized, missPullForce, hook.LocalPlayerIndex);
+        }
+        else
+        {
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+            body.AddForce(toPlayer.normalized * missPullForce, ForceMode.Impulse);
+        }
+
         EndPull();
+    }
+
+    /// <summary>
+    /// オンラインで、引っ掛けが**ホストに認められなかった**とき。
+    /// 物理には触らず（持ち主はホストのまま）、引っ張りだけをやめる。
+    /// </summary>
+    public void AbandonBecauseLost()
+    {
+        if (!active)
+        {
+            return;
+        }
+
+        target = null;
+        active = false;
+
+        if (hook != null && hook.UI != null)
+        {
+            hook.UI.ShowTiming(false);
+        }
+    }
+
+    /// <summary>
+    /// いま引っ張っている物資のオンライン部品。
+    /// **オンラインでないとき、または部品が無いときは null**（そのときは手元で処理する）。
+    /// </summary>
+    private FishingNetSupply GetNetSupply()
+    {
+        if (hook == null || !hook.IsOnline || target == null)
+        {
+            return null;
+        }
+
+        return target.GetComponent<FishingNetSupply>();
     }
 
     /// <summary>引き寄せ中に物資が消えた場合。物理には触らず、フックだけ戻す。</summary>

@@ -45,6 +45,16 @@ public class PlayerAimController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 使うカメラを後から決める。
+    /// **オンラインではプレハブから生まれるため、シーンのカメラを入れておけない。**
+    /// 生まれた時点で <see cref="FishingNetPlayer"/> から渡される。
+    /// </summary>
+    public void SetCamera(Camera camera)
+    {
+        aimCamera = camera;
+    }
+
     private void Update()
     {
         UpdateAim();

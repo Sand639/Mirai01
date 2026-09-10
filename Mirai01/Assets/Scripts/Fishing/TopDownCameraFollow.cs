@@ -22,6 +22,22 @@ public class TopDownCameraFollow : MonoBehaviour
     [Tooltip("追従のなめらかさ。大きいほどキビキビ、小さいほどゆっくり付いてくる")]
     [SerializeField] private float followSharpness = 10f;
 
+    /// <summary>
+    /// 追いかける相手を後から決める。
+    /// **オンラインでは、自分のプレイヤーが生まれた時点で渡される**
+    /// （シーンに置いた時点では、まだ誰も生まれていないため）。
+    /// </summary>
+    public void SetTarget(Transform newTarget)
+    {
+        target = newTarget;
+
+        if (target != null)
+        {
+            // 最初の1回はなめらかにせず、いきなりその場所へ飛ばす
+            transform.position = target.position + offset;
+        }
+    }
+
     private void LateUpdate()
     {
         if (target == null)

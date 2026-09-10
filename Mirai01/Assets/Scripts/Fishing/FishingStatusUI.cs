@@ -20,10 +20,10 @@ public class FishingStatusUI : MonoBehaviour
     [SerializeField] private float uiScale = 1.6f;
 
     [Header("参照")]
-    [Tooltip("点数を持っている ScoreBoard")]
+    [Tooltip("1人用の点数を持っている ScoreBoard（オンラインのシーンでは空でよい）")]
     [SerializeField] private ScoreBoard scoreBoard;
 
-    [Tooltip("プレイヤーの PlayerStun")]
+    [Tooltip("プレイヤーの PlayerStun。オンラインでは自分のプレイヤーから自動で探す")]
     [SerializeField] private PlayerStun playerStun;
 
     [Header("表示の設定")]
@@ -74,9 +74,18 @@ public class FishingStatusUI : MonoBehaviour
         }
     }
 
-    /// <summary>左上に、プレイヤーごとの点数を出す。</summary>
+    /// <summary>
+    /// 左上に点数を出す。
+    /// **オンラインの試合があればチームごとの点数**、無ければ1人用の点数を出す。
+    /// </summary>
     private void DrawScore()
     {
+        if (FishingMatch.Current != null)
+        {
+            DrawTeamScore(FishingMatch.Current);
+            return;
+        }
+
         if (scoreBoard == null)
         {
             return;
@@ -99,6 +108,65 @@ public class FishingStatusUI : MonoBehaviour
             GUI.Label(new Rect(10f, y, 380f, 20f), scoreBoard.LastEvent, labelStyle);
             GUI.color = Color.white;
         }
+    }
+
+    /// <summary>チームごとの点数を出す。自分のチームには印を付ける。</summary>
+    private void DrawTeamScore(FishingMatch match)
+    {
+        int myTeam = FindMyTeam();
+        float y = 8f;
+
+        for (int team = 0; team < match.TeamCount; team++)
+        {
+            GUI.color = FishingTeams.TeamColor(team);
+
+            string mark = team == myTeam ? "▶ " : "　 ";
+            GUI.Label(new Rect(10f, y, 340f, 20f),
+                $"{mark}{FishingTeams.TeamName(team)}　{match.ScoreOf(team)} 点", labelStyle);
+
+            y += 18f;
+        }
+
+        GUI.color = Color.white;
+
+        if (!string.IsNullOrEmpty(match.LastEvent)
+            && Time.time - match.LastEventTime < eventMessageSeconds)
+        {
+            GUI.color = new Color(0.4f, 1f, 0.5f);
+            GUI.Label(new Rect(10f, y, 420f, 20f), match.LastEvent, labelStyle);
+            GUI.color = Color.white;
+        }
+    }
+
+    /// <summary>自分が操作しているプレイヤーのチーム。見つからなければ -1。</summary>
+    private int FindMyTeam()
+    {
+        foreach (FishingNetPlayer player in FishingNetPlayer.All)
+        {
+            if (player != null && player.IsOwner)
+            {
+                return player.TeamIndex;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>オンラインでは、自分のプレイヤーから PlayerStun を拾う。</summary>
+    private PlayerStun ResolveStun()
+    {
+        if (playerStun != null)
+        {
+            return playerStun;
+        }
+
+        foreach (FishingNetPlayer player in FishingNetPlayer.All)
+        {
+            if (player != null && player.IsOwner)
+            {
+                return player.GetComponent<PlayerStun>();
+            }
+        }
+        return null;
     }
 
     /// <summary>火のついた爆発物があれば、画面上部に残り秒数を大きく出す。</summary>
@@ -125,7 +193,9 @@ public class FishingStatusUI : MonoBehaviour
     /// <summary>スタン中は、画面中央に大きく出す。</summary>
     private void DrawStun(float width)
     {
-        if (playerStun == null || !playerStun.IsStunned)
+        PlayerStun stun = ResolveStun();
+
+        if (stun == null || !stun.IsStunned)
         {
             return;
         }
@@ -134,7 +204,7 @@ public class FishingStatusUI : MonoBehaviour
 
         GUI.color = new Color(1f, 0.3f, 0.25f);
         GUI.Label(new Rect(0f, height * 0.42f, width, 30f),
-            $"スタン中！　動けない（あと {playerStun.Remaining:0.0} 秒）", bigStyle);
+            $"スタン中！　動けない（あと {stun.Remaining:0.0} 秒）", bigStyle);
         GUI.color = Color.white;
     }
 
