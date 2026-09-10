@@ -124,6 +124,24 @@ public class RobotController : MonoBehaviour
     /// <summary>いまの状態。UI表示などから見たいときのために公開している。</summary>
     public RobotState State { get; private set; } = RobotState.Combined;
 
+    /// <summary>
+    /// **true の間、操作を受け付けない。**
+    ///
+    /// レースのカウントダウン中やゴール後に、外から止めるためのもの
+    /// （`Assets/Scripts/Race/RobotRacerLink.cs`）。
+    /// **重力は効いたまま**なので、その場に立って待つ形になる。
+    /// </summary>
+    public bool ControlSuspended { get; set; }
+
+    /// <summary>合体した姿の体。**やり直しでまとめて動かしたいとき**に使う。</summary>
+    public RobotBody CombinedBodyPart => combinedBody;
+
+    /// <summary>上半身。</summary>
+    public RobotBody UpperBodyPart => upperBody;
+
+    /// <summary>下半身。</summary>
+    public RobotBody LowerBodyPart => lowerBody;
+
     /// <summary>いま操作している体。</summary>
     public RobotBody ActiveBody { get; private set; }
 
@@ -276,6 +294,12 @@ public class RobotController : MonoBehaviour
 
     private void ReadStateInput()
     {
+        // レース中など、外から止められている間は何も受け付けない
+        if (ControlSuspended)
+        {
+            return;
+        }
+
         if (WasKeyPressed(splitKey) && State == RobotState.Combined)
         {
             DoSplit();
@@ -475,10 +499,11 @@ public class RobotController : MonoBehaviour
 
     private void MoveBodies()
     {
-        Vector3 direction = GetMoveDirection();
+        // 止められている間は、動かない（重力だけは下で効く）
+        Vector3 direction = ControlSuspended ? Vector3.zero : GetMoveDirection();
 
         // ジャンプできるのは「合体中」と「分離中の下半身」だけ
-        bool jump = jumpAction.WasPressedThisFrame() && CanJump;
+        bool jump = !ControlSuspended && jumpAction.WasPressedThisFrame() && CanJump;
 
         // 見ている方向を向かせる（一人称・三人称とも）
         Vector3? facing = FaceLookDirection && cameraLook != null

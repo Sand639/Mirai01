@@ -474,16 +474,7 @@ public class PauseMenu : MonoBehaviour
     /// </summary>
     private Font FindFont()
     {
-        Font found = Font.CreateDynamicFontFromOSFont(fontNames, fontSize);
-
-        if (found != null)
-        {
-            return found;
-        }
-
-        Debug.LogWarning("[UI] 日本語のフォントが見つかりませんでした。文字が四角になるかもしれません。");
-
-        return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        return UiFont.Find(fontSize, fontNames);
     }
 
     /// <summary>

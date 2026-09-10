@@ -187,12 +187,15 @@ public class RobotBody : MonoBehaviour
 
         if (jumpRequested && grounded && jumpHeight > 0f)
         {
-            // 「この高さまで上がる」速さを逆算して入れる
+            // 「この高さまで上がる」速さを逆算して入れる。
+            // **踏み切りの強さは、重力が変わっても変えない。**
+            // だから重力が弱いと、そのぶん高く跳ぶ（月面のような跳び方になる）
             verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
         }
         else if (!grounded)
         {
-            verticalVelocity += gravity * Time.deltaTime;
+            // 落ちる速さだけが、いまの重力に合わせて変わる（<see cref="WorldGravity"/>）
+            verticalVelocity += gravity * WorldGravity.Scale * Time.deltaTime;
         }
 
         Vector3 velocity = direction * (moveSpeed * GetSpeedRate(direction, faceDirection));

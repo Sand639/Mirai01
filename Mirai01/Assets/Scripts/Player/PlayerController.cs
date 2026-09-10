@@ -162,12 +162,14 @@ public class PlayerController : MonoBehaviour
 
             if (jumpAction.WasPressedThisFrame())
             {
+                // 踏み切りの強さは、重力が変わっても変えない（弱いほど高く跳ぶ）
                 verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
             }
         }
         else
         {
-            verticalVelocity += gravity * Time.deltaTime;
+            // 落ちる速さは、いまの重力に合わせて変わる（<see cref="WorldGravity"/>）
+            verticalVelocity += gravity * WorldGravity.Scale * Time.deltaTime;
         }
 
         Vector3 velocity = direction * speed;
