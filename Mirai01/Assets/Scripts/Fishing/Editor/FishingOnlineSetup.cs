@@ -95,6 +95,16 @@ public static class FishingOnlineSetup
         UnityTransport transport = managerObject.AddComponent<UnityTransport>();
         transport.SetConnectionData("127.0.0.1", 7777);
 
+        // ⚠ **AddComponent した直後の NetworkManager は、NetworkConfig が null。**
+        //   Netcode 側のコードにも「コンポーネントを足したときに起こりうる」と書かれている。
+        //   インスペクターから足したときは Reset() が呼ばれて作られるが、
+        //   スクリプトの AddComponent では呼ばれないため、ここで自分で用意する。
+        //   （用意しないと、次の行で NullReferenceException になる）
+        if (manager.NetworkConfig == null)
+        {
+            manager.NetworkConfig = new NetworkConfig();
+        }
+
         manager.NetworkConfig.NetworkTransport = transport;
         manager.NetworkConfig.PlayerPrefab = playerPrefab;
         manager.NetworkConfig.TickRate = FishingNetSceneBuilder.NetworkTickRate;
