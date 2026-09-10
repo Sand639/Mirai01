@@ -30,6 +30,7 @@ public static class FishingOnlineSetup
     private const string LobbyScenePath = FishingSceneBuilder.SceneFolder + "/FishingLobby.unity";
     private const string OnlineScenePath = FishingSceneBuilder.SceneFolder + "/FishingOnline.unity";
     private const string OnlineSceneName = "FishingOnline";
+    private const string LobbySceneName = "FishingLobby";
 
     [MenuItem("Tools/Mirai01/釣りのオンライン用シーンを作る（ロビー＋会場）")]
     public static void CreateAll()
@@ -157,6 +158,10 @@ public static class FishingOnlineSetup
         // 点数はオンラインの試合から読むので ScoreBoard は入れない
         GameObject hudObject = new GameObject("FishingHUD");
         hudObject.AddComponent<FishingStatusUI>();
+
+        // 残り時間と、決着したときの結果表示
+        FishingMatchUI matchUI = hudObject.AddComponent<FishingMatchUI>();
+        FishingSceneBuilder.SetString(matchUI, "lobbySceneName", LobbySceneName);
 
         // ---- 四方の壁とゴール ----
         FishingNetSceneBuilder.CreateNetworkPocketWalls();

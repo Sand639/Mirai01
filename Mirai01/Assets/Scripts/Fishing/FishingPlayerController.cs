@@ -100,8 +100,9 @@ public class FishingPlayerController : MonoBehaviour
     {
         Vector3 direction = Vector3.zero;
 
-        // スタン中は移動禁止（向きを変えることと、落ちることはできる）
-        if (stun == null || !stun.IsStunned)
+        // スタン中は移動禁止（向きを変えることと、落ちることはできる）。
+        // 試合が終わったあと（結果画面）も動かせない
+        if ((stun == null || !stun.IsStunned) && FishingMatch.PlayAllowed)
         {
             Vector2 input = moveAction.ReadValue<Vector2>();
 

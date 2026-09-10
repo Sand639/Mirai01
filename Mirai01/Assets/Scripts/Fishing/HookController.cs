@@ -261,8 +261,8 @@ public class HookController : MonoBehaviour
         // フックは手元にくっついている
         hookPosition = handPoint.position;
 
-        // スタン中は釣りができない
-        if (IsStunned)
+        // スタン中は釣りができない。試合が終わったあとも操作を受け付けない
+        if (IsStunned || !FishingMatch.PlayAllowed)
         {
             return;
         }

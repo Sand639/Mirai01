@@ -15,10 +15,46 @@ using UnityEngine;
 ///
 /// 点を足すのは <see cref="FishingNetPocket"/> から。表示は <see cref="FishingStatusUI"/>。
 /// </summary>
+/// <summary>試合がどう終わるか。**片方に差し替えられるように enum にしている。**</summary>
+public enum MatchEndRule
+{
+    /// <summary>制限時間で終わる（時間切れの時点で点が多いチームの勝ち）</summary>
+    TimeLimit,
+
+    /// <summary>目標点に先に届いたチームの勝ち</summary>
+    TargetScore
+}
+
+/// <summary>試合がいまどの段階か。</summary>
+public enum MatchPhase
+{
+    /// <summary>対戦中</summary>
+    Playing,
+
+    /// <summary>決着がついて結果を出している</summary>
+    Result
+}
+
 public class FishingMatch : NetworkBehaviour
 {
     /// <summary>シーンにある試合のまとめ役。ゴールや表示から探すために持っている。</summary>
     public static FishingMatch Current { get; private set; }
+
+    /// <summary>
+    /// いま遊んでよいか。**結果が出たあとは動かせなくする**ために使う。
+    /// 1人用のシーンには試合のまとめ役がいないので、そのときは常に true。
+    /// </summary>
+    public static bool PlayAllowed => Current == null || Current.IsPlaying;
+
+    [Header("決着のつけ方")]
+    [Tooltip("試合がどう終わるか。**制限時間と目標点を切り替えられる**")]
+    [SerializeField] private MatchEndRule endRule = MatchEndRule.TimeLimit;
+
+    [Tooltip("制限時間（秒）。End Rule が TimeLimit のときに使う")]
+    [SerializeField] private float timeLimitSeconds = 180f;
+
+    [Tooltip("目標点。End Rule が TargetScore のときに使う")]
+    [SerializeField] private int targetScore = 10;
 
     /// <summary>いま何チームに分かれているか。**ホストが決めて全員に配る。**</summary>
     private readonly NetworkVariable<int> teamCount = new NetworkVariable<int>(1);
@@ -39,8 +75,52 @@ public class FishingMatch : NetworkBehaviour
     private readonly NetworkVariable<FixedString128Bytes> lastEvent =
         new NetworkVariable<FixedString128Bytes>();
 
+    /// <summary>いまの段階（対戦中／結果）。**ホストが決めて全員に配る。**</summary>
+    private readonly NetworkVariable<MatchPhase> phase = new NetworkVariable<MatchPhase>(MatchPhase.Playing);
+
+    /// <summary>
+    /// 試合が終わる時刻。**全員で同期された時計（ServerTime）で持つ**ので、
+    /// どのPCでも同じ残り時間が出る。
+    /// </summary>
+    private readonly NetworkVariable<double> endServerTime = new NetworkVariable<double>(0d);
+
+    /// <summary>勝ったチーム。-1 なら引き分け。</summary>
+    private readonly NetworkVariable<int> winnerTeam = new NetworkVariable<int>(-1);
+
     /// <summary>いま何チームに分かれているか。</summary>
     public int TeamCount => teamCount.Value;
+
+    /// <summary>いまの段階。</summary>
+    public MatchPhase Phase => phase.Value;
+
+    /// <summary>対戦中か。</summary>
+    public bool IsPlaying => phase.Value == MatchPhase.Playing;
+
+    /// <summary>決着のつけ方。</summary>
+    public MatchEndRule EndRule => endRule;
+
+    /// <summary>目標点（End Rule が TargetScore のとき）。</summary>
+    public int TargetScore => targetScore;
+
+    /// <summary>勝ったチーム。-1 なら引き分け。</summary>
+    public int WinnerTeam => winnerTeam.Value;
+
+    /// <summary>
+    /// 残り秒数。**制限時間のときだけ意味を持つ。**
+    /// 全員で同期された時計から計算するので、どのPCでも同じ値になる。
+    /// </summary>
+    public float RemainingSeconds
+    {
+        get
+        {
+            if (endRule != MatchEndRule.TimeLimit || NetworkManager == null)
+            {
+                return 0f;
+            }
+
+            return Mathf.Max(0f, (float)(endServerTime.Value - NetworkManager.ServerTime.Time));
+        }
+    }
 
     /// <summary>直前に起きたことの文章。</summary>
     public string LastEvent => lastEvent.Value.ToString();
@@ -70,6 +150,11 @@ public class FishingMatch : NetworkBehaviour
             }
 
             RebuildTeams();
+
+            // 試合開始。**このシーンに来た時点から数え始める**
+            phase.Value = MatchPhase.Playing;
+            winnerTeam.Value = -1;
+            endServerTime.Value = NetworkManager.ServerTime.Time + timeLimitSeconds;
         }
 
         lastEvent.OnValueChanged += OnLastEventChanged;
@@ -102,6 +187,77 @@ public class FishingMatch : NetworkBehaviour
         {
             RebuildTeams();
         }
+
+        CheckMatchEnd();
+    }
+
+    // ------------------------------------------------------------
+    // 決着（ホストだけが判定する）
+    // ------------------------------------------------------------
+
+    /// <summary>
+    /// 試合が終わったかを見る。**決着のつけ方はここ1か所だけ。**
+    /// 制限時間と目標点を入れ替えたいときも、このメソッドを直せばよい。
+    /// </summary>
+    private void CheckMatchEnd()
+    {
+        if (phase.Value != MatchPhase.Playing)
+        {
+            return;
+        }
+
+        switch (endRule)
+        {
+            case MatchEndRule.TargetScore:
+                for (int team = 0; team < teamCount.Value; team++)
+                {
+                    if (ScoreOf(team) >= targetScore)
+                    {
+                        FinishMatch();
+                        return;
+                    }
+                }
+                break;
+
+            case MatchEndRule.TimeLimit:
+            default:
+                if (NetworkManager.ServerTime.Time >= endServerTime.Value)
+                {
+                    FinishMatch();
+                }
+                break;
+        }
+    }
+
+    /// <summary>決着をつける。点が一番多いチームの勝ち。同点なら引き分け。</summary>
+    private void FinishMatch()
+    {
+        int bestTeam = -1;
+        int bestScore = int.MinValue;
+        bool tied = false;
+
+        for (int team = 0; team < teamCount.Value; team++)
+        {
+            int score = ScoreOf(team);
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestTeam = team;
+                tied = false;
+            }
+            else if (score == bestScore)
+            {
+                tied = true;
+            }
+        }
+
+        winnerTeam.Value = tied ? -1 : bestTeam;
+        phase.Value = MatchPhase.Result;
+
+        Debug.Log(winnerTeam.Value < 0
+            ? $"[FISH] 試合終了。引き分け（{bestScore} 点）"
+            : $"[FISH] 試合終了。{FishingTeams.TeamName(winnerTeam.Value)} の勝ち（{bestScore} 点）");
     }
 
     // ------------------------------------------------------------
