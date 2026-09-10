@@ -1,3 +1,4 @@
+using System.IO;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -33,6 +34,9 @@ public class FishingLobbyUI : MonoBehaviour
 
     private GUIStyle labelStyle;
 
+    /// <summary>「ゲーム開始」を押した結果。うまくいかなかった理由を画面に出すために持つ。</summary>
+    private string startMessage = string.Empty;
+
     private void OnGUI()
     {
         if (!showUi)
@@ -44,6 +48,14 @@ public class FishingLobbyUI : MonoBehaviour
 
         // つながっていないときは、つなぐ画面（LanConnectionUi）に任せる
         if (manager == null || (!manager.IsClient && !manager.IsServer))
+        {
+            return;
+        }
+
+        // **釣り会場へ移ったあとは、この画面を出さない。**
+        // NetworkManager はシーンをまたいで生き残るので、
+        // 何もしないとゲーム中もロビーの画面が重なって出てしまう
+        if (FishingMatch.Current != null)
         {
             return;
         }
@@ -143,10 +155,64 @@ public class FishingLobbyUI : MonoBehaviour
             return;
         }
 
+        // **一番多い原因を先に出す。**
+        // ビルドの一覧に入っていないシーンは、Netcodeでも読み込めない
+        if (!IsSceneInBuildList(gameSceneName))
+        {
+            GUI.color = new Color(1f, 0.5f, 0.4f);
+            GUILayout.Label(
+                $"シーン「{gameSceneName}」がビルドの一覧に入っていません。\n" +
+                "File > Build Settings を開いて、\n" +
+                "FishingLobby と FishingOnline の2つを入れてください\n" +
+                "（`釣りのオンライン用シーンを作る` を実行し直すと自動で入ります）。",
+                labelStyle);
+            GUI.color = Color.white;
+            return;
+        }
+
         if (GUILayout.Button("ゲーム開始（全員でシーンを移動）"))
         {
             StartGame(manager);
         }
+
+        // 押したあと、うまくいかなかった場合はその理由を画面に出す
+        // （ビルドで動かしているときはConsoleが見られないため）
+        if (!string.IsNullOrEmpty(startMessage))
+        {
+            GUI.color = new Color(1f, 0.5f, 0.4f);
+            GUILayout.Space(4f);
+            GUILayout.Label(startMessage, labelStyle);
+            GUI.color = Color.white;
+        }
+    }
+
+    /// <summary>
+    /// そのシーンが**ビルドのシーン一覧に入っているか**を調べる。
+    ///
+    /// 入っていないと、Netcode でシーンを切り替えられない
+    /// （エディタでは `File > Build Settings` の一覧がそのまま使われる）。
+    /// **移行できない原因のほとんどがこれ**なので、先に確かめて画面に出している。
+    /// </summary>
+    private static bool IsSceneInBuildList(string sceneName)
+    {
+        if (string.IsNullOrEmpty(sceneName))
+        {
+            return false;
+        }
+
+        int count = UnityEngine.SceneManagement.SceneManager.sceneCountInBuildSettings;
+
+        for (int i = 0; i < count; i++)
+        {
+            string path = UnityEngine.SceneManagement.SceneUtility.GetScenePathByBuildIndex(i);
+
+            if (Path.GetFileNameWithoutExtension(path) == sceneName)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -161,13 +227,30 @@ public class FishingLobbyUI : MonoBehaviour
             return;
         }
 
-        var status = manager.SceneManager.LoadScene(gameSceneName, UnityEngine.SceneManagement.LoadSceneMode.Single);
-
-        if (status != SceneEventProgressStatus.Started)
+        if (manager.SceneManager == null)
         {
-            Debug.LogError(
-                $"[FISH] シーン「{gameSceneName}」を読み込めませんでした（{status}）。\n" +
-                "**File > Build Settings のシーン一覧に、ロビーと釣りのシーンの両方が入っているか**確認してください。");
+            startMessage = "SceneManager がまだ使えません（接続が完了していない可能性があります）。";
+            Debug.LogError("[FISH] " + startMessage);
+            return;
         }
+
+        var status = manager.SceneManager.LoadScene(
+            gameSceneName, UnityEngine.SceneManagement.LoadSceneMode.Single);
+
+        if (status == SceneEventProgressStatus.Started)
+        {
+            startMessage = string.Empty;
+            Debug.Log($"[FISH] シーン「{gameSceneName}」へ全員で移動します。");
+            return;
+        }
+
+        startMessage = $"シーンを読み込めませんでした（{status}）。";
+
+        Debug.LogError(
+            $"[FISH] シーン「{gameSceneName}」を読み込めませんでした（{status}）。\n" +
+            "よくある原因：\n" +
+            "・**File > Build Settings のシーン一覧に FishingOnline が入っていない**\n" +
+            "・NetworkManager の Enable Scene Management が OFF\n" +
+            "・別のシーン切り替えがまだ終わっていない（SceneEventInProgress）");
     }
 }
