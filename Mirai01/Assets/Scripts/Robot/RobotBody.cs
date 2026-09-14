@@ -39,6 +39,13 @@ public class RobotBody : MonoBehaviour, ILaunchable
     [Range(0f, 5f)]
     [SerializeField] private float jumpHeight = 1.2f;
 
+    [Header("空中での操作")]
+    [Tooltip("**空中で、どれだけ思いどおりに向きや速さを変えられるか。**\n" +
+             "1 = 地上と同じ（すぐ変わる）、0 = 跳んだときの勢いのまま変えられない。\n" +
+             "0.3なら、止まった状態から全速になるまで約0.33秒かかる")]
+    [Range(0f, 1f)]
+    [SerializeField] private float airControl = 0.3f;
+
     [Header("物を持つ")]
     [Tooltip("持った物を置く場所。**手のある体だけ**に入れる（下半身には入れない）")]
     [SerializeField] private Transform holdPoint;
@@ -72,6 +79,16 @@ public class RobotBody : MonoBehaviour, ILaunchable
     /// 自分で歩く速さとは別に足され、だんだん弱まる。
     /// </summary>
     private Vector3 launchVelocity;
+
+    /// <summary>
+    /// **自分で歩いている速さ（水平方向）。**
+    /// 地上では入力どおりにすぐ変わり、空中では <see cref="airControl"/> に合わせてゆっくり変わる。
+    /// 跳んだ瞬間の勢いが、空中でもしばらく残るのはこのため。
+    /// </summary>
+    private Vector3 moveVelocity;
+
+    // Air Control が1のとき、止まった状態から全速になるまでの秒数（0.3なら約0.33秒）
+    private const float FullControlSeconds = 0.1f;
 
     /// <summary>この体の進む速さ。</summary>
     public float MoveSpeed => moveSpeed;
@@ -198,7 +215,23 @@ public class RobotBody : MonoBehaviour, ILaunchable
             verticalVelocity += gravity * WorldGravity.Scale * Time.deltaTime;
         }
 
-        Vector3 velocity = direction * (moveSpeed * GetSpeedRate(direction, faceDirection));
+        Vector3 wantedVelocity = direction * (moveSpeed * GetSpeedRate(direction, faceDirection));
+        wantedVelocity.y = 0f;
+
+        if (grounded || airControl >= 1f)
+        {
+            // 地上では、入力どおりにすぐ変える（これまでと同じ動き）
+            moveVelocity = wantedVelocity;
+        }
+        else
+        {
+            // **空中では、入力のほうへ少しずつしか変えられない。**
+            // 1秒で変えられる速さ ＝ 全速 ÷ FullControlSeconds × Air Control
+            float maxChange = moveSpeed / FullControlSeconds * airControl * Time.deltaTime;
+            moveVelocity = Vector3.MoveTowards(moveVelocity, wantedVelocity, maxChange);
+        }
+
+        Vector3 velocity = moveVelocity;
 
         // 切り離しなどで与えられた勢いを足す。時間とともに弱まる
         velocity += launchVelocity;
@@ -246,6 +279,7 @@ public class RobotBody : MonoBehaviour, ILaunchable
 
         verticalVelocity = 0f;
         launchVelocity = Vector3.zero;
+        moveVelocity = Vector3.zero;
 
         characterController.Move(delta);
 
@@ -354,5 +388,6 @@ public class RobotBody : MonoBehaviour, ILaunchable
         characterController.enabled = wasEnabled;
         verticalVelocity = 0f;
         launchVelocity = Vector3.zero;
+        moveVelocity = Vector3.zero;
     }
 }
