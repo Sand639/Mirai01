@@ -45,10 +45,13 @@ public class FishingStatusUI : MonoBehaviour
 
         PrepareStyles();
 
-        Matrix4x4 saved = GUI.matrix;
-        GUI.matrix = Matrix4x4.Scale(new Vector3(uiScale, uiScale, 1f));
+        // **窓が小さいときは自動で縮める**（小さい窓で並べると、他の表示と重なるため）
+        activeScale = DraggableGuiPanel.FitScale(uiScale);
 
-        float width = Screen.width / uiScale;
+        Matrix4x4 saved = GUI.matrix;
+        GUI.matrix = Matrix4x4.Scale(new Vector3(activeScale, activeScale, 1f));
+
+        float width = Screen.width / activeScale;
         DrawScore();
         DrawBombTimer(width);
         DrawStun(width);
@@ -56,6 +59,9 @@ public class FishingStatusUI : MonoBehaviour
 
         GUI.matrix = saved;
     }
+
+    /// <summary>今フレーム、実際に使っている縮小率（窓の大きさに合わせて変わる）。</summary>
+    private float activeScale = 1.6f;
 
     private void PrepareStyles()
     {
@@ -184,7 +190,8 @@ public class FishingStatusUI : MonoBehaviour
         float danger = 1f - Mathf.Clamp01(remaining / Mathf.Max(0.01f, nearest.FuseSeconds));
         GUI.color = Color.Lerp(new Color(1f, 0.85f, 0.2f), new Color(1f, 0.2f, 0.15f), danger);
 
-        GUI.Label(new Rect(0f, 26f, width, 30f),
+        // 一番上は残り時間（FishingMatchUI）が使っているので、その下に出す
+        GUI.Label(new Rect(0f, 40f, width, 30f),
             $"爆発まで {remaining:0.0} 秒！", bigStyle);
 
         GUI.color = Color.white;
@@ -200,7 +207,7 @@ public class FishingStatusUI : MonoBehaviour
             return;
         }
 
-        float height = Screen.height / uiScale;
+        float height = Screen.height / activeScale;
 
         GUI.color = new Color(1f, 0.3f, 0.25f);
         GUI.Label(new Rect(0f, height * 0.42f, width, 30f),
@@ -215,7 +222,7 @@ public class FishingStatusUI : MonoBehaviour
             return;
         }
 
-        float height = Screen.height / uiScale;
+        float height = Screen.height / activeScale;
 
         GUI.color = new Color(1f, 1f, 1f, 0.65f);
         GUI.Label(new Rect(10f, height - 26f, width - 20f, 20f),

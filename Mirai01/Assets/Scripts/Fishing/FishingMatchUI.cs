@@ -50,7 +50,8 @@ public class FishingMatchUI : MonoBehaviour
         // **窓が小さいときは自動で縮める。**
         // 4つ並べて起動すると1つの窓が小さくなり、
         // そのままだと結果画面の「ロビーへ戻る」が画面の外へ出てしまう
-        float scale = Mathf.Min(uiScale, Screen.width / 520f, Screen.height / 330f);
+        // （他の表示と同じ割合で縮むよう、DraggableGuiPanel.FitScale にそろえている）
+        float scale = Mathf.Min(DraggableGuiPanel.FitScale(uiScale), Screen.width / 520f, Screen.height / 330f);
         scale = Mathf.Max(0.6f, scale);
 
         Matrix4x4 saved = GUI.matrix;

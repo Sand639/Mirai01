@@ -56,17 +56,17 @@ public class NetworkStatusHud : MonoBehaviour
             return;
         }
 
-        Matrix4x4 saved = GUI.matrix;
-        GUI.matrix = Matrix4x4.Scale(new Vector3(uiScale, uiScale, 1f));
+        // **帯をつかんで動かせる／「－」で折りたためる／窓が小さいと縮む**枠で描く。
+        // 位置を決め打ちしていたころは、小さい窓で他の表示と重なって読めなかった
+        panel.Draw(uiScale, DrawContents);
+    }
 
-        float width = 300f;
-        float x = (Screen.width / uiScale) - width - 12f;
+    /// <summary>枠（右上に出す）。</summary>
+    private readonly DraggableGuiPanel panel = new DraggableGuiPanel("通信の様子", 1f, -12f, 12f, 300f);
 
-        GUILayout.BeginArea(new Rect(x, 12f, width, 320f), GUI.skin.box);
+    private void DrawContents(int windowId)
+    {
         GUILayout.Label(cachedText);
-        GUILayout.EndArea();
-
-        GUI.matrix = saved;
     }
 
     /// <summary>表示する文章を組み立てる。</summary>

@@ -18,6 +18,8 @@
 
 | 日付 | 書いたAI | 何をしようとして | どう失敗したか | どうすればよかったか |
 | --- | --- | --- | --- | --- |
+| 2026/9/14 | Claude Code | **1つのプレハブから複数体が生まれる（オンライン）キャラに、`[SerializeField] InputActionAsset` を入れて `OnEnable` で `Enable()`／`OnDisable` で `Disable()` する既存の書き方をそのまま使った** | **1人しか動かせなくなった。** インスペクターで入れた `InputActionAsset` は**全員で同じ1個**。他の人のぶんのスクリプトを `enabled = false` にすると、その `OnDisable` が**共有のマップを止め、自分のキャラの入力まで止まる。** 生まれる順番しだいで動けるPCが変わるので、原因が見えにくい | **`Awake` で `inputActions = Instantiate(inputActions);` として体ごとの複製を使い、`OnDestroy` で `Destroy` する。** `FishingPlayerController` `HookController` `ThrowController` が実例。**`PlayerController` `RobotController` `RobotCameraLook` `ObjectCloner` も同じ書き方のまま**なので、オンラインで複数体にするときは同じ直しを入れること（`NetworkPlayer` は自分のぶんだけ `Enable` する形なので問題ない） |
+| 2026/9/14 | Claude Code | `OnGUI` の確認用UIを「窓に合わせて縮める」だけで対応していた（9/10の記録） | **縮めても、別々のスクリプトが決め打ちの位置に描く枠同士は重なる**（接続画面・通信の様子・ロビー）。「UIが被って読めない」と報告された | **`Assets/Scripts/UI/DraggableGuiPanel.cs` を使う。** `panel.Draw(uiScale, 中身を描く関数)` と書くだけで、**帯のドラッグで移動／「-」で折りたたみ／1920×1080基準で窓に比例して縮小／高さは中身に合わせる**になる。**新しく確認用の枠を作るときは、`GUILayout.BeginArea` で位置を決め打ちせず、これを使うこと** |
 | 2026/8/31 | Claude Code | `Documents/機能ドキュメント/_テンプレート.md` を読もうとした | シェル（Bash）経由の `cat` と `cd` が、**日本語のフォルダ名**を解釈できず `No such file or directory` になった。ファイル名だけが日本語の場合（`Documents/制作ログ.md` など）は成功する。**フォルダ名が日本語だと失敗する** | シェルを使わず、ファイル読み取り用のツールで**絶対パス**を指定して開く。`D:\010_GitHub\Mirai01\Documents\機能ドキュメント\_テンプレート.md` のように指定すれば問題なく読める |
 | 2026/9/1 | Claude Code | 表に行を足すため、`### 見出し` の直前に行を挿入した | **表の直後に空行を入れてしまい、1つの表が2つに分断された。** Markdownでは表の途中に空行があると、そこで表が切れる。`質問リスト.md` と `リスクリスト.md` で2回やった | 行を足したあと、**`sed -n` などでその前後3行を必ず見る**こと。表の行と行の間に空行が入っていないか確認する |
 | 2026/9/2 | Claude Code | 2つの体をJointで繋いで、合体と分離をするロボットを作った | **合体中にガクガクし、視点も滑らかにならず、分割時は動かなかった。** 原因は3つとも似ていて、**物理演算（固定間隔）と、速度の直接指定やカメラの追従（可変間隔）がぶつかっていた**こと | **「合体中は1体・分けたら2体」の入れ替え方式にする。** 見た目が繋がっていればよいだけなら、物理で繋ぐ必要はない。あわせて **CharacterController** にすると揺れない。**カメラは体の子にしない**（体が動くたびに引っ張られてカクつく）。`RobotController.cs` が実例 |
@@ -37,6 +39,7 @@
 
 | 日付 | 書いたAI | 場面 | やり方 |
 | --- | --- | --- | --- |
+| 2026/9/14 | Claude Code | **Unityが閉じていて、スクリプトのコンパイルを確かめたいとき** | Unityが作った `Mirai01/Assembly-CSharp.csproj` はそのままでは `dotnet build` できない（パッケージの参照が相対パスで、別の csproj を指している） → **作業用フォルダに csproj を複製し、①`Include="Assets\` を絶対パスに ②`<ProjectReference>` を消す ③`Library/ScriptAssemblies/*.dll`（Assembly-CSharp と Editor 系以外）を `<Reference HintPath>` で足す ④新しく作った .cs は Compile に手で足す**、の4つで `dotnet build` が通る。エラー0なら Unity でも通る見込みが高い（エディタ用スクリプトは別の csproj なので別途） |
 | 2026/9/1 | Claude Code | 一人称視点で「見ているもの」を判定するとき | カメラは**キャラクターのカプセルの内側**にあるため、素直に `Physics.Raycast` すると自分に当たって前に進まないことがある。`Physics.RaycastNonAlloc` で全部拾い、`transform.IsChildOf(playerRoot)` で自分を除いてから一番近いものを選ぶとよい。`ObjectCloner.cs` の `TryAim` が実例 |
 | 2026/9/1 | Claude Code | 日付を書くとき | **必ず `date` コマンドで今日の日付を確認してから書くこと。** 直前のコミットメッセージや変更ログの日付から推測すると1日ずれる。実際にこれで `9/1` の作業を `8/31` と書いてしまい、あとで直した |
 | 2026/8/31 | Claude Code | ドキュメントを点検するとき | 「書いてあるルール」と「実際の表の列」が食い違っている所を探すと、実害のある不備が見つかる。実際に、リスクリストは「対応内容を書く」と書いてあるのに書く列が無く、使用素材は表に無い「改変内容」列を指していた |
@@ -110,3 +113,4 @@
 | 2026/9/10 | Claude Code | `AddComponent<NetworkManager>()` 直後は `NetworkConfig` が null という落とし穴と、原因の切り分けで推測を外した反省（行番号を突き合わせる）を記録 |
 | 2026/9/10 | Claude Code | 既存のLAN検証ビルドには釣りのシーンが入っていない件と、Netcodeのシーン切り替えが失敗する理由を画面に出す方法を記録 |
 | 2026/9/10 | Claude Code | `OnGUI` の確認用UIを拡大すると、小さい窓でボタンが画面外に出て押せなくなる件と、その直し方（窓に合わせて縮める・押すボタンを先頭に置く）を記録 |
+| 2026/9/14 | Claude Code | 共有の `InputActionAsset` で1人しか動けなくなる件、`OnGUI` の枠を動かせるようにする部品（`DraggableGuiPanel`）、Unityを開かずにコンパイルを確かめる方法の3件を記録 |

@@ -29,26 +29,22 @@ public class FishingLobbyUI : MonoBehaviour
     [Range(1f, 4f)]
     [SerializeField] private float uiScale = 1.5f;
 
-    [Tooltip("画面の左からの位置（LanConnectionUi と重ならないようにずらす）。画面外に出る場合は自動で寄せる")]
+    [Tooltip("最初に出す、画面の左からの位置（LanConnectionUi と重ならないようにずらす）。出たあとは帯をつかんで動かせる")]
     [SerializeField] private float panelX = 366f;
 
     /// <summary>パネルの幅（縮める前の基準）。</summary>
     private const float PanelWidth = 320f;
-
-    /// <summary>
-    /// この横幅・縦幅が入るように縮める。
-    /// 横は「つなぐ画面（340）＋このパネル（320）＋余白」、縦はパネルの高さぶん。
-    /// </summary>
-    private const float NeededWidth = 700f;
-    private const float NeededHeight = 460f;
 
     private GUIStyle labelStyle;
 
     /// <summary>「ゲーム開始」を押した結果。うまくいかなかった理由を画面に出すために持つ。</summary>
     private string startMessage = string.Empty;
 
-    /// <summary>中身が入りきらないときのスクロール位置。</summary>
-    private Vector2 scroll;
+    /// <summary>
+    /// **帯をつかんで動かせる／「－」で折りたためる／窓が小さいと縮む**枠。
+    /// 位置を決め打ちしていたころは、小さい窓で接続画面や通信の様子と重なって読めなかった。
+    /// </summary>
+    private DraggableGuiPanel panel;
 
     /// <summary>つなぐ画面。試合中だけ隠すために持っておく。</summary>
     private LanConnectionUi connectionUi;
@@ -104,38 +100,22 @@ public class FishingLobbyUI : MonoBehaviour
 
         PrepareStyle();
 
-        // **窓が小さいときは自動で縮める。**
-        // 4つ並べて起動すると1つの窓が小さくなり、
-        // そのままだとパネルが画面の外へ出てボタンを押せなくなる
-        float scale = Mathf.Min(uiScale, Screen.width / NeededWidth, Screen.height / NeededHeight);
-        scale = Mathf.Max(0.6f, scale);
+        if (panel == null)
+        {
+            panel = new DraggableGuiPanel("ロビー", 0f, panelX, 12f, PanelWidth);
+        }
 
-        Matrix4x4 saved = GUI.matrix;
-        GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
+        panel.Draw(uiScale, windowId =>
+        {
+            // **「ゲーム開始」を一番上に置く。**
+            // 下に置くと、中身が増えたときに画面外へ押し出されて押せなくなる
+            DrawStartButton(manager);
 
-        float viewWidth = Screen.width / scale;
-        float viewHeight = Screen.height / scale;
+            GUILayout.Space(6f);
 
-        // 画面の外へ出ないところまで寄せる
-        float x = Mathf.Max(8f, Mathf.Min(panelX, viewWidth - PanelWidth - 8f));
-        float height = Mathf.Min(420f, viewHeight - 24f);
-
-        GUILayout.BeginArea(new Rect(x, 12f, PanelWidth, height), GUI.skin.box);
-
-        // **「ゲーム開始」を一番上に置く。**
-        // 下に置くと、中身が増えたときに画面外へ押し出されて押せなくなる
-        DrawStartButton(manager);
-
-        GUILayout.Space(6f);
-
-        // 入りきらない分はスクロールで読めるようにする
-        scroll = GUILayout.BeginScrollView(scroll);
-        DrawRoster();
-        DrawTeamRule();
-        GUILayout.EndScrollView();
-
-        GUILayout.EndArea();
-        GUI.matrix = saved;
+            DrawRoster();
+            DrawTeamRule();
+        });
     }
 
     private void PrepareStyle()

@@ -164,8 +164,20 @@ public class ThrowController : MonoBehaviour
             return;
         }
 
+        // **入力の設定は、この体専用の複製を使う**（理由は FishingPlayerController.Awake と同じ。
+        // 共有したままだと、他の人のぶんを止めたときに自分の入力まで止まる）
+        inputActions = Instantiate(inputActions);
+
         playerMap = inputActions.FindActionMap("Player", true);
         attackAction = playerMap.FindAction("Attack", true);
+    }
+
+    private void OnDestroy()
+    {
+        if (inputActions != null)
+        {
+            Destroy(inputActions);
+        }
     }
 
     private void OnEnable()

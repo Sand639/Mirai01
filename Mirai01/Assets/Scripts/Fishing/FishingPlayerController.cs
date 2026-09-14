@@ -61,8 +61,21 @@ public class FishingPlayerController : MonoBehaviour
             return;
         }
 
+        // **入力の設定は、この体専用の複製を使う。**
+        // 元のアセットをそのまま使うと、オンラインで「他の人のぶん」の操作を止めたとき
+        // （OnDisable → Disable）に、**自分の入力まで一緒に止まって1人しか動かなくなる**
+        inputActions = Instantiate(inputActions);
+
         playerMap = inputActions.FindActionMap("Player", true);
         moveAction = playerMap.FindAction("Move", true);
+    }
+
+    private void OnDestroy()
+    {
+        if (inputActions != null)
+        {
+            Destroy(inputActions);
+        }
     }
 
     private void Start()
