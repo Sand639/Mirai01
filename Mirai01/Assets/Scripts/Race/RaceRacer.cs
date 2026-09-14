@@ -42,6 +42,12 @@ public class RaceRacer : MonoBehaviour
     /// <summary>次に通らなければいけないチェックポイントの番号。</summary>
     public int NextCheckpoint { get; set; }
 
+    /// <summary>
+    /// **最後に通ったチェックポイントの番号。** まだ1つも通っていなければ -1。
+    /// 落ちたときに、どこへ戻すかを決めるのに使う。
+    /// </summary>
+    public int LastPassedCheckpoint { get; set; } = -1;
+
     /// <summary>ゴールしたか。</summary>
     public bool Finished { get; set; }
 
@@ -75,6 +81,19 @@ public class RaceRacer : MonoBehaviour
 
     /// <summary>いまの速さ（1秒あたりのメートル）。画面に出すため。</summary>
     public float CurrentSpeed { get; private set; }
+
+    /// <summary>
+    /// **一番低いところの高さを教える処理。** 落ちたかどうかを調べるのに使う。
+    ///
+    /// 入っていなければ <see cref="TrackedPosition"/> の高さを使う。
+    /// ロボットのように**体が分かれる作り**では、操作していないほうの体が落ちても気づけるよう、
+    /// 全部の体のうち一番低いものを教える（`RobotRacerLink`）。
+    /// </summary>
+    public System.Func<float> LowestHeightProvider { get; set; }
+
+    /// <summary>一番低いところの高さ。</summary>
+    public float LowestHeight =>
+        LowestHeightProvider != null ? LowestHeightProvider() : TrackedPosition.y;
 
     /// <summary>
     /// **やり直しのときに、代わりに呼ばれる処理。**
@@ -151,41 +170,53 @@ public class RaceRacer : MonoBehaviour
         FinishTime = 0f;
         Rank = 0;
         ControlEnabled = false;
+        LastPassedCheckpoint = -1;
+
+        TeleportTo(StartPosition, StartRotation);
+    }
+
+    /// <summary>
+    /// **周回などの記録はそのままで、決めた場所へ瞬間移動させる。**
+    /// 落ちたときに戻すのにも、やり直しにも使う。
+    /// </summary>
+    public void TeleportTo(Vector3 position, Quaternion rotation)
+    {
         CurrentSpeed = 0f;
 
-        // 体が分かれている作りでは、戻し方をそちらに任せる
         if (ResetHandler != null)
         {
-            ResetHandler(StartPosition, StartRotation);
-            PreviousPosition = TrackedPosition;
-
-            return;
+            // 体が分かれている作りでは、戻し方をそちらに任せる
+            ResetHandler(position, rotation);
         }
-
-        // CharacterController が付いていると、位置を入れても押し戻されることがある。
-        // 一度切ってから動かすのが確実
-        CharacterController controller = GetComponent<CharacterController>();
-        bool wasEnabled = controller != null && controller.enabled;
-
-        if (wasEnabled)
+        else
         {
-            controller.enabled = false;
+            // CharacterController が付いていると、位置を入れても押し戻されることがある。
+            // 一度切ってから動かすのが確実
+            CharacterController controller = GetComponent<CharacterController>();
+            bool wasEnabled = controller != null && controller.enabled;
+
+            if (wasEnabled)
+            {
+                controller.enabled = false;
+            }
+
+            transform.SetPositionAndRotation(position, rotation);
+
+            if (wasEnabled)
+            {
+                controller.enabled = true;
+            }
+
+            KartController kart = GetComponent<KartController>();
+
+            if (kart != null)
+            {
+                kart.StopImmediately();
+            }
         }
 
-        transform.SetPositionAndRotation(StartPosition, StartRotation);
-
-        if (wasEnabled)
-        {
-            controller.enabled = true;
-        }
-
-        PreviousPosition = StartPosition;
-
-        KartController kart = GetComponent<KartController>();
-
-        if (kart != null)
-        {
-            kart.StopImmediately();
-        }
+        // **「前のフレームの位置」も移動先に合わせる。**
+        // 合わせないと、瞬間移動の途中で通過点を横切ったと勘違いされる
+        PreviousPosition = TrackedPosition;
     }
 }

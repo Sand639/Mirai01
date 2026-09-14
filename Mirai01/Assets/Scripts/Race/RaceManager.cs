@@ -68,6 +68,20 @@ public class RaceManager : MonoBehaviour
     [Tooltip("スタート位置。**上から順に、参加している人へ割り当てる**（通信で人数が増えたとき用）")]
     [SerializeField] private List<Transform> startGrid = new List<Transform>();
 
+    [Header("落ちたとき")]
+    [Tooltip("**この高さより下に落ちたら、最後に通った通過点へ戻す**（メートル）")]
+    [SerializeField] private float fallHeight = -10f;
+
+    [Tooltip("**通過点のどれだけ手前に戻すか**（メートル）。マイナスにすると、通過点の先に出る")]
+    [SerializeField] private float respawnBackDistance = 2f;
+
+    [Tooltip("戻す場所の、地面からの高さ（メートル）。**地面が見つからなければ、通過点の高さのまま**")]
+    [Min(0f)]
+    [SerializeField] private float respawnAboveGround = 0.3f;
+
+    [Tooltip("戻したときにコンソールへ書き出す")]
+    [SerializeField] private bool logRespawns = true;
+
     [Header("操作")]
     [Tooltip("**やり直しのキー。** 押すとスタート地点に戻る")]
     [SerializeField] private Key restartKey = Key.R;
@@ -91,6 +105,8 @@ public class RaceManager : MonoBehaviour
     public float StartSignalRemaining { get; private set; }
 
     private int finishedCount;
+
+    private readonly RaycastHit[] groundHits = new RaycastHit[16];
 
     private void Awake()
     {
@@ -128,6 +144,9 @@ public class RaceManager : MonoBehaviour
         }
 
         AdvancePhase();
+
+        // **周回を調べるより先に**戻す（戻した場所は、周回の判定に使わない）
+        CheckFalls();
 
         if (State == Phase.Running || State == Phase.Finished)
         {
@@ -265,6 +284,9 @@ public class RaceManager : MonoBehaviour
 
     private void PassCheckpoint(RaceRacer racer, RaceCheckpoint passed)
     {
+        // 落ちたときに戻す場所として覚えておく
+        racer.LastPassedCheckpoint = racer.NextCheckpoint % checkpoints.Count;
+
         racer.NextCheckpoint = (racer.NextCheckpoint + 1) % checkpoints.Count;
 
         // **スタート／ゴールの線を通ったら1周ぶん。**
@@ -294,6 +316,111 @@ public class RaceManager : MonoBehaviour
         if (finishedCount >= RaceRacer.All.Count)
         {
             State = Phase.Finished;
+        }
+    }
+
+    // ------------------------------------------------------------
+    // 落ちたら戻す
+    // ------------------------------------------------------------
+
+    private void CheckFalls()
+    {
+        for (int i = 0; i < RaceRacer.All.Count; i++)
+        {
+            RaceRacer racer = RaceRacer.All[i];
+
+            if (racer.LowestHeight < fallHeight)
+            {
+                Respawn(racer);
+            }
+        }
+    }
+
+    /// <summary>
+    /// **最後に通った通過点の少し手前に戻す。** 周回の記録はそのまま。
+    /// まだ1つも通っていなければ、スタート地点に戻す。
+    /// </summary>
+    public void Respawn(RaceRacer racer)
+    {
+        int index = racer.LastPassedCheckpoint;
+        RaceCheckpoint checkpoint = index >= 0 && index < checkpoints.Count ? checkpoints[index] : null;
+
+        if (checkpoint == null)
+        {
+            racer.TeleportTo(racer.StartPosition, racer.StartRotation);
+            LogRespawn(racer, "スタート地点");
+
+            return;
+        }
+
+        GetRespawnPoint(checkpoint, out Vector3 position, out Quaternion rotation);
+        racer.TeleportTo(position, rotation);
+
+        LogRespawn(racer, $"通過点{index}（{checkpoint.name}）の手前");
+    }
+
+    /// <summary>
+    /// 通過点から、戻す場所と向きを求める。
+    /// **進む向きに対して手前**に下がり、真下の地面の少し上に置く。
+    /// </summary>
+    private void GetRespawnPoint(RaceCheckpoint checkpoint, out Vector3 position, out Quaternion rotation)
+    {
+        // 通過点が傾いていても、向きは水平にそろえる（斜めを向いて出てこないように）
+        Vector3 forward = checkpoint.Forward;
+        forward.y = 0f;
+
+        if (forward.sqrMagnitude < 0.0001f)
+        {
+            forward = Vector3.forward;
+        }
+
+        forward.Normalize();
+
+        Vector3 point = checkpoint.transform.position - forward * respawnBackDistance;
+
+        position = SnapToGround(point);
+        rotation = Quaternion.LookRotation(forward);
+    }
+
+    /// <summary>
+    /// **真下の地面を探して、その少し上の位置を返す。**
+    /// 見つからなければ（下が穴なら）、渡された位置のまま返す。
+    /// </summary>
+    private Vector3 SnapToGround(Vector3 point)
+    {
+        const float startAbove = 3f;
+
+        int count = Physics.RaycastNonAlloc(
+            point + Vector3.up * startAbove, Vector3.down, groundHits, 60f, ~0, QueryTriggerInteraction.Ignore);
+
+        float nearest = float.MaxValue;
+        Vector3 ground = point;
+
+        for (int i = 0; i < count; i++)
+        {
+            RaycastHit hit = groundHits[i];
+
+            // 人の体を地面と間違えない
+            if (hit.collider is CharacterController)
+            {
+                continue;
+            }
+
+            if (hit.distance < nearest)
+            {
+                nearest = hit.distance;
+                ground = hit.point;
+            }
+        }
+
+        return nearest < float.MaxValue ? ground + Vector3.up * respawnAboveGround : point;
+    }
+
+    private void LogRespawn(RaceRacer racer, string where)
+    {
+        if (logRespawns)
+        {
+            Debug.Log($"[RACE] {racer.RacerName}：高さ {fallHeight:0.#} より下に落ちたので、{where}に戻した", racer);
         }
     }
 
@@ -347,6 +474,47 @@ public class RaceManager : MonoBehaviour
     // ------------------------------------------------------------
     // 表示用
     // ------------------------------------------------------------
+
+    /// <summary>
+    /// 選んだときに、**落ちたら戻る場所**を黄緑の球で、
+    /// **落ちたと判定する高さ**を赤い枠で見せる。
+    /// </summary>
+    private void OnDrawGizmosSelected()
+    {
+        Vector3 center = Vector3.zero;
+        int count = 0;
+
+        for (int i = 0; i < checkpoints.Count; i++)
+        {
+            RaceCheckpoint checkpoint = checkpoints[i];
+
+            if (checkpoint == null)
+            {
+                continue;
+            }
+
+            GetRespawnPoint(checkpoint, out Vector3 position, out _);
+
+            Gizmos.color = new Color(0.6f, 1f, 0.3f, 0.9f);
+            Gizmos.DrawSphere(position, 0.3f);
+            Gizmos.DrawLine(position, checkpoint.transform.position);
+
+            center += checkpoint.transform.position;
+            count++;
+        }
+
+        if (count == 0)
+        {
+            return;
+        }
+
+        // 落ちたと判定する高さ。通過点の真ん中あたりに、広めの枠を描く
+        center /= count;
+        center.y = fallHeight;
+
+        Gizmos.color = new Color(1f, 0.25f, 0.2f, 0.8f);
+        Gizmos.DrawWireCube(center, new Vector3(150f, 0f, 150f));
+    }
 
     /// <summary>秒数を「1:23.45」の形にする。</summary>
     public static string FormatTime(float seconds)

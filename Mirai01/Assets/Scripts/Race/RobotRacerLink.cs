@@ -51,6 +51,7 @@ public class RobotRacerLink : MonoBehaviour
         }
 
         racer.ResetHandler = ResetBodies;
+        racer.LowestHeightProvider = LowestBodyHeight;
         UpdatePositionSource();
     }
 
@@ -59,6 +60,32 @@ public class RobotRacerLink : MonoBehaviour
         if (racer != null)
         {
             racer.ResetHandler = null;
+            racer.LowestHeightProvider = null;
+        }
+    }
+
+    /// <summary>
+    /// **出ている体のうち、一番低いものの高さ。**
+    ///
+    /// 分離中に**操作していないほうの体**が落ちても、戻せるようにするため。
+    /// 合体中は、隠れている上半身・下半身は数えない（位置が古いまま残っているため）。
+    /// </summary>
+    private float LowestBodyHeight()
+    {
+        float lowest = float.MaxValue;
+
+        ConsiderBody(robot.CombinedBodyPart, ref lowest);
+        ConsiderBody(robot.UpperBodyPart, ref lowest);
+        ConsiderBody(robot.LowerBodyPart, ref lowest);
+
+        return lowest < float.MaxValue ? lowest : racer.TrackedPosition.y;
+    }
+
+    private static void ConsiderBody(RobotBody body, ref float lowest)
+    {
+        if (body != null && body.gameObject.activeInHierarchy)
+        {
+            lowest = Mathf.Min(lowest, body.transform.position.y);
         }
     }
 
