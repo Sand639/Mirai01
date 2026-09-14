@@ -56,6 +56,12 @@ public class RaceHud : MonoBehaviour
     {
         RaceManager race = RaceManager.Current;
 
+        // 重力はレースが無いシーンでも出す（割れるガラス床の検証シーンなど）
+        UpdateGravity();
+
+        // **レースが無いシーンでは、周回・タイム・速度は出さない**
+        SetRacePanelsVisible(race != null);
+
         if (race == null)
         {
             return;
@@ -68,8 +74,28 @@ public class RaceHud : MonoBehaviour
 
         UpdateBigText(race);
         UpdateCorners(race);
-        UpdateGravity();
         UpdateResult(race);
+    }
+
+    private void SetRacePanelsVisible(bool visible)
+    {
+        SetActiveIfChanged(lapText.transform.parent.gameObject, visible);
+        SetActiveIfChanged(timeText.transform.parent.gameObject, visible);
+        SetActiveIfChanged(speedText.transform.parent.gameObject, visible);
+        SetActiveIfChanged(bigText.gameObject, visible);
+
+        if (!visible)
+        {
+            SetActiveIfChanged(resultPanel, false);
+        }
+    }
+
+    private static void SetActiveIfChanged(GameObject target, bool active)
+    {
+        if (target.activeSelf != active)
+        {
+            target.SetActive(active);
+        }
     }
 
     /// <summary>

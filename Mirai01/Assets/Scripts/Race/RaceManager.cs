@@ -154,6 +154,9 @@ public class RaceManager : MonoBehaviour
         StartSignalRemaining = 0f;
         finishedCount = 0;
 
+        // 割れた床など、コースの仕掛けも元に戻す（聞いている物だけが戻る）
+        StageReset.Request();
+
         LineUpRacers();
 
         for (int i = 0; i < RaceRacer.All.Count; i++)
