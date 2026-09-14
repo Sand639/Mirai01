@@ -8,7 +8,7 @@ using UnityEngine;
 /// | --- | --- |
 /// | 置き方 | **空中にも置ける。落ちてこない**（重力の影響を受けない） |
 /// | 爆発 | **人が触れたら、その瞬間に爆発する** |
-/// | 飛ぶ向き | **爆弾の中心から、触れた人の中心へ向かう向き** |
+/// | 飛ぶ向き | **爆弾の中心から、触れた人の中心へ向かう向き**。上を向きすぎるときは決めた角度までねかせる（踏んでも真上に飛ばない） |
 /// | 飛ぶ強さ | **重力が重いほど弱く、軽いほど強い** |
 ///
 /// ## 使い方
@@ -59,6 +59,13 @@ public class Bomb : MonoBehaviour
              "地面の爆弾で真横に滑るだけになるときは、0.3 くらい入れると浮き上がる")]
     [Range(0f, 1f)]
     [SerializeField] private float upwardBias;
+
+    [Header("飛ぶ角度")]
+    [Tooltip("**飛ぶ向きの、地面からの角度の上限**（度）。\n" +
+             "爆弾を踏んだときに真上へ飛ばず、**この角度でななめに飛ぶ**。\n" +
+             "45 … ななめ45度まで　60 … 少し急　90 … 上限なし（真上にも飛ぶ）")]
+    [Range(0f, 90f)]
+    [SerializeField] private float maxLaunchAngle = 45f;
 
     [Header("見た目")]
     [Tooltip("爆発の見た目（広がって消える球）のマテリアル")]
@@ -242,8 +249,53 @@ public class Bomb : MonoBehaviour
         }
 
         direction = (direction.normalized + Vector3.up * upwardBias).normalized;
+        direction = LimitAngle(direction, character);
 
         target.Launch(direction * speed);
+    }
+
+    /// <summary>
+    /// **飛ぶ向きが上を向きすぎていたら、<see cref="maxLaunchAngle"/> までねかせる。**
+    ///
+    /// 横の向きは、なるべく「爆弾から人へ」の横の向きを使う。
+    /// 爆弾の真上に乗っていて横の向きが無いときは、**人が動いていた向き**、
+    /// 止まっていたら**人の向いている向き**へ飛ばす（踏んだまま前に抜けていく）。
+    /// </summary>
+    private Vector3 LimitAngle(Vector3 direction, CharacterController character)
+    {
+        if (maxLaunchAngle >= 90f)
+        {
+            return direction;
+        }
+
+        float angle = Mathf.Asin(Mathf.Clamp(direction.y, -1f, 1f)) * Mathf.Rad2Deg;
+
+        if (angle <= maxLaunchAngle)
+        {
+            return direction;
+        }
+
+        Vector3 flat = new Vector3(direction.x, 0f, direction.z);
+
+        // ほぼ真上（約6度以内）のときは、横の向きがぶれやすいので使わない
+        if (flat.sqrMagnitude < 0.1f * 0.1f)
+        {
+            flat = new Vector3(character.velocity.x, 0f, character.velocity.z);
+
+            if (flat.sqrMagnitude < 0.1f * 0.1f)
+            {
+                flat = new Vector3(character.transform.forward.x, 0f, character.transform.forward.z);
+            }
+
+            if (flat.sqrMagnitude < 0.0001f)
+            {
+                flat = Vector3.forward;
+            }
+        }
+
+        float radians = maxLaunchAngle * Mathf.Deg2Rad;
+
+        return flat.normalized * Mathf.Cos(radians) + Vector3.up * Mathf.Sin(radians);
     }
 
     private void SpawnBlast(Vector3 center)
