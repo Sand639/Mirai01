@@ -1,0 +1,331 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// **触れた瞬間に爆発して、触れた人を吹っ飛ばす爆弾。**
+///
+/// | 決まり | 内容 |
+/// | --- | --- |
+/// | 置き方 | **空中にも置ける。落ちてこない**（重力の影響を受けない） |
+/// | 爆発 | **人が触れたら、その瞬間に爆発する** |
+/// | 飛ぶ向き | **爆弾の中心から、触れた人の中心へ向かう向き** |
+/// | 飛ぶ強さ | **重力が重いほど弱く、軽いほど強い** |
+///
+/// ## 使い方
+///
+/// **プレハブ（`Assets/Prefabs/Bomb.prefab`）を置くだけ。** つなぐものは無い。
+/// メニューの `Tools > Mirai01 > 爆弾を置く` でも置ける。
+///
+/// ## 「触れた」の見分け方
+///
+/// **爆弾の周りの球の中に、人（CharacterController）が入ったか**を毎フレーム調べている。
+/// 爆弾そのものには**当たり判定を付けていない。**
+/// 付けると、人が爆弾に押し戻されて触れる前に止まってしまったり、
+/// カメラが爆弾を「壁」と思って寄ってきたりするため。
+///
+/// ## 吹っ飛ばせる相手
+///
+/// **<see cref="ILaunchable"/> を持っている人だけ。** 今はロボットの体が持っている。
+/// 持っていない人が触れても爆発はするが、飛ばない（コンソールに1回だけ知らせる）。
+/// </summary>
+public class Bomb : MonoBehaviour
+{
+    [Header("触れたと判定する範囲")]
+    [Tooltip("**爆弾の中心から、この距離まで人が近づいたら爆発する**（メートル）。見た目より少し大きめにする")]
+    [Min(0.05f)]
+    [SerializeField] private float touchRadius = 0.6f;
+
+    [Header("吹っ飛ばす強さ")]
+    [Tooltip("**ふつうの重力（9.81）のときに飛ばす速さ**（1秒あたりのメートル）")]
+    [Min(0f)]
+    [SerializeField] private float launchSpeed = 9f;
+
+    [Tooltip("**重力にどれだけ左右されるか。**\n" +
+             "1 … 重力が半分なら2倍飛ぶ（反比例）\n" +
+             "0.5 … 重力が半分なら約1.4倍飛ぶ（ゆるやか）\n" +
+             "0 … 重力に関係なく同じ強さ")]
+    [Range(0f, 2f)]
+    [SerializeField] private float gravityInfluence = 1f;
+
+    [Tooltip("重力がどれだけ重くても、**ふつうの何倍までは弱くしない**か")]
+    [Range(0.05f, 1f)]
+    [SerializeField] private float minMultiplier = 0.25f;
+
+    [Tooltip("重力がどれだけ軽くても、**ふつうの何倍までしか強くしない**か。月（1.6）だと計算上は約6倍になるので、ここで抑える")]
+    [Range(1f, 10f)]
+    [SerializeField] private float maxMultiplier = 3f;
+
+    [Tooltip("**飛ぶ向きに足す、上向きの量。** 0なら「爆弾から人へ」の向きそのまま。\n" +
+             "地面の爆弾で真横に滑るだけになるときは、0.3 くらい入れると浮き上がる")]
+    [Range(0f, 1f)]
+    [SerializeField] private float upwardBias;
+
+    [Header("見た目")]
+    [Tooltip("爆発の見た目（広がって消える球）のマテリアル")]
+    [SerializeField] private Material blastMaterial;
+
+    [Tooltip("爆発の見た目が広がる大きさ（直径・メートル）")]
+    [Min(0.1f)]
+    [SerializeField] private float blastSize = 2.5f;
+
+    [Tooltip("爆発の見た目が消えるまでの秒数")]
+    [Min(0.05f)]
+    [SerializeField] private float blastSeconds = 0.35f;
+
+    [Tooltip("**浮いていると分かるように、ゆっくり上下させる幅**（メートル）。0で止まる")]
+    [Min(0f)]
+    [SerializeField] private float bobHeight = 0.08f;
+
+    [Header("元に戻る")]
+    [Tooltip("**爆発してから元に戻るまでの秒数。** 0なら戻らない（やり直しのときだけ戻る）")]
+    [Min(0f)]
+    [SerializeField] private float respawnSeconds;
+
+    [Tooltip("爆発するたびにコンソールへ書き出す")]
+    [SerializeField] private bool logExplosions = true;
+
+    /// <summary>もう爆発したか。</summary>
+    public bool HasExploded { get; private set; }
+
+    private static readonly Collider[] Hits = new Collider[16];
+    private static bool warnedNotLaunchable;
+
+    private readonly HashSet<ILaunchable> launchedThisTime = new HashSet<ILaunchable>();
+
+    private Renderer[] visuals;
+    private Vector3 restLocalPosition;
+    private float bobPhase;
+    private float respawnTimer;
+
+    private void Awake()
+    {
+        visuals = GetComponentsInChildren<Renderer>(true);
+        restLocalPosition = transform.localPosition;
+
+        // 並べて置いたときに、みんなで同じ動きにならないようにずらす
+        bobPhase = Random.Range(0f, Mathf.PI * 2f);
+    }
+
+    private void OnEnable()
+    {
+        StageReset.Requested += Restore;
+    }
+
+    private void OnDisable()
+    {
+        StageReset.Requested -= Restore;
+    }
+
+    private void Update()
+    {
+        if (GamePause.IsPaused)
+        {
+            return;
+        }
+
+        if (HasExploded)
+        {
+            UpdateRespawn();
+            return;
+        }
+
+        Bob();
+        CheckTouch();
+    }
+
+    // ------------------------------------------------------------
+    // 触れたか
+    // ------------------------------------------------------------
+
+    private void CheckTouch()
+    {
+        int count = Physics.OverlapSphereNonAlloc(
+            transform.position, touchRadius, Hits, ~0, QueryTriggerInteraction.Ignore);
+
+        for (int i = 0; i < count; i++)
+        {
+            if (Hits[i] is CharacterController)
+            {
+                Explode();
+                return;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------
+    // 爆発
+    // ------------------------------------------------------------
+
+    /// <summary>
+    /// **爆発させる。** 外から爆発させたいとき（連鎖など）にも呼べる。
+    /// 触れている人を全員吹っ飛ばす。
+    /// </summary>
+    public void Explode()
+    {
+        if (HasExploded)
+        {
+            return;
+        }
+
+        HasExploded = true;
+        respawnTimer = respawnSeconds;
+
+        Vector3 center = transform.position;
+        float speed = CurrentLaunchSpeed();
+
+        launchedThisTime.Clear();
+
+        int count = Physics.OverlapSphereNonAlloc(
+            center, touchRadius, Hits, ~0, QueryTriggerInteraction.Ignore);
+
+        for (int i = 0; i < count; i++)
+        {
+            if (!(Hits[i] is CharacterController character))
+            {
+                continue;
+            }
+
+            LaunchCharacter(character, center, speed);
+        }
+
+        SetVisible(false);
+        SpawnBlast(center);
+
+        if (logExplosions)
+        {
+            Debug.Log($"[BOMB] {name}：爆発（重力 {Mathf.Abs(WorldGravity.Value):0.0} → 飛ばす速さ {speed:0.0}）", this);
+        }
+    }
+
+    /// <summary>
+    /// **いまの重力で、どれだけの速さで飛ばすか。**
+    ///
+    /// ふつうの重力を基準に、`(ふつう ÷ いま) の gravityInfluence 乗` を掛ける。
+    /// 重いほど小さく、軽いほど大きくなる。行き過ぎないように上下を抑えている。
+    /// </summary>
+    public float CurrentLaunchSpeed()
+    {
+        float scale = Mathf.Max(0.01f, WorldGravity.Scale);
+        float multiplier = Mathf.Pow(1f / scale, gravityInfluence);
+
+        return launchSpeed * Mathf.Clamp(multiplier, minMultiplier, maxMultiplier);
+    }
+
+    private void LaunchCharacter(CharacterController character, Vector3 center, float speed)
+    {
+        ILaunchable target = character.GetComponentInParent<ILaunchable>();
+
+        if (target == null)
+        {
+            if (!warnedNotLaunchable)
+            {
+                warnedNotLaunchable = true;
+                Debug.LogWarning($"[BOMB] {character.name} は吹っ飛ばせません（ILaunchable を持っていない）。" +
+                                 "爆発はしましたが、飛びません。", character);
+            }
+
+            return;
+        }
+
+        // 1つの体に当たり判定が2つあっても、1回だけ飛ばす
+        if (!launchedThisTime.Add(target))
+        {
+            return;
+        }
+
+        // **爆弾の中心 → 人の中心** の向き。真上に重なっていたら真上へ
+        Vector3 direction = character.bounds.center - center;
+
+        if (direction.sqrMagnitude < 0.0001f)
+        {
+            direction = Vector3.up;
+        }
+
+        direction = (direction.normalized + Vector3.up * upwardBias).normalized;
+
+        target.Launch(direction * speed);
+    }
+
+    private void SpawnBlast(Vector3 center)
+    {
+        if (blastMaterial == null)
+        {
+            return;
+        }
+
+        GameObject blast = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        blast.name = name + "_Blast";
+
+        Collider collider = blast.GetComponent<Collider>();
+        collider.enabled = false;
+        Destroy(collider);
+
+        blast.transform.position = center;
+
+        MeshRenderer blastRenderer = blast.GetComponent<MeshRenderer>();
+        blastRenderer.sharedMaterial = blastMaterial;
+        blastRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+        BlastEffect effect = blast.AddComponent<BlastEffect>();
+        effect.Play(blastSize, blastSeconds);
+    }
+
+    // ------------------------------------------------------------
+    // 見た目・戻る
+    // ------------------------------------------------------------
+
+    private void Bob()
+    {
+        if (bobHeight <= 0f)
+        {
+            return;
+        }
+
+        float offset = Mathf.Sin(Time.time * 2f + bobPhase) * bobHeight;
+        transform.localPosition = restLocalPosition + Vector3.up * offset;
+    }
+
+    private void UpdateRespawn()
+    {
+        if (respawnSeconds <= 0f)
+        {
+            return;
+        }
+
+        respawnTimer -= Time.deltaTime;
+
+        if (respawnTimer <= 0f)
+        {
+            Restore();
+        }
+    }
+
+    /// <summary>
+    /// **爆発する前の状態に戻す。**
+    /// やり直しの合図（<see cref="StageReset"/>）でも呼ばれる。
+    /// </summary>
+    public void Restore()
+    {
+        HasExploded = false;
+        transform.localPosition = restLocalPosition;
+        SetVisible(true);
+    }
+
+    private void SetVisible(bool visible)
+    {
+        for (int i = 0; i < visuals.Length; i++)
+        {
+            if (visuals[i] != null)
+            {
+                visuals[i].enabled = visible;
+            }
+        }
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        // 「触れた」とみなす範囲を、赤い球で示す
+        Gizmos.color = new Color(1f, 0.3f, 0.2f, 0.8f);
+        Gizmos.DrawWireSphere(transform.position, touchRadius);
+    }
+}

@@ -11,7 +11,7 @@ using UnityEngine;
 /// 揺れたり弾かれたりせず、指示したとおりに動くため。
 /// </summary>
 [RequireComponent(typeof(CharacterController))]
-public class RobotBody : MonoBehaviour
+public class RobotBody : MonoBehaviour, ILaunchable
 {
     [Header("動き")]
     [Tooltip("進む速さ（1秒あたりのメートル）")]
