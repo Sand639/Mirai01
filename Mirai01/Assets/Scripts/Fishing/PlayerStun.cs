@@ -35,14 +35,18 @@ public class PlayerStun : MonoBehaviour
 
     private float remaining;
 
-    // 色を変える前に元の色を控えておく。
-    // 一度 renderer.material に触ると専用のマテリアルが作られ、
-    // sharedMaterial からは元の色を取り出せなくなるため（AIの申し送り参照）
-    private Color[] originalColors;
+    // 点滅が終わったら戻す色。
+    // **スタンが始まる瞬間に、その時点の色を控える。**
+    // Awake で控えると、あとからチームの色（FishingNetPlayer）が塗られても
+    // プレハブの元の色（青）に戻ってしまうため
+    private Color[] originalColors = new Color[0];
 
     private void Awake()
     {
-        CaptureColors();
+        if (bodyRenderers == null)
+        {
+            bodyRenderers = new Renderer[0];
+        }
 
         if (stunMarker != null)
         {
@@ -52,17 +56,11 @@ public class PlayerStun : MonoBehaviour
 
     private void CaptureColors()
     {
-        if (bodyRenderers == null)
-        {
-            originalColors = new Color[0];
-            return;
-        }
-
         originalColors = new Color[bodyRenderers.Length];
         for (int i = 0; i < bodyRenderers.Length; i++)
         {
             originalColors[i] = bodyRenderers[i] != null
-                ? bodyRenderers[i].sharedMaterial.color
+                ? bodyRenderers[i].material.color
                 : Color.white;
         }
     }
@@ -73,6 +71,12 @@ public class PlayerStun : MonoBehaviour
     /// </summary>
     public void Stun(float seconds)
     {
+        // スタン中に重ねて食らったときは控え直さない（点滅中の赤を控えてしまうため）
+        if (!IsStunned)
+        {
+            CaptureColors();
+        }
+
         remaining = Mathf.Max(remaining, seconds);
 
         if (stunMarker != null)
