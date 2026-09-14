@@ -138,10 +138,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Bomb
   touchRadius: 0.6
-  launchSpeed: 9
+  launchSpeed: 15
   gravityInfluence: 1
-  minMultiplier: 0.5
-  maxMultiplier: 2
+  minMultiplier: 0.2
+  maxMultiplier: 1.2
   upwardBias: 0.3
   blastMaterial: {fileID: 2100000, guid: 79157d92af37eac48b865cabca2300e8, type: 2}
   blastSize: 2.5

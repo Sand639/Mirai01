@@ -675,6 +675,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1355505577447245424, guid: 2580b1a043d8ff541a9490f588bf2d74, type: 3}
+      propertyPath: airControl
+      value: 0.1
+      objectReference: {fileID: 0}
     - target: {fileID: 2218864357901974731, guid: 2580b1a043d8ff541a9490f588bf2d74, type: 3}
       propertyPath: m_Name
       value: RobotRig
@@ -1199,8 +1203,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GravityShifter
   gravityChoices:
+  - 2
   - 5
   - 10
+  - 15
   avoidSameTwice: 1
   shortestInterval: 7
   longestInterval: 9

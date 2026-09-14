@@ -125,8 +125,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71a6b41b01416944f8b6bf660f99c092, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GravityGlassFloor
-  breakGravity: 12
-  secondsUntilBreak: 1.5
+  breakGravity: 10
+  secondsUntilBreak: 0.5
   onlyCharacters: 1
   detectHeight: 0.3
   crackMaterial: {fileID: 2100000, guid: 5495af8559936f3438fd68f35116c70c, type: 2}
