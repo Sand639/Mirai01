@@ -40,6 +40,7 @@
 
 | 日付 | 書いたAI | 場面 | やり方 |
 | --- | --- | --- | --- |
+| 2026/9/15 | Claude Code | **既存のシーンに手を入れたいが、シーン生成ツールで作り直すと他の人の手の変更（ToneMapping など）が消えるとき** | **作り直さず、`EditorSceneManager.OpenScene` で開いて、要らない物だけ消して足して `SaveScene` するツールを書く**（例：`FishingSpawnerSetup.cs`）。小野田さんのPCでは `C:\Program Files\Unity\Hub\Editor\6000.3.14f1\Editor\Unity.exe -batchmode -nographics -quit -projectPath ... -executeMethod クラス名.メソッド名 -logFile ...` を **Git Bash から実行すると終わるまで待ってくれる**。差分は `grep "m_Name:"` を前後で比べると、消えた物・増えた物だけが一目で分かる。**Netcode のプレハブは `GlobalObjectIdHash: 0` のまま保存されるが正常**（既存の `FishingOnlinePlayer.prefab` も同じ）。オンラインで `Instantiate`→`Spawn` する物は `NetworkPrefabsList.Add(new NetworkPrefab { Prefab = ... })` で `Assets/DefaultNetworkPrefabs.asset` に登録する |
 | 2026/9/14 | Claude Code | **Unityが閉じていて、スクリプトのコンパイルを確かめたいとき** | Unityが作った `Mirai01/Assembly-CSharp.csproj` はそのままでは `dotnet build` できない（パッケージの参照が相対パスで、別の csproj を指している） → **作業用フォルダに csproj を複製し、①`Include="Assets\` を絶対パスに ②`<ProjectReference>` を消す ③`Library/ScriptAssemblies/*.dll`（Assembly-CSharp と Editor 系以外）を `<Reference HintPath>` で足す ④新しく作った .cs は Compile に手で足す**、の4つで `dotnet build` が通る。エラー0なら Unity でも通る見込みが高い（エディタ用スクリプトは別の csproj なので別途） |
 | 2026/9/1 | Claude Code | 一人称視点で「見ているもの」を判定するとき | カメラは**キャラクターのカプセルの内側**にあるため、素直に `Physics.Raycast` すると自分に当たって前に進まないことがある。`Physics.RaycastNonAlloc` で全部拾い、`transform.IsChildOf(playerRoot)` で自分を除いてから一番近いものを選ぶとよい。`ObjectCloner.cs` の `TryAim` が実例 |
 | 2026/9/1 | Claude Code | 日付を書くとき | **必ず `date` コマンドで今日の日付を確認してから書くこと。** 直前のコミットメッセージや変更ログの日付から推測すると1日ずれる。実際にこれで `9/1` の作業を `8/31` と書いてしまい、あとで直した |
@@ -116,3 +117,4 @@
 | 2026/9/10 | Claude Code | `OnGUI` の確認用UIを拡大すると、小さい窓でボタンが画面外に出て押せなくなる件と、その直し方（窓に合わせて縮める・押すボタンを先頭に置く）を記録 |
 | 2026/9/14 | Claude Code | 共有の `InputActionAsset` で1人しか動けなくなる件、`OnGUI` の枠を動かせるようにする部品（`DraggableGuiPanel`）、Unityを開かずにコンパイルを確かめる方法の3件を記録 |
 | 2026/9/14 | Claude Code | 元の色を `Awake` で控えると、あとから塗られたチームの色に戻せない件を記録 |
+| 2026/9/15 | Claude Code | 既存シーンを作り直さずにツールで手を入れる方法と、Netcodeのプレハブ登録の注意を記録 |
