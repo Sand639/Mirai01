@@ -52,11 +52,16 @@ public class LanConnectionUi : MonoBehaviour
             return;
         }
 
-        Matrix4x4 saved = GUI.matrix;
-        GUI.matrix = Matrix4x4.Scale(new Vector3(uiScale, uiScale, 1f));
+        // **帯をつかんで動かせる／「－」で折りたためる／窓が小さいと縮む**枠で描く。
+        // 位置を決め打ちしていたころは、小さい窓で他の表示と重なって読めなかった
+        panel.Draw(uiScale, DrawContents);
+    }
 
-        GUILayout.BeginArea(new Rect(12f, 12f, 340f, 480f), GUI.skin.box);
+    /// <summary>枠（左上に出す）。</summary>
+    private readonly DraggableGuiPanel panel = new DraggableGuiPanel("接続", 0f, 12f, 12f, 340f);
 
+    private void DrawContents(int windowId)
+    {
         if (manager == null)
         {
             GUILayout.Label("NetworkManager が見つかりません");
@@ -69,9 +74,6 @@ public class LanConnectionUi : MonoBehaviour
         {
             DrawConnected();
         }
-
-        GUILayout.EndArea();
-        GUI.matrix = saved;
     }
 
     /// <summary>つながっていないときに、いまどの画面を出しているか。</summary>
