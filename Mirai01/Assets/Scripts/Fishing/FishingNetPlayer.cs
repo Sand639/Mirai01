@@ -61,6 +61,16 @@ public class FishingNetPlayer : NetworkBehaviour
     private readonly NetworkVariable<bool> lineVisible = new NetworkVariable<bool>(
         false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
+    /// <summary>「狙っている物資が無い」を表す値。</summary>
+    private const ulong NoAimTarget = ulong.MaxValue;
+
+    /// <summary>
+    /// オートエイムで狙っている物資（の通信上の番号）。**本人が送る。**
+    /// 他の人の画面でも、その物資の上に目印を出すために使う（<see cref="HookAimAssist"/>）。
+    /// </summary>
+    private readonly NetworkVariable<ulong> aimTargetId = new NetworkVariable<ulong>(
+        NoAimTarget, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+
     // ---- ロビーで選んでいるマップ（ホストのプレイヤーの値だけを使う） ----
 
     /// <summary>
@@ -242,6 +252,57 @@ public class FishingNetPlayer : NetworkBehaviour
             {
                 line.SetEnds(handPoint.position, hookPosition.Value);
             }
+        }
+    }
+
+    // ------------------------------------------------------------
+    // オートエイムの目印の共有
+    // ------------------------------------------------------------
+
+    /// <summary>
+    /// 狙っている物資を他の人へ配る。**本人のPCからだけ呼ぶ**（<see cref="HookAimAssist"/>）。
+    /// 値が変わったときだけ送られる。
+    /// </summary>
+    public void SetAimTarget(HookableObject target)
+    {
+        if (!IsSpawned || !IsOwner)
+        {
+            return;
+        }
+
+        ulong id = NoAimTarget;
+        if (target != null)
+        {
+            NetworkObject networkObject = target.GetComponent<NetworkObject>();
+            if (networkObject != null && networkObject.IsSpawned)
+            {
+                id = networkObject.NetworkObjectId;
+            }
+        }
+
+        if (aimTargetId.Value != id)
+        {
+            aimTargetId.Value = id;
+        }
+    }
+
+    /// <summary>この人がオートエイムで狙っている物資。狙っていなければ null。</summary>
+    public HookableObject AimTarget
+    {
+        get
+        {
+            if (!IsSpawned || aimTargetId.Value == NoAimTarget || NetworkManager == null)
+            {
+                return null;
+            }
+
+            if (NetworkManager.SpawnManager.SpawnedObjects.TryGetValue(aimTargetId.Value, out NetworkObject networkObject)
+                && networkObject != null)
+            {
+                return networkObject.GetComponent<HookableObject>();
+            }
+
+            return null;
         }
     }
 
