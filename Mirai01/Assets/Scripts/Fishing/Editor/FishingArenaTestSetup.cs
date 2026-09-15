@@ -56,9 +56,8 @@ public static class FishingArenaTestSetup
         HookLine line = FishingSceneBuilder.CreateLine(player);
 
         // ---- 物資と爆発物 ----
-        FishingSceneBuilder.CreateSupplyRing(8, 8f);
-        FishingSceneBuilder.CreateBomb("Bomb_1", new Vector3(-5.5f, 0.5f, 5.5f), explosionPrefab);
-        FishingSceneBuilder.CreateBomb("Bomb_2", new Vector3(5.5f, 0.5f, -5.5f), explosionPrefab);
+        // 決まった場所には置かず、スポナーが次々に出す（FishingObjectSpawner）
+        FishingSpawnerSetup.CreatePrefabsAndSpawner(false, explosionPrefab);
 
         HookChargeUI ui = FishingSceneBuilder.CreateUI();
 

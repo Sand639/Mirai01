@@ -178,12 +178,8 @@ public static class FishingOnlineSetup
         cameraObject.AddComponent<TopDownCameraFollow>();
 
         // ---- 物資と爆発物 ----
-        // 8人で取り合うので、1人用より多めに置く
-        FishingNetSceneBuilder.CreateNetworkSupplyRing(12, 9f);
-        FishingNetSceneBuilder.CreateNetworkBomb("Bomb_1", new Vector3(-5.5f, 0.5f, 5.5f), explosionPrefab);
-        FishingNetSceneBuilder.CreateNetworkBomb("Bomb_2", new Vector3(5.5f, 0.5f, -5.5f), explosionPrefab);
-        FishingNetSceneBuilder.CreateNetworkBomb("Bomb_3", new Vector3(5.5f, 0.5f, 5.5f), explosionPrefab);
-        FishingNetSceneBuilder.CreateNetworkBomb("Bomb_4", new Vector3(-5.5f, 0.5f, -5.5f), explosionPrefab);
+        // 決まった場所には置かず、ホストのスポナーが次々に出す（FishingObjectSpawner）
+        FishingSpawnerSetup.CreatePrefabsAndSpawner(true, explosionPrefab);
 
         // ---- チャージとスキルチェックのゲージ ----
         // 自分のプレイヤーが生まれた時点で、そのプレイヤーに結びつけられる

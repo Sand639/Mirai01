@@ -357,29 +357,41 @@ internal static class FishingSceneBuilder
     /// <summary>プレイヤーの周りに、円形に物資を並べる。</summary>
     public static void CreateSupplyRing(int count, float radius)
     {
-        Material material = GetOrCreateMaterial(
-            MaterialFolder + "/FishingSupply.mat", new Color(0.85f, 0.6f, 0.3f));
-
         for (int i = 0; i < count; i++)
         {
             float angle = (360f / count) * i;
             Vector3 position = Quaternion.Euler(0f, angle, 0f) * new Vector3(0f, 0f, radius);
             position.y = 0.4f;
 
-            GameObject supply = CreateBox($"Supply_{i + 1}", position,
-                new Vector3(0.8f, 0.8f, 0.8f), material);
-
-            Rigidbody body = supply.AddComponent<Rigidbody>();
-            body.mass = 1f;
-            body.linearDamping = 0.4f;
-            body.angularDamping = 0.6f;
-
-            supply.AddComponent<HookableObject>();
+            // 並べて置く物資は、消えても元の場所に戻ってくる（物資が尽きて遊べなくならないように）
+            HookableObject hookable = CreateSupply($"Supply_{i + 1}", position);
+            SetFloat(hookable, "respawnSeconds", 6f);
         }
     }
 
+    /// <summary>
+    /// 物資を1つ作る。**Respawn Seconds は 0（消えたら戻ってこない）。**
+    /// スポナー用のプレハブ（<see cref="FishingSpawnerSetup"/>）もこれで作る。
+    /// </summary>
+    public static HookableObject CreateSupply(string name, Vector3 position)
+    {
+        Material material = GetOrCreateMaterial(
+            MaterialFolder + "/FishingSupply.mat", new Color(0.85f, 0.6f, 0.3f));
+
+        GameObject supply = CreateBox(name, position, new Vector3(0.8f, 0.8f, 0.8f), material);
+
+        Rigidbody body = supply.AddComponent<Rigidbody>();
+        body.mass = 1f;
+        body.linearDamping = 0.4f;
+        body.angularDamping = 0.6f;
+
+        HookableObject hookable = supply.AddComponent<HookableObject>();
+        SetFloat(hookable, "respawnSeconds", 0f);
+        return hookable;
+    }
+
     /// <summary>爆発する物資を1つ置く。**点数は0**にしてポケットに入れても得点にならないようにする。</summary>
-    public static void CreateBomb(string name, Vector3 position, ExplosionEffect explosionPrefab)
+    public static GameObject CreateBomb(string name, Vector3 position, ExplosionEffect explosionPrefab)
     {
         Material bodyMaterial = GetOrCreateMaterial(
             MaterialFolder + "/FishingBomb.mat", new Color(0.35f, 0.32f, 0.36f));
@@ -405,11 +417,13 @@ internal static class FishingSceneBuilder
 
         HookableObject hookable = bomb.AddComponent<HookableObject>();
         SetInt(hookable, "scoreValue", 0);
-        SetFloat(hookable, "respawnSeconds", 8f);
+        SetFloat(hookable, "respawnSeconds", 0f);
 
         ExplosiveObject explosive = bomb.AddComponent<ExplosiveObject>();
         SetObjectArray(explosive, "blinkRenderers", new Renderer[] { bombRenderer });
         SetRef(explosive, "explosionEffectPrefab", explosionPrefab);
+
+        return bomb;
     }
 
     /// <summary>爆発の見た目のプレハブを作る（すでにあれば作り直す）。</summary>

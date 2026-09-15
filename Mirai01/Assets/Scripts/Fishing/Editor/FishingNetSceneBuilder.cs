@@ -263,24 +263,32 @@ internal static class FishingNetSceneBuilder
     /// <summary>プレイヤーの周りに、円形に物資を並べる（オンライン用）。</summary>
     public static void CreateNetworkSupplyRing(int count, float radius)
     {
-        Material material = FishingSceneBuilder.GetOrCreateMaterial(
-            FishingSceneBuilder.MaterialFolder + "/FishingSupply.mat", new Color(0.85f, 0.6f, 0.3f));
-
         for (int i = 0; i < count; i++)
         {
             float angle = (360f / count) * i;
             Vector3 position = Quaternion.Euler(0f, angle, 0f) * new Vector3(0f, 0f, radius);
             position.y = 0.4f;
 
-            GameObject supply = FishingSceneBuilder.CreateBox(
-                $"Supply_{i + 1}", position, new Vector3(0.8f, 0.8f, 0.8f), material);
-
-            AddSupplyParts(supply, 1f);
+            CreateNetworkSupply($"Supply_{i + 1}", position);
         }
     }
 
+    /// <summary>物資を1つ作る（オンライン用）。スポナー用のプレハブもこれで作る。</summary>
+    public static GameObject CreateNetworkSupply(string name, Vector3 position)
+    {
+        Material material = FishingSceneBuilder.GetOrCreateMaterial(
+            FishingSceneBuilder.MaterialFolder + "/FishingSupply.mat", new Color(0.85f, 0.6f, 0.3f));
+
+        GameObject supply = FishingSceneBuilder.CreateBox(
+            name, position, new Vector3(0.8f, 0.8f, 0.8f), material);
+
+        HookableObject hookable = AddSupplyParts(supply, 1f);
+        FishingSceneBuilder.SetFloat(hookable, "respawnSeconds", 0f);
+        return supply;
+    }
+
     /// <summary>爆発する物資を1つ置く（オンライン用）。</summary>
-    public static void CreateNetworkBomb(string name, Vector3 position, ExplosionEffect explosionPrefab)
+    public static GameObject CreateNetworkBomb(string name, Vector3 position, ExplosionEffect explosionPrefab)
     {
         Material bodyMaterial = FishingSceneBuilder.GetOrCreateMaterial(
             FishingSceneBuilder.MaterialFolder + "/FishingBomb.mat", new Color(0.35f, 0.32f, 0.36f));
@@ -301,7 +309,7 @@ internal static class FishingNetSceneBuilder
 
         HookableObject hookable = AddSupplyParts(bomb, 1.2f);
         FishingSceneBuilder.SetInt(hookable, "scoreValue", 0);
-        FishingSceneBuilder.SetFloat(hookable, "respawnSeconds", 8f);
+        FishingSceneBuilder.SetFloat(hookable, "respawnSeconds", 0f);
 
         ExplosiveObject explosive = bomb.AddComponent<ExplosiveObject>();
         FishingSceneBuilder.SetObjectArray(explosive, "blinkRenderers",
@@ -310,6 +318,8 @@ internal static class FishingNetSceneBuilder
 
         // 導火線を全員でそろえる部品（オンライン用）
         bomb.AddComponent<FishingNetBomb>();
+
+        return bomb;
     }
 
     /// <summary>物資に、物理と通信の部品をまとめて付ける。</summary>

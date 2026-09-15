@@ -206,6 +206,58 @@ public class FishingNetSupply : NetworkBehaviour
         ApplyPhysicsAuthority();
     }
 
+    // ------------------------------------------------------------
+    // 消す（ホスト → 全員）
+    // ------------------------------------------------------------
+
+    /// <summary>
+    /// 消えてから、全員の画面から実際に削除するまでの秒数。
+    ///
+    /// **すぐ削除しない理由：** 爆発物は各PCが自分で導火線を数えて爆発する。
+    /// ホストの爆発と同時に削除すると、少し遅れて数えている参加者の画面では
+    /// **爆発する前に消えてしまい、スタンや爆発の見た目が出ない**ため。
+    /// </summary>
+    private const float DespawnDelaySeconds = 1f;
+
+    private bool despawnScheduled;
+
+    /// <summary>
+    /// **ホストだけが呼ぶ。** 全員の画面で見た目を消し、少し待ってから削除する。
+    /// <see cref="HookableObject.Vanish"/> から呼ばれる。
+    /// </summary>
+    public void ServerDespawnSoon()
+    {
+        if (!IsServer || despawnScheduled)
+        {
+            return;
+        }
+
+        despawnScheduled = true;
+        hookedByPlayerIndex.Value = -1;
+        HideClientRpc();
+        StartCoroutine(DespawnLater());
+    }
+
+    private System.Collections.IEnumerator DespawnLater()
+    {
+        yield return new WaitForSeconds(DespawnDelaySeconds);
+
+        if (IsSpawned)
+        {
+            NetworkObject.Despawn(true);
+        }
+    }
+
+    /// <summary>参加者の画面でも見た目を消す（ゴールに入ったときなど、ホストだけが判定した場合）。</summary>
+    [ClientRpc]
+    private void HideClientRpc()
+    {
+        if (!IsServer)
+        {
+            hookable.Vanish();
+        }
+    }
+
     /// <summary>ホストが点を入れたあとに、投げた人の記録を消す。</summary>
     public void ClearLastThrower()
     {
