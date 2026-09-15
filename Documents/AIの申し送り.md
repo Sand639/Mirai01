@@ -18,6 +18,7 @@
 
 | 日付 | 書いたAI | 何をしようとして | どう失敗したか | どうすればよかったか |
 | --- | --- | --- | --- | --- |
+| 2026/9/15 | Claude Code | **エディタのツールで、NetworkObject の入ったシーンを「部品を置く → `SaveScene`」の順で作った**（オンラインの釣りマップ） | **シーンの `GlobalObjectIdHash` が全部 0 のまま保存された。** Netcode は `OnValidate` で番号を付けるが、保存前のシーンの物には付けない。さらに **`OpenScene` で開き直すと、メモリ上では番号が付くのに「変更あり」にならない。** そのため「番号を付けた数が 1 以上のときだけ保存する」作りにしたら、ファイルは 0 のままだった（2回目もまだ 0） | **保存 → `OpenScene` → 各 `NetworkObject` の `OnValidate` をリフレクションで呼ぶ → `EditorUtility.SetDirty` → 必ず `MarkSceneDirty` と `SaveScene`。** 実例は `FishingMapSetup.EnsureNetworkIdsInScene`。確かめるときは `grep -n "GlobalObjectIdHash" シーン.unity` で 0 でないことを見る。**プレハブは 0 のままで正常だが、シーンに置いた物が 0 だと同期しない** |
 | 2026/9/14 | Claude Code | **1つのプレハブから複数体が生まれる（オンライン）キャラに、`[SerializeField] InputActionAsset` を入れて `OnEnable` で `Enable()`／`OnDisable` で `Disable()` する既存の書き方をそのまま使った** | **1人しか動かせなくなった。** インスペクターで入れた `InputActionAsset` は**全員で同じ1個**。他の人のぶんのスクリプトを `enabled = false` にすると、その `OnDisable` が**共有のマップを止め、自分のキャラの入力まで止まる。** 生まれる順番しだいで動けるPCが変わるので、原因が見えにくい | **`Awake` で `inputActions = Instantiate(inputActions);` として体ごとの複製を使い、`OnDestroy` で `Destroy` する。** `FishingPlayerController` `HookController` `ThrowController` が実例。**`PlayerController` `RobotController` `RobotCameraLook` `ObjectCloner` も同じ書き方のまま**なので、オンラインで複数体にするときは同じ直しを入れること（`NetworkPlayer` は自分のぶんだけ `Enable` する形なので問題ない） |
 | 2026/9/14 | Claude Code | `OnGUI` の確認用UIを「窓に合わせて縮める」だけで対応していた（9/10の記録） | **縮めても、別々のスクリプトが決め打ちの位置に描く枠同士は重なる**（接続画面・通信の様子・ロビー）。「UIが被って読めない」と報告された | **`Assets/Scripts/UI/DraggableGuiPanel.cs` を使う。** `panel.Draw(uiScale, 中身を描く関数)` と書くだけで、**帯のドラッグで移動／「-」で折りたたみ／1920×1080基準で窓に比例して縮小／高さは中身に合わせる**になる。**新しく確認用の枠を作るときは、`GUILayout.BeginArea` で位置を決め打ちせず、これを使うこと** |
 | 2026/8/31 | Claude Code | `Documents/機能ドキュメント/_テンプレート.md` を読もうとした | シェル（Bash）経由の `cat` と `cd` が、**日本語のフォルダ名**を解釈できず `No such file or directory` になった。ファイル名だけが日本語の場合（`Documents/制作ログ.md` など）は成功する。**フォルダ名が日本語だと失敗する** | シェルを使わず、ファイル読み取り用のツールで**絶対パス**を指定して開く。`D:\010_GitHub\Mirai01\Documents\機能ドキュメント\_テンプレート.md` のように指定すれば問題なく読める |
@@ -88,7 +89,7 @@
 > 作業を途中で終えたとき、続きを引き継ぐための置き手紙。
 > 終わった話は消してよい。
 
-（なし）
+- **2026/9/15　`develop_prototype_fishing` には、まだ `develop` を取り込んでいない。** 取り込もうとしたら、`Documents/` の7ファイル（制作ログ・README の変更記録・質問リスト・AIの申し送り・LANでの複数人プレイ・ネットワークの制作工程・リスクリスト）が衝突した。小野田さんの判断で、取り込みは見送った。**Unity のファイルは衝突しなかった。** ほとんどは、同じ表の同じ場所に両方が行を足しただけの衝突。ただし `リスクリスト.md` は、`develop` 側で表が「未解決／様子見／対応済み」に分け直されている。取り込むときは、衝突の中身を説明して確認を取ってから直すこと。取り込んだあとは、釣りのマップ（`Assets/Scenes/Test/FishingMap〜`）を `Assets/Scenes/Prototype/` へ移すかどうかも確認する。移す場合は Unity 上で移し、ツールの置き場所の定数も合わせる
 
 ---
 
@@ -118,3 +119,4 @@
 | 2026/9/14 | Claude Code | 共有の `InputActionAsset` で1人しか動けなくなる件、`OnGUI` の枠を動かせるようにする部品（`DraggableGuiPanel`）、Unityを開かずにコンパイルを確かめる方法の3件を記録 |
 | 2026/9/14 | Claude Code | 元の色を `Awake` で控えると、あとから塗られたチームの色に戻せない件を記録 |
 | 2026/9/15 | Claude Code | 既存シーンを作り直さずにツールで手を入れる方法と、Netcodeのプレハブ登録の注意を記録 |
+| 2026/9/15 | Claude Code | ツールで作ったシーンの NetworkObject の番号が 0 のまま残る件と、`develop` を取り込めていない件の置き手紙を記録 |
