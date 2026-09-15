@@ -17,6 +17,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Test/FishingOnline.unity
     guid: 6927c18d58f8a7b438675719c2801f19
+  - enabled: 1
+    path: Assets/Scenes/Test/FishingMap01.unity
+    guid: d95d402193963734ab204bcbb38b1c51
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

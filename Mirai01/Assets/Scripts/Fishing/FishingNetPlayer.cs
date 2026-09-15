@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -59,6 +60,56 @@ public class FishingNetPlayer : NetworkBehaviour
     /// <summary>糸が出ているか。**本人が送る。**</summary>
     private readonly NetworkVariable<bool> lineVisible = new NetworkVariable<bool>(
         false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+
+    // ---- ロビーで選んでいるマップ（ホストのプレイヤーの値だけを使う） ----
+
+    /// <summary>
+    /// ホストがロビーで選んでいるマップのシーン名。**ホストが書き、全員が読む。**
+    ///
+    /// ロビーの画面（<see cref="FishingLobbyUI"/>）は通信の部品ではないので、
+    /// 参加者へ配る値を持てない。そこで**ロビーの時点ですでに全員の画面にいる
+    /// ホストのプレイヤー**に持たせている。あとから入った人にも自動で届く。
+    /// </summary>
+    private readonly NetworkVariable<FixedString64Bytes> lobbyMapName =
+        new NetworkVariable<FixedString64Bytes>(default);
+
+    /// <summary>
+    /// ホストがロビーで選んでいるマップのシーン名。まだ分からなければ空文字。
+    /// </summary>
+    public static string HostSelectedMap
+    {
+        get
+        {
+            foreach (FishingNetPlayer player in All)
+            {
+                if (player != null && player.OwnerClientId == NetworkManager.ServerClientId)
+                {
+                    return player.lobbyMapName.Value.ToString();
+                }
+            }
+
+            return string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// ホストが選んだマップを全員へ配る。**ホストのPCからだけ呼ぶこと。**
+    /// </summary>
+    public static void ServerSetSelectedMap(string sceneName)
+    {
+        foreach (FishingNetPlayer player in All)
+        {
+            if (player != null && player.IsServer && player.OwnerClientId == NetworkManager.ServerClientId)
+            {
+                FixedString64Bytes value = new FixedString64Bytes(sceneName ?? string.Empty);
+                if (player.lobbyMapName.Value != value)
+                {
+                    player.lobbyMapName.Value = value;
+                }
+                return;
+            }
+        }
+    }
 
     /// <summary>参加番号（0から）。まだ決まっていなければ -1。</summary>
     public int PlayerIndex => playerIndex.Value;

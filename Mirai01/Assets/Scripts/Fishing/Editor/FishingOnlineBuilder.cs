@@ -32,6 +32,7 @@ public static class FishingOnlineBuilder
     /// <summary>
     /// ビルドに含めるシーン。**最初のものが起動時に開くシーン**になるので、
     /// ロビーを先頭にしておくこと。
+    /// このあとに、`Assets/Scenes/Test/FishingMap〜.unity` のマップがすべて足される。
     /// </summary>
     private static readonly string[] ScenePaths =
     {
@@ -59,9 +60,14 @@ public static class FishingOnlineBuilder
             return;
         }
 
+        // `釣りの新しいマップを作る` で作ったマップ（FishingMap01 など）も一緒に入れる。
+        // 入れないと、ロビーでマップを選んでも読み込めない
+        var scenes = new System.Collections.Generic.List<string>(ScenePaths);
+        scenes.AddRange(FishingMapSetup.FindMapScenePaths());
+
         BuildPlayerOptions options = new BuildPlayerOptions
         {
-            scenes = ScenePaths,
+            scenes = scenes.ToArray(),
             locationPathName = Path.Combine(OutputFolder, ExeName),
             target = BuildTarget.StandaloneWindows64,
 

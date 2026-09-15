@@ -23,7 +23,7 @@ using UnityEngine.InputSystem;
 public static class FishingObstacleTestSetup
 {
     private const string ScenePath = FishingSceneBuilder.SceneFolder + "/FishingObstacleTest.unity";
-    private const string ObstacleMaterialPath = FishingSceneBuilder.MaterialFolder + "/FishingObstacle.mat";
+    public const string ObstacleMaterialPath = FishingSceneBuilder.MaterialFolder + "/FishingObstacle.mat";
 
     [MenuItem("Tools/Mirai01/釣りの障害物の検証シーンを作る")]
     public static void CreateScene()
@@ -99,8 +99,9 @@ public static class FishingObstacleTestSetup
     /// <summary>
     /// 動く障害物を1つ置く。
     /// <paramref name="points"/> は、置いた位置 <paramref name="position"/> からのずれ。
+    /// **マップの雛形を作るツール（FishingMapSetup）からも使う。**
     /// </summary>
-    private static void CreateObstacle(string name, Vector3 position, float yaw, Vector3 size,
+    public static GameObject CreateObstacle(string name, Vector3 position, float yaw, Vector3 size,
         Material material, Vector3[] points, MovingObstacle.PathMode mode,
         float speed, float waitSeconds, bool easeInOut)
     {
@@ -132,5 +133,7 @@ public static class FishingObstacleTestSetup
         serialized.FindProperty("easeInOut").boolValue = easeInOut;
 
         serialized.ApplyModifiedPropertiesWithoutUndo();
+
+        return obstacle;
     }
 }

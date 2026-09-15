@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using Unity.Netcode;
 using UnityEngine;
@@ -7,6 +8,10 @@ using UnityEngine;
 ///
 /// つなぐ操作そのものは既存の `LanConnectionUi`（LAN／インターネット／1人）が担当する。
 /// このスクリプトは**つながったあと**の「待合室」だけを受け持つ。
+///
+/// **マップを選べるのもホストだけ。** 候補は、ビルドの一覧に入っている `FishingOnline` と
+/// `FishingMap〜` で始まるシーン（`Tools > Mirai01 > 釣りの新しいマップを作る` で増やせる）。
+/// 選んだマップの名前は参加者の画面にも出る。
 ///
 /// **ゲーム開始を押せるのはホストだけ。**
 /// 押すと、`NetworkManager` のシーン管理で**全員のシーンがまとめて切り替わる**。
@@ -18,8 +23,15 @@ using UnityEngine;
 public class FishingLobbyUI : MonoBehaviour
 {
     [Header("つなぎ先のシーン")]
-    [Tooltip("ゲーム開始で全員が移動するシーンの名前。**Build Settings に入っていないと読み込めない**")]
+    [Tooltip("最初に選ばれているマップのシーン名。**Build Settings に入っていないと読み込めない**")]
     [SerializeField] private string gameSceneName = "FishingOnline";
+
+    [Tooltip("名前がこれで始まるシーンを、**マップの候補として自動で並べる**（ビルドの一覧に入っているものだけ）。" +
+             "`Tools > Mirai01 > 釣りの新しいマップを作る` で作ったマップは FishingMap01 のような名前になる")]
+    [SerializeField] private string mapScenePrefix = "FishingMap";
+
+    /// <summary>ホストが選んでいるマップ。**ロビーへ戻っても覚えている**（NetworkManager ごと残るため）。</summary>
+    private string selectedMap = string.Empty;
 
     [Header("表示")]
     [Tooltip("OFFにすると何も表示しない")]
@@ -63,6 +75,14 @@ public class FishingLobbyUI : MonoBehaviour
         if (connectionUi != null)
         {
             connectionUi.enabled = FishingMatch.Current == null;
+        }
+
+        // ホストはロビーにいる間、選んでいるマップを全員へ配り続ける
+        // （あとから入った人にも届くよう、値はホストのプレイヤーに持たせている）
+        NetworkManager manager = NetworkManager.Singleton;
+        if (manager != null && manager.IsServer && FishingMatch.Current == null)
+        {
+            RefreshSelectedMap();
         }
     }
 
@@ -113,6 +133,10 @@ public class FishingLobbyUI : MonoBehaviour
 
             GUILayout.Space(6f);
 
+            DrawMapChoice(manager);
+
+            GUILayout.Space(6f);
+
             DrawRoster();
             DrawTeamRule();
         });
@@ -124,6 +148,91 @@ public class FishingLobbyUI : MonoBehaviour
         {
             labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true };
         }
+    }
+
+    /// <summary>
+    /// マップを選ぶ。**ホストはボタンで選べて、参加者には選ばれたマップの名前だけが出る。**
+    /// 選んだ結果はホストのプレイヤーを通して全員に配られる（<see cref="FishingNetPlayer.HostSelectedMap"/>）。
+    /// </summary>
+    private void DrawMapChoice(NetworkManager manager)
+    {
+        GUILayout.Label("■ マップ", labelStyle);
+
+        if (!manager.IsServer)
+        {
+            string hostMap = FishingNetPlayer.HostSelectedMap;
+            GUILayout.Label(
+                string.IsNullOrEmpty(hostMap) ? "　（ホストが選んでいます…）" : $"　{hostMap}（ホストが選びます）",
+                labelStyle);
+            return;
+        }
+
+        List<string> maps = GetAvailableMaps();
+
+        if (maps.Count == 0)
+        {
+            GUILayout.Label("　遊べるマップがありません（ビルドの一覧を確認してください）", labelStyle);
+            return;
+        }
+
+        foreach (string map in maps)
+        {
+            bool isSelected = map == selectedMap;
+
+            // 選んでいるマップは押せない形にして、印を付ける
+            GUI.enabled = !isSelected;
+            if (GUILayout.Button(isSelected ? $"● {map}（選択中）" : map))
+            {
+                selectedMap = map;
+                startMessage = string.Empty;
+            }
+            GUI.enabled = true;
+        }
+    }
+
+    /// <summary>
+    /// 選んでいるマップを正しい状態にし、全員へ配る。**ホストだけが呼ぶ。**
+    /// 候補から消えたマップが選ばれたままにならないよう、毎回確かめている。
+    /// </summary>
+    private void RefreshSelectedMap()
+    {
+        List<string> maps = GetAvailableMaps();
+
+        if (!maps.Contains(selectedMap))
+        {
+            selectedMap = maps.Contains(gameSceneName) ? gameSceneName
+                        : maps.Count > 0 ? maps[0]
+                        : gameSceneName;
+        }
+
+        FishingNetPlayer.ServerSetSelectedMap(selectedMap);
+    }
+
+    /// <summary>
+    /// 選べるマップの一覧。**ビルドの一覧に入っているシーンのうち、
+    /// 最初の会場（<see cref="gameSceneName"/>）と、名前が <see cref="mapScenePrefix"/> で始まるもの。**
+    /// ビルドの一覧に無いシーンは Netcode で読み込めないので、はじめから候補に出さない。
+    /// </summary>
+    private List<string> GetAvailableMaps()
+    {
+        List<string> maps = new List<string>();
+        int count = UnityEngine.SceneManagement.SceneManager.sceneCountInBuildSettings;
+
+        for (int i = 0; i < count; i++)
+        {
+            string name = Path.GetFileNameWithoutExtension(
+                UnityEngine.SceneManagement.SceneUtility.GetScenePathByBuildIndex(i));
+
+            bool isMap = name == gameSceneName
+                      || (!string.IsNullOrEmpty(mapScenePrefix) && name.StartsWith(mapScenePrefix));
+
+            if (isMap && !maps.Contains(name))
+            {
+                maps.Add(name);
+            }
+        }
+
+        return maps;
     }
 
     /// <summary>入っている人を並べる。参加者のPCでも見えるように、生まれた本体の一覧を使う。</summary>
@@ -201,20 +310,20 @@ public class FishingLobbyUI : MonoBehaviour
 
         // **一番多い原因を先に出す。**
         // ビルドの一覧に入っていないシーンは、Netcodeでも読み込めない
-        if (!IsSceneInBuildList(gameSceneName))
+        if (!IsSceneInBuildList(selectedMap))
         {
             GUI.color = new Color(1f, 0.5f, 0.4f);
             GUILayout.Label(
-                $"シーン「{gameSceneName}」がビルドの一覧に入っていません。\n" +
-                "File > Build Settings を開いて、\n" +
-                "FishingLobby と FishingOnline の2つを入れてください\n" +
-                "（`釣りのオンライン用シーンを作る` を実行し直すと自動で入ります）。",
+                $"シーン「{selectedMap}」がビルドの一覧に入っていません。\n" +
+                "File > Build Profiles を開いて、\n" +
+                "FishingLobby と遊びたいマップのシーンを入れてください\n" +
+                "（`釣りのマップをビルドの一覧に登録し直す` を実行すると自動で入ります）。",
                 labelStyle);
             GUI.color = Color.white;
             return;
         }
 
-        if (GUILayout.Button("ゲーム開始（全員でシーンを移動）"))
+        if (GUILayout.Button($"ゲーム開始（{selectedMap} へ全員で移動）"))
         {
             StartGame(manager);
         }
@@ -265,7 +374,7 @@ public class FishingLobbyUI : MonoBehaviour
     /// </summary>
     private void StartGame(NetworkManager manager)
     {
-        if (string.IsNullOrEmpty(gameSceneName))
+        if (string.IsNullOrEmpty(selectedMap))
         {
             Debug.LogError("移動先のシーン名が空です。", this);
             return;
@@ -279,21 +388,21 @@ public class FishingLobbyUI : MonoBehaviour
         }
 
         var status = manager.SceneManager.LoadScene(
-            gameSceneName, UnityEngine.SceneManagement.LoadSceneMode.Single);
+            selectedMap, UnityEngine.SceneManagement.LoadSceneMode.Single);
 
         if (status == SceneEventProgressStatus.Started)
         {
             startMessage = string.Empty;
-            Debug.Log($"[FISH] シーン「{gameSceneName}」へ全員で移動します。");
+            Debug.Log($"[FISH] シーン「{selectedMap}」へ全員で移動します。");
             return;
         }
 
         startMessage = $"シーンを読み込めませんでした（{status}）。";
 
         Debug.LogError(
-            $"[FISH] シーン「{gameSceneName}」を読み込めませんでした（{status}）。\n" +
+            $"[FISH] シーン「{selectedMap}」を読み込めませんでした（{status}）。\n" +
             "よくある原因：\n" +
-            "・**File > Build Settings のシーン一覧に FishingOnline が入っていない**\n" +
+            "・**File > Build Profiles のシーン一覧に、選んだマップが入っていない**\n" +
             "・NetworkManager の Enable Scene Management が OFF\n" +
             "・別のシーン切り替えがまだ終わっていない（SceneEventInProgress）");
     }
