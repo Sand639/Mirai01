@@ -997,8 +997,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FishingObjectSpawner
   supplyPrefab: {fileID: 6314058618571327821, guid: 1eb3906da02e35b4b8927f7c16f3a9ff, type: 3}
   bombPrefab: {fileID: 4066168067947478377, guid: d320a7efd28aa0846a0557b4a5d4b93b, type: 3}
-  supplyWeight: 1
-  bombWeight: 6
+  supplyWeight: 5
+  bombWeight: 1
   maxObjects: 100
   initialSpawnCount: 14
   spawnIntervalSeconds: 1

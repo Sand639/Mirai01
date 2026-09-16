@@ -14,6 +14,7 @@ using UnityEngine.SceneManagement;
 /// | メニュー | 何をするか |
 /// | --- | --- |
 /// | `釣りの新しいマップを作る（オンライン）` | 遊ぶのに必要な部品が入った**マップの雛形**を `Assets/Scenes/Test/FishingMap01.unity` のように作る。**同じ名前があれば番号をずらし、上書きしない** |
+/// | `釣りの対戦用マップを作る（大きな遮り）` | **オンライン対戦用に形を作り込んだマップ**を `FishingMapBattle01.unity` のように作る。四隅の斜めの大きな壁と、ゴールの前を動く長い遮りが入っている |
 /// | `釣りのマップをビルドの一覧に登録し直す` | ロビー・最初の会場・すべてのマップを Build Profiles のシーン一覧に入れ、通信の部品の番号が抜けていれば付ける。**マップの名前を変えたあとや、複製したあとに実行する** |
 /// | `開いている釣りマップを点検する` | 今開いているマップに、遊ぶのに必要な物がそろっているかを調べて Console に出す |
 ///
@@ -34,6 +35,9 @@ public static class FishingMapSetup
     /// <summary>マップのシーン名の頭。**ロビーはこの名前で始まるシーンを候補に並べる。**</summary>
     public const string MapPrefix = "FishingMap";
 
+    /// <summary>対戦用マップのシーン名の頭。**`MapPrefix` で始めてあるので、ロビーの候補にもそのまま並ぶ。**</summary>
+    public const string BattleMapPrefix = MapPrefix + "Battle";
+
     public const string LobbyScenePath = FishingSceneBuilder.SceneFolder + "/FishingLobby.unity";
     public const string OnlineScenePath = FishingSceneBuilder.SceneFolder + "/FishingOnline.unity";
     private const string LobbySceneName = "FishingLobby";
@@ -48,6 +52,35 @@ public static class FishingMapSetup
     [MenuItem("Tools/Mirai01/釣りの新しいマップを作る（オンライン）")]
     public static void CreateNewMap()
     {
+        CreateMap(
+            NextFreeMapPath(MapPrefix),
+            BuildTemplateStage,
+            "・「Stage」の中の床・壁と、「Obstacles」の中の障害物は、自由に作り変えてよい");
+    }
+
+    [MenuItem("Tools/Mirai01/釣りの対戦用マップを作る（大きな遮り）")]
+    public static void CreateBattleMap()
+    {
+        CreateMap(
+            NextFreeMapPath(BattleMapPrefix),
+            BuildBattleStage,
+            "・四隅の斜めの大きな壁（Block_）は動かない。中央と外側を行き来する道を、北・東・南・西の4つの門にしぼっている\n" +
+            "・ゴールの前を横切る長い遮り（Shutter_）は、端まで行くと1秒止まる。そのあいだだけゴールの正面が開く\n" +
+            "・中央（半径6mの円）は、プレイヤーが出てくる場所なので何も置いていない\n" +
+            "・4つの門と4つの遮りは同じ形・同じ動きなので、どのチームのゴールでも条件は同じ");
+    }
+
+    /// <summary>
+    /// マップのシーンを1枚作る。**遊ぶための仕組みはどのマップでも同じ**なので、
+    /// 違うのは <paramref name="buildStage"/> が置く「床の上の物」だけ。
+    /// </summary>
+    /// <param name="buildStage">
+    /// 床・壁・ゴールを置いたあとに呼ばれる。1つ目は `Stage`（動かない物を入れる）、
+    /// 2つ目は `Obstacles`（動く障害物を入れる）。
+    /// </param>
+    /// <param name="description">Console に出す、このマップの説明。</param>
+    private static void CreateMap(string scenePath, System.Action<Transform, Transform> buildStage, string description)
+    {
         if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
         {
             return;
@@ -58,7 +91,6 @@ public static class FishingMapSetup
             return;
         }
 
-        string scenePath = NextFreeMapPath();
         string sceneName = Path.GetFileNameWithoutExtension(scenePath);
 
         Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -66,23 +98,17 @@ public static class FishingMapSetup
         FishingSceneBuilder.CreateLight();
 
         // ---- ステージ（ここを自由に作り変える）----
-        // 床と、四方の壁とゴールは「Stage」の中にまとめる
+        // 床・四方の壁・ゴールは「Stage」の中に、動く障害物は「Obstacles」の中にまとめる
         GameObject stage = new GameObject("Stage");
+        GameObject obstacles = new GameObject("Obstacles");
+
         List<GameObject> before = RootObjects(scene);
         FishingSceneBuilder.CreateGround();
         FishingNetSceneBuilder.CreateNetworkPocketWalls();
         MoveNewRootsUnder(scene, before, stage.transform);
 
-        // ---- 動く障害物（見本を1つ。要らなければ消してよい）----
-        GameObject obstacles = new GameObject("Obstacles");
-        Material obstacleMaterial = FishingSceneBuilder.GetOrCreateMaterial(
-            FishingObstacleTestSetup.ObstacleMaterialPath, new Color(0.55f, 0.3f, 0.75f));
-        GameObject sample = FishingObstacleTestSetup.CreateObstacle(
-            "Obstacle_Sample", new Vector3(0f, 0f, 12f), 0f,
-            new Vector3(6f, 1.2f, 1f), obstacleMaterial,
-            new[] { new Vector3(-9f, 0f, 0f), new Vector3(9f, 0f, 0f) },
-            MovingObstacle.PathMode.PingPong, 3f, 0.5f, false);
-        sample.transform.SetParent(obstacles.transform, true);
+        // ---- マップごとの中身 ----
+        buildStage(stage.transform, obstacles.transform);
 
         // ---- ここから下は遊ぶための仕組み（消さない）----
         GameObject matchObject = new GameObject("FishingMatch");
@@ -123,12 +149,137 @@ public static class FishingMapSetup
         Debug.Log(
             $"【マップ】新しいマップ「{sceneName}」を作りました。\n" +
             "場所: " + scenePath + "\n" +
-            "・「Stage」の中の床・壁と、「Obstacles」の中の障害物は、自由に作り変えてよい\n" +
+            description + "\n" +
             "・FishingMatch / FishingHUD / Main Camera / FishingObjectSpawner / HookUI は遊ぶための仕組みなので消さない\n" +
             "・ビルドの一覧に登録したので、ロビーのマップ選びに出てくる\n" +
             "・作り変えたら `Tools > Mirai01 > 開いている釣りマップを点検する` で確かめる");
 
         CheckOpenMap();
+    }
+
+    // ------------------------------------------------------------
+    // 雛形のステージ（まっさらなマップ）
+    // ------------------------------------------------------------
+
+    /// <summary>床・壁・ゴールだけの雛形に、動く障害物の見本を1つ置く。</summary>
+    private static void BuildTemplateStage(Transform stage, Transform obstacles)
+    {
+        Material obstacleMaterial = FishingSceneBuilder.GetOrCreateMaterial(
+            FishingObstacleTestSetup.ObstacleMaterialPath, new Color(0.55f, 0.3f, 0.75f));
+
+        GameObject sample = FishingObstacleTestSetup.CreateObstacle(
+            "Obstacle_Sample", new Vector3(0f, 0f, 12f), 0f,
+            new Vector3(6f, 1.2f, 1f), obstacleMaterial,
+            new[] { new Vector3(-9f, 0f, 0f), new Vector3(9f, 0f, 0f) },
+            MovingObstacle.PathMode.PingPong, 3f, 0.5f, false);
+
+        sample.transform.SetParent(obstacles, true);
+    }
+
+    // ------------------------------------------------------------
+    // 対戦用のステージ（大きな遮り）
+    // ------------------------------------------------------------
+
+    /// <summary>四隅の斜めの大きな壁：中心からどれだけ離した所に置くか（X・Zとも／メートル）。</summary>
+    private const float BlockOffset = 8f;
+
+    /// <summary>四隅の斜めの大きな壁：長さと厚み（メートル）。</summary>
+    private const float BlockLength = 15f;
+    private const float BlockThickness = 1.2f;
+
+    /// <summary>ゴールの前を横切る遮り：中心からの距離（メートル）。</summary>
+    private const float ShutterLine = 15.5f;
+
+    /// <summary>ゴールの前を横切る遮り：長さ・厚み・中央からどこまで動くか（メートル）。</summary>
+    private const float ShutterLength = 11f;
+    private const float ShutterThickness = 1.2f;
+    private const float ShutterTravel = 8f;
+
+    /// <summary>ゴールの前を横切る遮り：動く速さ（m/秒）と、端で止まっている秒数。</summary>
+    private const float ShutterSpeed = 4f;
+    private const float ShutterWaitSeconds = 1f;
+
+    /// <summary>
+    /// **対戦用ステージの中身。広い面でプレイヤーをまとめて足止めする置き方にしてある。**
+    ///
+    /// 40m × 40m の床を、真上から見るとこうなる。
+    ///
+    /// <code>
+    ///               ゴール（北）
+    ///       ┌────────■■■────────┐
+    ///       │  ←───── 遮り ─────→ │
+    ///       │    ＼           ／   │
+    ///  ゴ ■ │     ＼  中央   ／    │ ■ ゴ
+    ///  ｜   │      （空ける）      │   ｜
+    ///  ル   │     ／         ＼    │   ル
+    ///       │    ／           ＼   │
+    ///       │  ←───── 遮り ─────→ │
+    ///       └────────■■■────────┘
+    ///               ゴール（南）
+    /// </code>
+    ///
+    /// ・**＼／ … 斜めの大きな壁**（動かない。長さ15m）
+    /// ・**遮り … 長さ11mの板**（左右に動く。端で1秒止まる）
+    /// ・**中央 … 半径6mの円**（プレイヤーが出てくる場所なので何も置かない）
+    ///
+    /// ねらいは次の3つ。
+    ///
+    /// 1. **斜めの大きな壁**が対角線をふさぐので、中央と外側の行き来は北・東・南・西の**4つの門**だけになる。
+    ///    まっすぐ突っ切れないぶん、どの道を通るかの読み合いが生まれる。
+    /// 2. **ゴールの前を横切る長い遮り**が、ゴールの正面を広く覆う。端まで行って止まっているあいだだけ正面が開く。
+    /// 3. **中央と四隅**は広く空けてあるので、逃げ場が無くならない。
+    ///
+    /// 4つの門も4つの遮りも**同じ形・同じ動き**なので、どのチームのゴールでも条件は同じになる。
+    /// </summary>
+    private static void BuildBattleStage(Transform stage, Transform obstacles)
+    {
+        Material wallMaterial = FishingSceneBuilder.GetOrCreateMaterial(
+            FishingSceneBuilder.MaterialFolder + "/FishingWall.mat", new Color(0.5f, 0.55f, 0.62f));
+        Material obstacleMaterial = FishingSceneBuilder.GetOrCreateMaterial(
+            FishingObstacleTestSetup.ObstacleMaterialPath, new Color(0.55f, 0.3f, 0.75f));
+
+        // ---- 四隅の斜めの大きな壁（動かない）----
+        CreateBattleBlock("Block_NE", new Vector3(BlockOffset, 0f, BlockOffset), 45f, wallMaterial, stage);
+        CreateBattleBlock("Block_SE", new Vector3(BlockOffset, 0f, -BlockOffset), -45f, wallMaterial, stage);
+        CreateBattleBlock("Block_SW", new Vector3(-BlockOffset, 0f, -BlockOffset), 45f, wallMaterial, stage);
+        CreateBattleBlock("Block_NW", new Vector3(-BlockOffset, 0f, BlockOffset), -45f, wallMaterial, stage);
+
+        // ---- ゴールの前を横切る、長い遮り（動く）----
+        // 4つとも同じ動かし方なので、開くときは4か所いっせいに開く
+        CreateBattleShutter("Shutter_North", new Vector3(0f, 0f, ShutterLine), 0f, obstacleMaterial, obstacles);
+        CreateBattleShutter("Shutter_East", new Vector3(ShutterLine, 0f, 0f), 90f, obstacleMaterial, obstacles);
+        CreateBattleShutter("Shutter_South", new Vector3(0f, 0f, -ShutterLine), 0f, obstacleMaterial, obstacles);
+        CreateBattleShutter("Shutter_West", new Vector3(-ShutterLine, 0f, 0f), 90f, obstacleMaterial, obstacles);
+    }
+
+    /// <summary>斜めの大きな壁を1枚置く（動かない）。足元が床（高さ0）に来るように持ち上げる。</summary>
+    private static void CreateBattleBlock(string name, Vector3 position, float yaw, Material material, Transform parent)
+    {
+        float height = FishingSceneBuilder.WallHeight;
+
+        GameObject block = FishingSceneBuilder.CreateBox(name,
+            position + new Vector3(0f, height * 0.5f, 0f),
+            new Vector3(BlockLength, height, BlockThickness), material);
+
+        block.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        block.transform.SetParent(parent, true);
+    }
+
+    /// <summary>
+    /// ゴールの前を横切る遮りを1つ置く（動く）。
+    /// **長い辺と同じ向きに動く**ので、置いた向き（<paramref name="yaw"/>）から動く向きを決めている。
+    /// </summary>
+    private static void CreateBattleShutter(string name, Vector3 position, float yaw, Material material, Transform parent)
+    {
+        Vector3 axis = Quaternion.Euler(0f, yaw, 0f) * Vector3.right;
+
+        GameObject shutter = FishingObstacleTestSetup.CreateObstacle(
+            name, position, yaw,
+            new Vector3(ShutterLength, FishingSceneBuilder.WallHeight, ShutterThickness), material,
+            new[] { -axis * ShutterTravel, axis * ShutterTravel },
+            MovingObstacle.PathMode.PingPong, ShutterSpeed, ShutterWaitSeconds, true);
+
+        shutter.transform.SetParent(parent, true);
     }
 
     /// <summary>雛形に使うオンライン用のプレハブと、ロビーがあるかを確かめる。</summary>
@@ -153,12 +304,12 @@ public static class FishingMapSetup
         return false;
     }
 
-    /// <summary>`FishingMap01` から順に、まだ無い名前を探す。**既存のマップは上書きしない。**</summary>
-    private static string NextFreeMapPath()
+    /// <summary>`FishingMap01` のように、<paramref name="prefix"/> のあとに番号を付けて、まだ無い名前を探す。**既存のマップは上書きしない。**</summary>
+    private static string NextFreeMapPath(string prefix)
     {
         for (int number = 1; ; number++)
         {
-            string path = $"{FishingSceneBuilder.SceneFolder}/{MapPrefix}{number:00}.unity";
+            string path = $"{FishingSceneBuilder.SceneFolder}/{prefix}{number:00}.unity";
             if (AssetDatabase.LoadAssetAtPath<SceneAsset>(path) == null && !File.Exists(path))
             {
                 return path;
