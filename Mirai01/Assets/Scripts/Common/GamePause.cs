@@ -43,8 +43,13 @@ public static class GamePause
     /// <summary>
     /// 止める・動かすを切り替える。
     /// **`Time.timeScale` はここでしか触らない**（あちこちで触ると戻し忘れる）。
+    ///
+    /// <paramref name="freezeTime"/> を false にすると、**世界の時間は止めずに、操作だけ受け付けなく**なる。
+    /// **オンラインではこちらを使うこと。** 自分のPCだけ時間を止めても、
+    /// ホストと他の参加者は動き続けるので、閉じた瞬間に相手が飛んで見える
+    /// （`リスクリスト.md` 2026/9/16 登録）。
     /// </summary>
-    public static void SetPaused(bool paused)
+    public static void SetPaused(bool paused, bool freezeTime = true)
     {
         if (IsPaused == paused)
         {
@@ -53,8 +58,29 @@ public static class GamePause
 
         IsPaused = paused;
         lastChangedFrame = Time.frameCount;
-        Time.timeScale = paused ? 0f : 1f;
+
+        if (paused)
+        {
+            timeWasFrozen = freezeTime;
+
+            if (freezeTime)
+            {
+                Time.timeScale = 0f;
+            }
+
+            return;
+        }
+
+        // 止めたときに時間を止めていたときだけ戻す（止めていなければ触らない）
+        if (timeWasFrozen)
+        {
+            Time.timeScale = 1f;
+            timeWasFrozen = false;
+        }
     }
+
+    /// <summary>止めたときに、世界の時間まで止めたか。戻すときに使う。</summary>
+    private static bool timeWasFrozen;
 
     /// <summary>
     /// 再生を始めるたびに、止まっていない状態から始める。
@@ -68,6 +94,7 @@ public static class GamePause
     {
         IsPaused = false;
         lastChangedFrame = -1;
+        timeWasFrozen = false;
         Time.timeScale = 1f;
     }
 }
