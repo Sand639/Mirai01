@@ -82,8 +82,21 @@ public class RobotCameraLook : MonoBehaviour
             return;
         }
 
+        // **入力の設定は、このカメラ専用の複製を使う。**
+        // 元のアセットをそのまま使うと、1つのシーンに複数の体が出たとき
+        // （オンラインや画面分割）に、**他の体の操作を止めると自分の入力まで一緒に止まる**
+        inputActions = Instantiate(inputActions);
+
         playerMap = inputActions.FindActionMap("Player", true);
         lookAction = playerMap.FindAction("Look", true);
+    }
+
+    private void OnDestroy()
+    {
+        if (inputActions != null)
+        {
+            Destroy(inputActions);
+        }
     }
 
     private void OnEnable()

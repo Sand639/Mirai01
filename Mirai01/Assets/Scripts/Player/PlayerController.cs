@@ -74,6 +74,11 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
+        // **入力の設定は、この体専用の複製を使う。**
+        // 元のアセットをそのまま使うと、1つのシーンに複数の体が出たとき
+        // （オンラインや画面分割）に、**他の体の操作を止めると自分の入力まで一緒に止まる**
+        inputActions = Instantiate(inputActions);
+
         playerMap = inputActions.FindActionMap("Player", true);
         moveAction = playerMap.FindAction("Move", true);
         lookAction = playerMap.FindAction("Look", true);
@@ -83,6 +88,14 @@ public class PlayerController : MonoBehaviour
         if (cameraPivot == null)
         {
             Debug.LogError($"{name}: CameraPivot が入っていません。上下の首振りができません。", this);
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (inputActions != null)
+        {
+            Destroy(inputActions);
         }
     }
 
