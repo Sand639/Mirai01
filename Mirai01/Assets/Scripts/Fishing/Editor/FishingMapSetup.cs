@@ -513,6 +513,13 @@ public static class FishingMapSetup
             {
                 problems.Add($"ゴール「{pocket.name}」に、Is Trigger が ON の当たり判定が付いていません。");
             }
+
+            // 色を塗る板が無いと、**どのゴールが自分のチームのものか分からない**
+            if (pocket.GetComponentInChildren<Renderer>() == null)
+            {
+                problems.Add($"ゴール「{pocket.name}」に、チームの色に塗る板（見た目）がありません。" +
+                             "子どもに板（Plane や Cube）を置いてください。持ち主の色が出ません。");
+            }
         }
     }
 
