@@ -15,11 +15,17 @@ public class AnchorGimmick : MonoBehaviour
     [Tooltip("1秒あたりにプレイヤーを引っ張る距離")]
     [SerializeField] private float pullSpeed = 8f;
 
+    [Tooltip("フックが当たったあと、1回だけ引っ張る秒数。終わると釣り竿は手元へ戻る")]
+    [SerializeField] private float pullSeconds = 0.25f;
+
     [Tooltip("この距離まで近づいたら引っ張りを終える")]
     [SerializeField] private float stopDistance = 1.2f;
 
     /// <summary>プレイヤーを引っ張る先。見た目を変えても空オブジェクトを指定すれば同じ位置を保てる。</summary>
     public Vector3 PullPosition => pullPoint != null ? pullPoint.position : transform.position;
+
+    /// <summary>1回ぶんの引っ張りを続ける秒数。</summary>
+    public float PullSeconds => Mathf.Max(0f, pullSeconds);
 
     private void Reset()
     {

@@ -148,6 +148,7 @@ public class ThrowController : MonoBehaviour
     private bool targetKinematicWas;
     private AnchorGimmick anchorTarget;
     private CharacterController pullingPlayer;
+    private float anchorPullTimer;
 
     /// <summary>いま引き寄せ中か。UI などが参照する。</summary>
     public bool IsPulling => active;
@@ -206,6 +207,7 @@ public class ThrowController : MonoBehaviour
         if (anchorTarget != null)
         {
             pullingPlayer = hook != null ? hook.PlayerRoot.GetComponent<CharacterController>() : null;
+            anchorPullTimer = 0f;
             if (hook != null && hook.UI != null)
             {
                 hook.UI.ShowTiming(false);
@@ -255,7 +257,11 @@ public class ThrowController : MonoBehaviour
 
         if (anchorTarget != null)
         {
-            if (anchorTarget.PullPlayer(pullingPlayer))
+            anchorPullTimer += Time.deltaTime;
+
+            // アンカーは「1回だけ引っ張る」ギミック。
+            // 引っ張る時間が終わったら、まだ距離があっても釣り竿を手元へ戻す。
+            if (anchorTarget.PullPlayer(pullingPlayer) || anchorPullTimer >= anchorTarget.PullSeconds)
             {
                 EndPull();
             }
@@ -454,6 +460,7 @@ public class ThrowController : MonoBehaviour
         target = null;
         anchorTarget = null;
         pullingPlayer = null;
+        anchorPullTimer = 0f;
         active = false;
 
         if (hook != null && hook.UI != null)
@@ -482,6 +489,7 @@ public class ThrowController : MonoBehaviour
         target = null;
         anchorTarget = null;
         pullingPlayer = null;
+        anchorPullTimer = 0f;
         active = false;
 
         if (hook != null)
@@ -500,6 +508,7 @@ public class ThrowController : MonoBehaviour
         target = null;
         anchorTarget = null;
         pullingPlayer = null;
+        anchorPullTimer = 0f;
         active = false;
 
         if (hook.UI != null)

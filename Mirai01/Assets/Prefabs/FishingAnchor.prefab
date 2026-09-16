@@ -173,6 +173,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AnchorGimmick
   pullPoint: {fileID: 0}
   pullSpeed: 8
+  pullSeconds: 0.25
   stopDistance: 1.2
 --- !u!1 &1254989438495353641
 GameObject:
