@@ -146,6 +146,8 @@ public class ThrowController : MonoBehaviour
     private Vector3 reelStart;
     private bool targetGravityWas;
     private bool targetKinematicWas;
+    private AnchorGimmick anchorTarget;
+    private CharacterController pullingPlayer;
 
     /// <summary>いま引き寄せ中か。UI などが参照する。</summary>
     public bool IsPulling => active;
@@ -198,6 +200,19 @@ public class ThrowController : MonoBehaviour
         timer = 0f;
         armDelay = 0.12f;
 
+        // アンカーは物資を引き寄せない。フックを固定したまま、プレイヤー自身を寄せる。
+        // AnchorGimmick が無い従来の物資は、これまでどおり下の引き寄せ・投げ処理へ進む。
+        anchorTarget = target != null ? target.GetComponent<AnchorGimmick>() : null;
+        if (anchorTarget != null)
+        {
+            pullingPlayer = hook != null ? hook.PlayerRoot.GetComponent<CharacterController>() : null;
+            if (hook != null && hook.UI != null)
+            {
+                hook.UI.ShowTiming(false);
+            }
+            return;
+        }
+
         if (target != null)
         {
             reelStart = target.transform.position;
@@ -235,6 +250,15 @@ public class ThrowController : MonoBehaviour
 
         if (GamePause.IsPaused)
         {
+            return;
+        }
+
+        if (anchorTarget != null)
+        {
+            if (anchorTarget.PullPlayer(pullingPlayer))
+            {
+                EndPull();
+            }
             return;
         }
 
@@ -428,6 +452,8 @@ public class ThrowController : MonoBehaviour
         }
 
         target = null;
+        anchorTarget = null;
+        pullingPlayer = null;
         active = false;
 
         if (hook != null && hook.UI != null)
@@ -454,6 +480,8 @@ public class ThrowController : MonoBehaviour
     private void AbandonPull()
     {
         target = null;
+        anchorTarget = null;
+        pullingPlayer = null;
         active = false;
 
         if (hook != null)
@@ -470,6 +498,8 @@ public class ThrowController : MonoBehaviour
     {
         target.SetHooked(false);
         target = null;
+        anchorTarget = null;
+        pullingPlayer = null;
         active = false;
 
         if (hook.UI != null)
