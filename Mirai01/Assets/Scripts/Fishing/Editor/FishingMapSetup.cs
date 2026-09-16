@@ -438,6 +438,22 @@ public static class FishingMapSetup
             problems.Add("FishingMatch に NetworkObject が付いていません。");
         }
 
+        // **カメラと耳が二重になっていないか。**
+        // 空のシーンから作ると、最初からある Main Camera を消し忘れたまま
+        // 撮影用のプレハブを置いてしまいやすい。音が二重になり、どちらが写るかも決まらない
+        Camera[] cameras = Object.FindObjectsByType<Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (cameras.Length > 1)
+        {
+            problems.Add($"カメラが {cameras.Length} 個あります。**追いかけるカメラ1つだけ**にしてください" +
+                         "（空のシーンに元からある Main Camera を消し忘れていませんか）。");
+        }
+
+        AudioListener[] listeners = Object.FindObjectsByType<AudioListener>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (listeners.Length > 1)
+        {
+            problems.Add($"音を聞く部品（AudioListener）が {listeners.Length} 個あります。1つにしてください。");
+        }
+
         RequireOne<FishingMatchUI>("FishingMatchUI（残り時間と結果の表示）", problems);
         RequireOne<FishingStatusUI>("FishingStatusUI（点数の表示）", problems);
         RequireOne<HookChargeUI>("HookChargeUI（チャージのゲージ）", problems);
