@@ -241,7 +241,7 @@ public class HookController : MonoBehaviour
 
     private void Update()
     {
-        if (GamePause.IsPaused)
+        if (GamePause.BlocksInput)
         {
             return;
         }

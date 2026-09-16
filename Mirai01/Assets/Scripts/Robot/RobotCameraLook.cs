@@ -149,7 +149,7 @@ public class RobotCameraLook : MonoBehaviour
     {
         // **止まっている間は、視点もカーソルも触らない。**
         // ポーズ画面がカーソルを出しているので、ここで奪い返すと選べなくなる
-        if (GamePause.IsPaused)
+        if (GamePause.BlocksInput)
         {
             return;
         }

@@ -301,9 +301,10 @@ public class ObjectCloner : MonoBehaviour
 
     private void Update()
     {
-        // **止まっている間は何も受け付けない。**
-        // ポーズ画面を開く Escape で、複製の下書きまで消えてしまうため
-        if (GamePause.IsPaused)
+        // **止まっている間と、閉じた瞬間のフレームは何も受け付けない。**
+        // ポーズ画面を開く Escape で複製の下書きが消えてしまうのと、
+        // 閉じた同じフレームに、その Escape やクリックをもう一度拾ってしまうのを防ぐ
+        if (GamePause.BlocksInput)
         {
             return;
         }
