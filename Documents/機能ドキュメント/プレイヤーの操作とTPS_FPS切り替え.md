@@ -53,7 +53,7 @@
 
 ## 自分のシーンで使う方法
 
-1. `Assets/Prefabs/PlayerRig.prefab` を、シーンにドラッグして置く
+1. `Assets/Prefabs/Common/PlayerRig.prefab` を、シーンにドラッグして置く
 2. **そのシーンに元からある `Main Camera` を消す**（カメラが2つあると映らなくなるため）
 
 以上。設定をつなぐ作業は要らない。
@@ -68,7 +68,7 @@
 | スクリプト | `Assets/Scripts/Player/PlayerViewSwitcher.cs` |
 | スクリプト | `Assets/Scripts/Player/Reticle.cs`（画面中央の照準） |
 | スクリプト（エディタ用） | `Assets/Scripts/Player/Editor/PlayerRigSetup.cs` |
-| プレハブ | `Assets/Prefabs/PlayerRig.prefab` |
+| プレハブ | `Assets/Prefabs/Common/PlayerRig.prefab` |
 | シーン | `Assets/Scenes/Test/PlayerRigTest.unity` |
 | マテリアル | `Assets/Art/Materials/PlayerRigBody.mat`（体と腕）<br>`Assets/Art/Materials/PlayerRigSkin.mat`（手）<br>`Assets/Art/Materials/TestGround.mat`（地面） |
 | 入力設定 | `Assets/InputSystem_Actions.inputactions`（**既存のものを使用。変更していない**） |
