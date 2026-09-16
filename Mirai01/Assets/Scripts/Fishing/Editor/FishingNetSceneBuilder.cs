@@ -16,7 +16,7 @@ using UnityEngine.InputSystem;
 internal static class FishingNetSceneBuilder
 {
     public const string OnlinePlayerPrefabPath =
-        FishingSceneBuilder.PrefabFolder + "/FishingOnlinePlayer.prefab";
+        FishingSceneBuilder.FishOnlinePrefabFolder + "/FishingOnlinePlayer.prefab";
 
     /// <summary>1秒あたり何回、位置などを送るか（`LanPlayTestSetup` と同じ値）。</summary>
     public const uint NetworkTickRate = 60;

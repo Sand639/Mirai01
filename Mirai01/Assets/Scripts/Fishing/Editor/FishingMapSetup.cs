@@ -13,7 +13,7 @@ using UnityEngine.SceneManagement;
 ///
 /// | メニュー | 何をするか |
 /// | --- | --- |
-/// | `釣りの新しいマップを作る（オンライン）` | 遊ぶのに必要な部品が入った**マップの雛形**を `Assets/Scenes/Test/FishingMap01.unity` のように作る。**同じ名前があれば番号をずらし、上書きしない** |
+/// | `釣りの新しいマップを作る（オンライン）` | 遊ぶのに必要な部品が入った**マップの雛形**を `Assets/Scenes/Prototype/Fish/FishingMap03.unity` のように作る。**同じ名前があれば番号をずらし、上書きしない** |
 /// | `釣りのマップをビルドの一覧に登録し直す` | ロビー・最初の会場・すべてのマップを Build Profiles のシーン一覧に入れ、通信の部品の番号が抜けていれば付ける。**マップの名前を変えたあとや、複製したあとに実行する** |
 /// | `開いている釣りマップを点検する` | 今開いているマップに、遊ぶのに必要な物がそろっているかを調べて Console に出す |
 ///
@@ -33,6 +33,9 @@ public static class FishingMapSetup
 {
     /// <summary>マップのシーン名の頭。**ロビーはこの名前で始まるシーンを候補に並べる。**</summary>
     public const string MapPrefix = "FishingMap";
+
+    /// <summary>マップを探す範囲。この下ならどのフォルダにあっても見つける。</summary>
+    private const string SceneRootFolder = "Assets/Scenes";
 
     public const string LobbyScenePath = FishingSceneBuilder.SceneFolder + "/FishingLobby.unity";
     public const string OnlineScenePath = FishingSceneBuilder.SceneFolder + "/FishingOnline.unity";
@@ -57,6 +60,9 @@ public static class FishingMapSetup
         {
             return;
         }
+
+        // マップの置き場所（`Scenes/Prototype/Fish`）が無ければ作る
+        FishingSceneBuilder.EnsureFolders();
 
         string scenePath = NextFreeMapPath();
         string sceneName = Path.GetFileNameWithoutExtension(scenePath);
@@ -153,13 +159,28 @@ public static class FishingMapSetup
         return false;
     }
 
-    /// <summary>`FishingMap01` から順に、まだ無い名前を探す。**既存のマップは上書きしない。**</summary>
+    /// <summary>
+    /// `FishingMap01` から順に、まだ無い名前を探す。**既存のマップは上書きしない。**
+    ///
+    /// 置き場所が違っても**名前が同じマップは作らない**。
+    /// （`Scenes/Test` に `FishingMap01` が残っている間も、番号がぶつからないようにするため。
+    ///  同じ名前のシーンが2つあると、ビルドの一覧とロビーのマップ選びで取り違える）
+    /// </summary>
     private static string NextFreeMapPath()
     {
+        HashSet<string> usedNames = new HashSet<string>();
+        foreach (string path in FindMapScenePaths())
+        {
+            usedNames.Add(Path.GetFileNameWithoutExtension(path));
+        }
+
         for (int number = 1; ; number++)
         {
-            string path = $"{FishingSceneBuilder.SceneFolder}/{MapPrefix}{number:00}.unity";
-            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(path) == null && !File.Exists(path))
+            string name = $"{MapPrefix}{number:00}";
+            string path = $"{FishingSceneBuilder.MapSceneFolder}/{name}.unity";
+
+            if (!usedNames.Contains(name) &&
+                AssetDatabase.LoadAssetAtPath<SceneAsset>(path) == null && !File.Exists(path))
             {
                 return path;
             }
@@ -320,12 +341,17 @@ public static class FishingMapSetup
         return changed;
     }
 
-    /// <summary>`Assets/Scenes/Test/` にある、名前が `FishingMap` で始まるシーンをすべて探す。</summary>
+    /// <summary>
+    /// 名前が `FishingMap` で始まるシーンを、**`Assets/Scenes` の中からすべて**探す。
+    ///
+    /// 置き場所は問わない。新しいマップは `Scenes/Prototype/Fish` に作られるが、
+    /// 昔のマップが `Scenes/Test` に残っていても拾えるようにしてある。
+    /// </summary>
     public static List<string> FindMapScenePaths()
     {
         List<string> paths = new List<string>();
 
-        foreach (string guid in AssetDatabase.FindAssets("t:Scene", new[] { FishingSceneBuilder.SceneFolder }))
+        foreach (string guid in AssetDatabase.FindAssets("t:Scene", new[] { SceneRootFolder }))
         {
             string path = AssetDatabase.GUIDToAssetPath(guid);
             if (Path.GetFileNameWithoutExtension(path).StartsWith(MapPrefix))

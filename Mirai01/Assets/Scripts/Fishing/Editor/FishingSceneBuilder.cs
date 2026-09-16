@@ -19,10 +19,35 @@ internal static class FishingSceneBuilder
 {
     public const string MaterialFolder = "Assets/Art/Materials";
     public const string PrefabFolder = "Assets/Prefabs";
+
+    // ---- プレハブの置き場所 ----
+    // **プレハブを別のフォルダへ移したら、ここも直すこと。**
+    // ここが合っていないと、ツールが「必要な物がありません」で止まるか、
+    // 古い場所にプレハブを作り直して**二重になる**。
+    /// <summary>どの遊びでも使う共通のプレハブ（PlayerRig など）。</summary>
+    public const string CommonPrefabFolder = PrefabFolder + "/Common";
+
+    /// <summary>釣りのプレハブ全体の置き場所。</summary>
+    public const string FishPrefabFolder = PrefabFolder + "/Fish";
+
+    /// <summary>釣りの1人用だけで使うプレハブ。</summary>
+    public const string FishOfflinePrefabFolder = FishPrefabFolder + "/Offline";
+
+    /// <summary>釣りのオンラインで使うプレハブ（プレイヤー・ゴール・仕組み一式）。</summary>
+    public const string FishOnlinePrefabFolder = FishPrefabFolder + "/Online";
+
+    /// <summary>オンラインで降ってくる物（物資・爆発物）。</summary>
+    public const string FishOnlineGimmickFolder = FishOnlinePrefabFolder + "/Gimmick";
+
+    // ---- シーンの置き場所 ----
+    /// <summary>ロビー・会場・機能ごとの検証シーン。</summary>
     public const string SceneFolder = "Assets/Scenes/Test";
 
-    private const string PlayerRigPath = PrefabFolder + "/PlayerRig.prefab";
-    private const string ExplosionPrefabPath = PrefabFolder + "/FishingExplosion.prefab";
+    /// <summary>**遊ぶためのマップ**（`FishingMap〜`）の置き場所。プロトタイプのステージはここ。</summary>
+    public const string MapSceneFolder = "Assets/Scenes/Prototype/Fish";
+
+    private const string PlayerRigPath = CommonPrefabFolder + "/PlayerRig.prefab";
+    private const string ExplosionPrefabPath = FishPrefabFolder + "/FishingExplosion.prefab";
     private const string RopeMaterialPath = MaterialFolder + "/Rope.mat";
     private const string InputActionsPath = "Assets/InputSystem_Actions.inputactions";
 
@@ -45,11 +70,12 @@ internal static class FishingSceneBuilder
 
     public static void EnsureFolders()
     {
-        EnsureFolder("Assets/Scenes");
         EnsureFolder(SceneFolder);
-        EnsureFolder("Assets/Art");
+        EnsureFolder(MapSceneFolder);
         EnsureFolder(MaterialFolder);
-        EnsureFolder(PrefabFolder);
+        EnsureFolder(CommonPrefabFolder);
+        EnsureFolder(FishOfflinePrefabFolder);
+        EnsureFolder(FishOnlineGimmickFolder);
     }
 
     public static InputActionAsset LoadInputActions()
@@ -760,6 +786,10 @@ internal static class FishingSceneBuilder
         return material;
     }
 
+    /// <summary>
+    /// フォルダが無ければ作る。**途中のフォルダもまとめて作る**
+    /// （`Assets/Scenes/Prototype/Fish` のように深い場所でも使える）。
+    /// </summary>
     public static void EnsureFolder(string path)
     {
         if (AssetDatabase.IsValidFolder(path))
@@ -770,6 +800,10 @@ internal static class FishingSceneBuilder
         int lastSlash = path.LastIndexOf('/');
         string parent = path.Substring(0, lastSlash);
         string folderName = path.Substring(lastSlash + 1);
+
+        // 親が無ければ先に作る（Unity は1段ずつしか作れない）
+        EnsureFolder(parent);
+
         AssetDatabase.CreateFolder(parent, folderName);
     }
 }

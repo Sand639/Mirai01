@@ -32,7 +32,7 @@ public static class FishingOnlineBuilder
     /// <summary>
     /// ビルドに含めるシーン。**最初のものが起動時に開くシーン**になるので、
     /// ロビーを先頭にしておくこと。
-    /// このあとに、`Assets/Scenes/Test/FishingMap〜.unity` のマップがすべて足される。
+    /// このあとに、`FishingMap〜.unity` のマップがすべて足される（`Assets/Scenes` の下ならどこにあってもよい）。
     /// </summary>
     private static readonly string[] ScenePaths =
     {

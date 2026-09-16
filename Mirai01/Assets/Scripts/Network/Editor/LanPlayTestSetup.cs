@@ -15,7 +15,7 @@ using UnityEngine.InputSystem;
 /// </summary>
 public static class LanPlayTestSetup
 {
-    private const string PrefabFolder = "Assets/Prefabs";
+    private const string PrefabFolder = "Assets/Prefabs/Common";
     private const string SceneFolder = "Assets/Scenes/Test";
     private const string MaterialFolder = "Assets/Art/Materials";
 
