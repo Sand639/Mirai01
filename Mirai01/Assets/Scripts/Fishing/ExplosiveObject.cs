@@ -64,14 +64,14 @@ public class ExplosiveObject : MonoBehaviour
     private Color[] originalColors;
     private Vector3 baseScale;
 
-    private void Awake()
+    protected virtual void Awake()
     {
         hookable = GetComponent<HookableObject>();
         baseScale = transform.localScale;
         CaptureColors();
     }
 
-    private void OnDestroy()
+    protected virtual void OnDestroy()
     {
         LitBombs.Remove(this);
     }
@@ -111,7 +111,7 @@ public class ExplosiveObject : MonoBehaviour
         }
     }
 
-    private void Update()
+    protected virtual void Update()
     {
         if (!FuseLit)
         {
@@ -195,17 +195,23 @@ public class ExplosiveObject : MonoBehaviour
 
         foreach (Collider hit in hits)
         {
-            PlayerStun stun = hit.GetComponentInParent<PlayerStun>();
-            if (stun != null && handled.Add(stun.gameObject))
-            {
-                stun.Stun(playerStunSeconds);
-            }
+            ApplyPlayerEffect(hit, handled);
 
             HookableObject other = hit.GetComponentInParent<HookableObject>();
             if (other != null && other != hookable && handled.Add(other.gameObject))
             {
                 other.Vanish();
             }
+        }
+    }
+
+    /// <summary>通常の爆弾はスタン。派生版はここだけを差し替えられる。</summary>
+    protected virtual void ApplyPlayerEffect(Collider hit, HashSet<GameObject> handled)
+    {
+        PlayerStun stun = hit.GetComponentInParent<PlayerStun>();
+        if (stun != null && handled.Add(stun.gameObject))
+        {
+            stun.Stun(playerStunSeconds);
         }
     }
 
