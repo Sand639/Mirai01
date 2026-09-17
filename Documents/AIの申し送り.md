@@ -49,6 +49,10 @@
 
 | 日付 | 書いたAI | 場面 | やり方 |
 | --- | --- | --- | --- |
+| 2026/9/16 | Claude Code | **釣りのマップに、新しい形のステージを足したいとき** | **`FishingMapSetup.cs` の `Build〜Stage` を1つ書いて、メニューを1行足すだけでよい。** マップを作る処理（床・壁・ゴール・試合の仕組み・カメラ・スポナー・UI・通信の番号付け・ビルドの一覧への登録）は `CreateMap()` に1つにまとめてあり、**マップごとに違うのは「床の上に何を置くか」だけ**を `System.Action<Transform, Transform>`（`Stage` と `Obstacles`）で受け取る形にした。実例は `BuildBattleStage`。**寸法は定数にして、上に「なぜその値か」を書いておくと、あとで人が調整しやすい** |
+| 2026/9/16 | Claude Code | **Unityが開いたまま、シーン（`.unity`）の設定値だけを変えたいとき** | `grep -n "項目名" *.unity` で行を探し、`sed` でその行だけ書き換えれば、**シーン全体を作り直さずに値を変えられる**（例：スポナーの `supplyWeight`）。ただし**Unityで開いているシーンは、そのまま Ctrl+S されると書き戻されて消える。** どのシーンが開いているかは `Mirai01/Library/LastSceneManagerSetup.txt` で分かるので、**開いているシーンを直したときは「Unityで開き直してください」と必ず伝えること** |
+| 2026/9/15 | Claude Code | **Unityを開かずにコンパイルを確かめる方法（9/14の手順の補足）** | 9/15時点の `Assembly-CSharp.csproj` には `<ProjectReference>` が無く、**パッケージのDLLが `<HintPath>Library\ScriptAssemblies\...` の相対パスで書かれていた。** 作業用フォルダに複製する場合は、①`Compile Include="Assets` ②`HintPath>Library\` `HintPath>Assets\` `HintPath>Packages\` を**すべて絶対パスに置き換える**だけで `dotnet msbuild 複製.csproj -v:q` が通った。**csproj はUnityが最後に開いた時点のもの**なので、その後に増えた .cs（9/15は16本）は `Get-ChildItem Assets -Recurse -Filter *.cs` と突き合わせて Compile に足す。エディタ用は `Assembly-CSharp-Editor.csproj` を同様に直し、`<ProjectReference Include="Assembly-CSharp.csproj">` を**先に作った Assembly-CSharp.dll への `<Reference>` に差し替える**と通る。**PowerShell で一時ファイルを消すコマンドに `'\Editor\'` のような文字列が混ざると、安全装置に止められる**ので、一時ファイルは最初から scratchpad に置くこと |
+| 2026/9/15 | Claude Code | **オンラインのプレイヤーに、あとから部品（コンポーネント）を足したいが、プレハブやシーンを作り直させたくないとき** | **既存のスクリプト（`HookController.Awake`）の中で `GetComponent` → 無ければ `AddComponent`** する。手で作ったマップや、調整済みのプレハブもそのまま動く。ただし**通信の値（`NetworkVariable`）は、あとから足した部品には持たせられない**（`NetworkBehaviour` は実行中に足せない）ので、**すでにある `FishingNetPlayer` に変数を足し、足した部品はそこを読み書きする**形にした（`HookAimAssist` が実例）。他の人のぶんでも動かしたい部品は、`ownerOnlyScripts` に入れず、自分で `IsOwner` を見て分ける |
 | 2026/9/15 | Claude Code | **既存のシーンに手を入れたいが、シーン生成ツールで作り直すと他の人の手の変更（ToneMapping など）が消えるとき** | **作り直さず、`EditorSceneManager.OpenScene` で開いて、要らない物だけ消して足して `SaveScene` するツールを書く**（例：`FishingSpawnerSetup.cs`）。小野田さんのPCでは `C:\Program Files\Unity\Hub\Editor\6000.3.14f1\Editor\Unity.exe -batchmode -nographics -quit -projectPath ... -executeMethod クラス名.メソッド名 -logFile ...` を **Git Bash から実行すると終わるまで待ってくれる**。差分は `grep "m_Name:"` を前後で比べると、消えた物・増えた物だけが一目で分かる。**Netcode のプレハブは `GlobalObjectIdHash: 0` のまま保存されるが正常**（既存の `FishingOnlinePlayer.prefab` も同じ）。オンラインで `Instantiate`→`Spawn` する物は `NetworkPrefabsList.Add(new NetworkPrefab { Prefab = ... })` で `Assets/DefaultNetworkPrefabs.asset` に登録する |
 | 2026/9/14 | Claude Code | **Unityが閉じていて、スクリプトのコンパイルを確かめたいとき** | Unityが作った `Mirai01/Assembly-CSharp.csproj` はそのままでは `dotnet build` できない（パッケージの参照が相対パスで、別の csproj を指している） → **作業用フォルダに csproj を複製し、①`Include="Assets\` を絶対パスに ②`<ProjectReference>` を消す ③`Library/ScriptAssemblies/*.dll`（Assembly-CSharp と Editor 系以外）を `<Reference HintPath>` で足す ④新しく作った .cs は Compile に手で足す**、の4つで `dotnet build` が通る。エラー0なら Unity でも通る見込みが高い（エディタ用スクリプトは別の csproj なので別途） |
 | 2026/9/1 | Claude Code | 一人称視点で「見ているもの」を判定するとき | カメラは**キャラクターのカプセルの内側**にあるため、素直に `Physics.Raycast` すると自分に当たって前に進まないことがある。`Physics.RaycastNonAlloc` で全部拾い、`transform.IsChildOf(playerRoot)` で自分を除いてから一番近いものを選ぶとよい。`ObjectCloner.cs` の `TryAim` が実例 |
@@ -98,6 +102,8 @@
 > 作業を途中で終えたとき、続きを引き継ぐための置き手紙。
 > 終わった話は消してよい。
 
+- **2026/9/17　ポーズ画面（`PauseMenu`）は、オンラインのシーンにも自動で作られ、`Time.timeScale` を 0 にする。** 通信の対戦で「止める」と、ホストの物理と `Time.deltaTime` で数える処理だけが止まり、`ServerTime` で決めている試合の残り時間は進む（`リスクリスト.md` に登録）。**オンラインの機能で `Time.deltaTime` や FixedUpdate に頼るときは、ポーズで止まる前提で考えること。**
+
 - **2026/9/15　`develop_prototype_fishing` を `develop` に取り込んだ**（小野田さんの依頼）。`Documents/` の7ファイルの衝突は、**両方の行を残す**形で直した（`リスクリスト.md` の釣りの行は「未解決／様子見／対応済み」に振り分け、`ネットワークの制作工程.md` の状況は釣りで進んだ内容を採用）。**残っている確認：** ①釣りのマップ（`Assets/Scenes/Test/FishingMap〜`）を `Assets/Scenes/Prototype/` へ移すかどうか。移す場合は Unity 上で移し、ツールの置き場所の定数も合わせる ②`機能と検証シーンの一覧.md` に、釣りの機能と検証シーンがまだ載っていない
 
 ---
@@ -119,8 +125,8 @@
 | 2026/9/4 | Claude Code | キリル文字を探すコマンドが**この環境のgrepでは動かない**ことが分かったため、動く書き方（`LC_ALL=C grep -rlP '[\xd0\xd1][\x80-\xbf]'`）に差し替えた |
 | 2026/9/4 | Claude Code | 調整済みのプレハブに機能を足す手順（作り直さずに `LoadPrefabContents` で足す）を記録 |
 | 2026/9/6 | Claude Code | Assets の中でファイルを移す正しい手順（`AssetDatabase.MoveAsset` を使う使い捨てスクリプト）を記録 |
-| 2026/9/9 | Claude Code | 釣りフックのプロトタイプ実装で分かった、アプリ版ではUnityを起動できず生成スクリプト＋メニュー実行の往復になる件と、操作方式の合わないPlayerRigを土台だけ流用するやり方を記録 |
 | 2026/9/8 | Claude Code | 同じキーを2か所で見ていて取り合いになった件と、シーンへの置き忘れを前提にした作りにする話を記録 |
+| 2026/9/9 | Claude Code | 釣りフックのプロトタイプ実装で分かった、アプリ版ではUnityを起動できず生成スクリプト＋メニュー実行の往復になる件と、操作方式の合わないPlayerRigを土台だけ流用するやり方を記録 |
 | 2026/9/10 | Claude Code | `Physics.gravity` を変えても CharacterController には効かない件を記録 |
 | 2026/9/10 | Claude Code | 「メニューを実行したのに変わらない」をUnityのログと生成物の時刻で切り分ける手順と、検証シーンを2つに分けるときの作り方（共通部品を1ファイルに集める）を記録 |
 | 2026/9/10 | Claude Code | 釣りのオンライン対応で分かった3件を記録（1人用を書き換えずに通信を足す形／Netcodeのシーン切り替えの落とし穴／プレハブからシーンのものを参照する方法） |
@@ -134,5 +140,9 @@
 | 2026/9/15 | Claude Code | 既存シーンを作り直さずにツールで手を入れる方法と、Netcodeのプレハブ登録の注意を記録 |
 | 2026/9/15 | Claude Code | ツールで作ったシーンの NetworkObject の番号が 0 のまま残る件と、`develop` を取り込めていない件の置き手紙を記録 |
 | 2026/9/15 | Claude Code | `develop` への取り込みにあわせて、次のAIへの伝言を「取り込み済み・残っている確認」に書き換えた |
+| 2026/9/15 | Claude Code | Unityを開かずにコンパイルを確かめる手順の補足（csproj の参照の書き方が変わっていた）と、プレハブを作り直さずにオンラインのプレイヤーへ部品を足すやり方を記録 |
 | 2026/9/16 | Claude Code | `Assets/` の中で物を移動するとエディタ拡張の決め打ちパスだけが静かに壊れる件と、その洗い出し方を記録 |
 | 2026/9/16 | Claude Code | ポーズ画面と入力の取り合いは「持ち主の固定」だけでは足りない件（BlocksInput を使う）と、オンラインでそろえるには通信より「時計から計算」を先に考える件の2件を記録 |
+| 2026/9/16 | Claude Code | 「うまくいったやり方」に2件追加（新しい形のステージの足し方／Unityを開いたままシーンの値だけ変える手順） |
+| 2026/9/17 | Claude Code | 次のAIへの伝言に、ポーズ画面がオンラインでも時間を止める件を追加 |
+| 2026/9/17 | Claude Code | 釣りフックのオートエイムのブランチを `develop` に取り込み、衝突した行をまとめた |

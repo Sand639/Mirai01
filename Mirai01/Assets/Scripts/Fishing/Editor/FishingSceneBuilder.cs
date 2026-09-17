@@ -285,6 +285,7 @@ internal static class FishingSceneBuilder
         player.AddComponent<FishingPlayerController>();
         player.AddComponent<HookController>();
         player.AddComponent<ThrowController>();
+        player.AddComponent<HookAimAssist>();
 
         return player;
     }
@@ -619,6 +620,12 @@ internal static class FishingSceneBuilder
         SetRef(hookController, "stun", stun);
         SetRef(hookController, "inputActions", inputActions);
         SetInt(hookController, "hookableMask", ~0);
+
+        HookAimAssist aimAssist = player.GetComponent<HookAimAssist>();
+        if (aimAssist != null)
+        {
+            SetRef(hookController, "aimAssist", aimAssist);
+        }
 
         SetRef(throwController, "hook", hookController);
         SetRef(throwController, "inputActions", inputActions);
