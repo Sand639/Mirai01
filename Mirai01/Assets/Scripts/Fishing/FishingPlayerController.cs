@@ -12,7 +12,7 @@ using UnityEngine.InputSystem;
 /// Input Actions に Assets/InputSystem_Actions を入れる。
 /// </summary>
 [RequireComponent(typeof(CharacterController))]
-public class FishingPlayerController : MonoBehaviour
+public class FishingPlayerController : MonoBehaviour, ILaunchable
 {
     [Header("移動")]
     [Tooltip("歩く速さ（1秒あたりのメートル）")]
@@ -20,6 +20,11 @@ public class FishingPlayerController : MonoBehaviour
 
     [Tooltip("落ちる強さ。マイナスの値にすること")]
     [SerializeField] private float gravity = -20f;
+
+    [Header("外から与えられた勢い")]
+    [Tooltip("吹き飛ばされた横方向の勢いが弱まる速さ。大きいほど早く止まる")]
+    [Min(0f)]
+    [SerializeField] private float launchDamping = 4f;
 
     [Header("向き")]
     [Tooltip("マウス方向へ向き直る速さ（1秒あたりの度）。大きいほどキビキビ振り向く")]
@@ -39,6 +44,7 @@ public class FishingPlayerController : MonoBehaviour
     private InputActionMap playerMap;
     private InputAction moveAction;
     private float verticalVelocity;
+    private Vector3 launchVelocity;
 
     private void Awake()
     {
@@ -94,6 +100,8 @@ public class FishingPlayerController : MonoBehaviour
     private void OnDisable()
     {
         playerMap?.Disable();
+        launchVelocity = Vector3.zero;
+        verticalVelocity = 0f;
     }
 
     private void Update()
@@ -133,10 +141,32 @@ public class FishingPlayerController : MonoBehaviour
         }
         verticalVelocity += gravity * Time.deltaTime;
 
-        Vector3 velocity = direction * moveSpeed;
+        Vector3 velocity = direction * moveSpeed + launchVelocity;
         velocity.y = verticalVelocity;
 
-        characterController.Move(velocity * Time.deltaTime);
+        CollisionFlags collisions = characterController.Move(velocity * Time.deltaTime);
+        if ((collisions & CollisionFlags.Above) != 0 && verticalVelocity > 0f)
+        {
+            verticalVelocity = 0f;
+        }
+
+        launchVelocity = Vector3.Lerp(launchVelocity, Vector3.zero,
+            1f - Mathf.Exp(-launchDamping * Time.deltaTime));
+    }
+
+    /// <summary>スタンせずに吹き飛ばす。オンラインでは自分の体だけが受け取る。</summary>
+    public void Launch(Vector3 velocity)
+    {
+        if (!isActiveAndEnabled || characterController == null || !characterController.enabled)
+        {
+            return;
+        }
+
+        launchVelocity = new Vector3(velocity.x, 0f, velocity.z);
+        if (velocity.y > 0f)
+        {
+            verticalVelocity = velocity.y;
+        }
     }
 
     /// <summary>体をマウスカーソルの方向へ向ける。</summary>
