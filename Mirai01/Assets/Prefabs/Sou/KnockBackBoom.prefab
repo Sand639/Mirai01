@@ -175,7 +175,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3941358233
+  GlobalObjectIdHash: 0
   InScenePlacedSourceGlobalObjectIdHash: 0
   m_InScenePlacedDisabledByDefault: 0
   DeferredDespawnTick: 0
@@ -271,9 +271,8 @@ MonoBehaviour:
   minBlinkPerSecond: 1.5
   maxBlinkPerSecond: 16
   maxPulseScale: 1.3
-  knockbackForce: 5
-  knockbackSpeed: 30
-  knockbackLift: 10
+  knockbackSpeed: 10
+  knockbackLift: 5
 --- !u!114 &4457384760071901500
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -14,7 +14,6 @@ using UnityEngine.InputSystem;
 /// フックの実際の飛び方の計算はここに置き、HookProjectile は当たり判定だけにしている。
 /// 引き寄せ・投げは ThrowController、糸の見た目は HookLine に分けてある。
 /// </summary>
-
 public class HookController : MonoBehaviour
 {
     /// <summary>フックがいまどの段階にいるか。</summary>
