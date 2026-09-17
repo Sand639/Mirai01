@@ -200,7 +200,7 @@ public class ExplosiveObject : MonoBehaviour
             HookableObject other = hit.GetComponentInParent<HookableObject>();
             if (other != null && other != hookable && handled.Add(other.gameObject))
             {
-                ApplyHookableEffect(other);
+                other.Vanish();
             }
         }
     }
@@ -213,12 +213,6 @@ public class ExplosiveObject : MonoBehaviour
         {
             stun.Stun(playerStunSeconds);
         }
-    }
-
-    /// <summary>通常は物資を消す。派生版は吹き飛ばすなどの効果へ差し替えられる。</summary>
-    protected virtual void ApplyHookableEffect(HookableObject other)
-    {
-        other.Vanish();
     }
 
     private void RestoreLook()

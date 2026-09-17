@@ -466,27 +466,6 @@ public class ThrowController : MonoBehaviour
         }
     }
 
-    /// <summary>爆風で物資を引き離す。投げ・ミスの通信や力を追加せず、糸とゲージを戻す。</summary>
-    public static void ReleaseTargetForExplosion(HookableObject item)
-    {
-        foreach (ThrowController puller in FindObjectsByType<ThrowController>(FindObjectsSortMode.None))
-        {
-            if (!puller.active || puller.target != item)
-            {
-                continue;
-            }
-
-            FishingNetSupply netSupply = item.GetComponent<FishingNetSupply>();
-            // 持ち主を失ったPCでは物理を再開しない（ホストが吹き飛ばす）。
-            if (netSupply == null || !netSupply.IsSpawned || netSupply.IsOwner)
-            {
-                puller.RestorePhysics(item.Body);
-            }
-            puller.EndPull();
-        }
-        item.SetHooked(false);
-    }
-
     private void EndPull()
     {
         target.SetHooked(false);
