@@ -42,6 +42,11 @@ public class PauseMenu : MonoBehaviour
     [Tooltip("ポーズ画面を開く／閉じるキー")]
     [SerializeField] private Key pauseKey = Key.Escape;
 
+    [Tooltip("ONだと、開いている間は**世界の時間も止まる**（1人用）。\n" +
+             "**オンラインのシーンでは OFF にすること。** 自分のPCだけ時間を止めても" +
+             "他の人は動き続けるので、閉じた瞬間に相手が飛んで見える")]
+    [SerializeField] private bool freezeTime = true;
+
     [Header("つなぐもの")]
     [Tooltip("Assets/InputSystem_Actions を入れる。**UIのクリックに使う。**" +
              "シーンにすでに EventSystem があるなら空でもよい")]
@@ -197,7 +202,7 @@ public class PauseMenu : MonoBehaviour
         ShowSettings(false);
         SetVisible(true);
 
-        GamePause.SetPaused(true);
+        GamePause.SetPaused(true, freezeTime);
 
         // 閉じたときに元へ戻せるよう、開く前の状態を控えておく
         cursorLockBeforeOpen = Cursor.lockState;

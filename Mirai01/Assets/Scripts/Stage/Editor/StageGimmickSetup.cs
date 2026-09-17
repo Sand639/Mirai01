@@ -96,6 +96,9 @@ public static class StageGimmickSetup
 
         // **当たり判定はそのまま。** Cube に最初から付いている BoxCollider を消さない
 
+        // 透けて見えるので、三人称カメラは壁として扱わない（付けないとガラス越しでカメラが寄る）
+        glass.AddComponent<SeeThrough>();
+
         return glass;
     }
 

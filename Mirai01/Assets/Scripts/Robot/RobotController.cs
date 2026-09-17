@@ -264,11 +264,24 @@ public class RobotController : MonoBehaviour
             return;
         }
 
+        // **入力の設定は、この体専用の複製を使う。**
+        // 元のアセットをそのまま使うと、1つのシーンに複数の体が出たとき
+        // （オンラインや画面分割）に、**他の体の操作を止めると自分の入力まで一緒に止まる**
+        inputActions = Instantiate(inputActions);
+
         playerMap = inputActions.FindActionMap("Player", true);
         moveAction = playerMap.FindAction("Move", true);
         jumpAction = playerMap.FindAction("Jump", true);
 
         ApplyState(RobotState.Combined);
+    }
+
+    private void OnDestroy()
+    {
+        if (inputActions != null)
+        {
+            Destroy(inputActions);
+        }
     }
 
     private void OnEnable()

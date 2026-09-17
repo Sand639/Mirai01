@@ -119,6 +119,66 @@ public static class AimCheck
     }
 
     /// <summary>
+    /// **間に壁が無いか。** 手を伸ばして触る物（箱・扉）で使う。
+    ///
+    /// これまでは角度と距離しか見ていなかったので、**壁の向こうの物を持てて、扉も開けられた**
+    /// （`リスクリスト.md` 2026/9/7 登録）。
+    ///
+    /// - **自分の体**（<paramref name="ignoreRoot"/> の子）は数えない
+    /// - **狙っている相手そのもの**（<paramref name="targetRoot"/> の子）も数えない。
+    ///   相手の表面に当たって「遮られている」と判断されてしまうため
+    /// - **ガラスのように透けて見える物**（<see cref="SeeThrough"/>）は数えない
+    /// - すり抜け用の当たり判定（トリガー）も数えない
+    /// </summary>
+    public static bool HasClearPath(Vector3 origin, Vector3 target, Transform ignoreRoot, Transform targetRoot)
+    {
+        Vector3 toTarget = target - origin;
+        float distance = toTarget.magnitude;
+
+        // ほとんど同じ位置なら、遮る余地がない
+        if (distance < 0.01f)
+        {
+            return true;
+        }
+
+        int count = Physics.RaycastNonAlloc(
+            origin, toTarget / distance, pathHits, distance, Physics.DefaultRaycastLayers,
+            QueryTriggerInteraction.Ignore);
+
+        for (int i = 0; i < count; i++)
+        {
+            Collider hit = pathHits[i].collider;
+
+            if (hit == null)
+            {
+                continue;
+            }
+
+            if (ignoreRoot != null && hit.transform.IsChildOf(ignoreRoot))
+            {
+                continue;
+            }
+
+            if (targetRoot != null && hit.transform.IsChildOf(targetRoot))
+            {
+                continue;
+            }
+
+            if (SeeThrough.Is(hit))
+            {
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>間に何があるかを調べるときの入れ物。毎回作り直さないよう使い回している。</summary>
+    private static readonly RaycastHit[] pathHits = new RaycastHit[16];
+
+    /// <summary>
     /// 指定した向きで調べる。
     /// `includeFlat` が true なら、**その水平の向き**でも調べ、どちらかに入っていれば true。
     /// </summary>
