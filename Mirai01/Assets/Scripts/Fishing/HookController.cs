@@ -471,6 +471,16 @@ public class HookController : MonoBehaviour
         Debug.Log("[FISH] その物資は先に取られていました。フックを戻します。");
     }
 
+    /// <summary>古い依頼への断りでは、現在引っ掛けている別の物資を外さない。</summary>
+    public void CancelAttachBecauseTaken(HookableObject expectedTarget)
+    {
+        if (attached != expectedTarget)
+        {
+            return;
+        }
+        CancelAttachBecauseTaken();
+    }
+
     /// <summary>糸とフックの見た目を、いまの段階に合わせて更新する。</summary>
     private void UpdateHookVisual()
     {

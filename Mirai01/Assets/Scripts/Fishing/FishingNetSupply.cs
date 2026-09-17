@@ -29,6 +29,11 @@ public class FishingNetSupply : NetworkBehaviour
     /// <summary>最後に投げた人の参加番号。**共通ゴールの点を誰に入れるか**の判断に使う。</summary>
     private readonly NetworkVariable<int> lastThrownByPlayerIndex = new NetworkVariable<int>(-1);
 
+    // 爆発前の「まだ届いていなかった鉤・投げ・解除」の指示を、爆発後に採用しない。
+    private readonly NetworkVariable<uint> explosionRevision = new NetworkVariable<uint>(0);
+    private uint localClaimRevision;
+    private uint localClaimAttempt;
+
     /// <summary>いま誰かに引っ掛けられているか。</summary>
     public bool IsClaimed => hookedByPlayerIndex.Value >= 0;
 
@@ -91,7 +96,9 @@ public class FishingNetSupply : NetworkBehaviour
     /// </summary>
     public void RequestClaim(int playerIndex)
     {
-        RequestClaimServerRpc(playerIndex);
+        localClaimRevision = explosionRevision.Value;
+        localClaimAttempt += 1;
+        RequestClaimServerRpc(playerIndex, localClaimRevision, localClaimAttempt);
     }
 
     /// <summary>
@@ -101,12 +108,13 @@ public class FishingNetSupply : NetworkBehaviour
     /// 引っ掛ける前の持ち主はホストなので、これが無いと参加者から頼めない。
     /// </summary>
     [ServerRpc(RequireOwnership = false)]
-    private void RequestClaimServerRpc(int playerIndex, ServerRpcParams rpcParams = default)
+    private void RequestClaimServerRpc(int playerIndex, uint claimRevision, uint claimAttempt,
+        ServerRpcParams rpcParams = default)
     {
-        if (IsClaimed || hookable.IsVanished)
+        if (claimRevision != explosionRevision.Value || IsClaimed || hookable.IsVanished)
         {
             // すでに誰かが掛けている。頼んできた人に断りを返す
-            DenyClaimClientRpc(RpcToSender(rpcParams));
+            DenyClaimClientRpc(claimRevision, claimAttempt, RpcToSender(rpcParams));
             return;
         }
 
@@ -121,12 +129,18 @@ public class FishingNetSupply : NetworkBehaviour
 
     /// <summary>頼んだ本人だけに「取られていた」と伝える。</summary>
     [ClientRpc]
-    private void DenyClaimClientRpc(ClientRpcParams rpcParams = default)
+    private void DenyClaimClientRpc(uint claimRevision, uint claimAttempt, ClientRpcParams rpcParams = default)
     {
+        // 爆発後に掛け直していたら、古い依頼への断りで新しい引き寄せを取り消さない。
+        if (claimRevision != localClaimRevision || claimAttempt != localClaimAttempt)
+        {
+            return;
+        }
+
         HookController hook = FindLocalHookController();
         if (hook != null)
         {
-            hook.CancelAttachBecauseTaken();
+            hook.CancelAttachBecauseTaken(hookable);
         }
     }
 
@@ -140,15 +154,15 @@ public class FishingNetSupply : NetworkBehaviour
     /// </summary>
     public void RequestThrow(Vector3 direction, float force, float lift, int playerIndex)
     {
-        RequestThrowServerRpc(direction, force, lift, playerIndex);
+        RequestThrowServerRpc(direction, force, lift, playerIndex, localClaimRevision);
     }
 
     [ServerRpc(RequireOwnership = false)]
     private void RequestThrowServerRpc(Vector3 direction, float force, float lift,
-        int playerIndex, ServerRpcParams rpcParams = default)
+        int playerIndex, uint claimRevision, ServerRpcParams rpcParams = default)
     {
         // 掛けている本人からの指示だけを受け付ける
-        if (hookedByPlayerIndex.Value != playerIndex)
+        if (claimRevision != explosionRevision.Value || hookedByPlayerIndex.Value != playerIndex)
         {
             return;
         }
@@ -172,14 +186,14 @@ public class FishingNetSupply : NetworkBehaviour
     /// </summary>
     public void RequestRelease(Vector3 direction, float pullForce, int playerIndex)
     {
-        RequestReleaseServerRpc(direction, pullForce, playerIndex);
+        RequestReleaseServerRpc(direction, pullForce, playerIndex, localClaimRevision);
     }
 
     [ServerRpc(RequireOwnership = false)]
     private void RequestReleaseServerRpc(Vector3 direction, float pullForce,
-        int playerIndex, ServerRpcParams rpcParams = default)
+        int playerIndex, uint claimRevision, ServerRpcParams rpcParams = default)
     {
-        if (hookedByPlayerIndex.Value != playerIndex)
+        if (claimRevision != explosionRevision.Value || hookedByPlayerIndex.Value != playerIndex)
         {
             return;
         }
@@ -192,6 +206,33 @@ public class FishingNetSupply : NetworkBehaviour
             body.linearVelocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;
             body.AddForce(direction * pullForce, ForceMode.Impulse);
+        }
+    }
+
+    /// <summary>爆風で脱鉤して吹き飛ばす。各PCの爆弾が呼んでもホストだけが処理する。</summary>
+    public void ServerApplyExplosion(Vector3 velocity)
+    {
+        if (!IsSpawned || !IsServer || hookable.IsVanished || body == null)
+        {
+            return;
+        }
+
+        explosionRevision.Value += 1;
+        ReleaseForExplosionClientRpc(explosionRevision.Value);
+        // ホストと専用サーバーはここで手元の状態を戻す。
+        ThrowController.ReleaseTargetForExplosion(hookable);
+        hookedByPlayerIndex.Value = -1;
+        TakeBackOwnership();
+        body.AddForce(velocity, ForceMode.VelocityChange);
+    }
+
+    [ClientRpc]
+    private void ReleaseForExplosionClientRpc(uint releasedRevision)
+    {
+        // 爆発後の新しい鉤まで、遅れて届いた脱鉤の合図で外さない。
+        if (!IsServer && localClaimRevision < releasedRevision)
+        {
+            ThrowController.ReleaseTargetForExplosion(hookable);
         }
     }
 
