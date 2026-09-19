@@ -6,6 +6,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
+// Key（押すキーの種類）は UnityEngine.InputSystem にある
 
 /// <summary>
 /// **宇宙ごみ集めの「ロビー」と「マップ」を作るツール。**
@@ -203,6 +204,11 @@ public static class SpaceJunkSetup
 
         SpaceJunkLobbyTerminal script = terminal.AddComponent<SpaceJunkLobbyTerminal>();
         FishingSceneBuilder.SetRef(script, "highlightRenderer", renderer);
+
+        // **押すキーは明示的に入れておく。**
+        // 以前 KeyCode（古い入力）で作っていたころのシーンが残っていると、
+        // 数字だけがそのまま読まれて別のキーになってしまうため
+        FishingSceneBuilder.SetInt(script, "interactKey", (int)Key.E);
     }
 
     // ------------------------------------------------------------

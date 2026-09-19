@@ -1,5 +1,6 @@
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// **ロビーに置く「設定端末」。** 近づいて `E` を押すと、ホストの詳細設定が開く。
@@ -32,7 +33,7 @@ public class SpaceJunkLobbyTerminal : MonoBehaviour
     [SerializeField] private float interactRange = 3f;
 
     [Tooltip("開く／閉じるキー")]
-    [SerializeField] private KeyCode interactKey = KeyCode.E;
+    [SerializeField] private Key interactKey = Key.E;
 
     [Header("見た目")]
     [Tooltip("近づいたときに色を変える見た目。空でもよい")]
@@ -82,7 +83,7 @@ public class SpaceJunkLobbyTerminal : MonoBehaviour
                     && player != null
                     && Vector3.Distance(player.position, transform.position) <= interactRange;
 
-        if (IsHostNearby && Input.GetKeyDown(interactKey))
+        if (IsHostNearby && WasPressed(interactKey))
         {
             IsOpen = !IsOpen;
         }
@@ -94,13 +95,26 @@ public class SpaceJunkLobbyTerminal : MonoBehaviour
         }
 
         // Escape でも閉じられるようにする（ポーズ画面と取り合いにならないよう、開いているときだけ）
-        if (IsOpen && Input.GetKeyDown(KeyCode.Escape))
+        if (IsOpen && WasPressed(Key.Escape))
         {
             IsOpen = false;
         }
 
         ApplyHighlight();
         SetLocalPlayerControlEnabled(!IsOpen);
+    }
+
+    /// <summary>
+    /// キーが押された瞬間か。
+    ///
+    /// **このプロジェクトは Input System（新）だけを使う設定**（Active Input Handling）なので、
+    /// 古い `Input.GetKeyDown` は動かない。`Keyboard.current` から読むこと。
+    /// （2026/9/20・E キーが効かなかった原因がこれだった）
+    /// </summary>
+    private static bool WasPressed(Key key)
+    {
+        Keyboard keyboard = Keyboard.current;
+        return keyboard != null && keyboard[key].wasPressedThisFrame;
     }
 
     /// <summary>このPCで操作しているプレイヤーの位置。</summary>
