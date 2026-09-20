@@ -216,17 +216,31 @@ public class SpaceJunkSession : NetworkBehaviour
         return 0;
     }
 
+    /// <summary>
+    /// <see cref="Slots"/> と <see cref="SelectedMaps"/> が返す入れ物。**毎回作らず使い回す。**
+    ///
+    /// ロビーの画面は `OnGUI` で描いていて、**1フレームに何度も呼ばれる。**
+    /// そのたびに新しいリストを作ると、捨てるゴミが積み上がって動きが重くなる。
+    ///
+    /// ⚠ **使い回しているので、1つの `foreach` を回している途中で
+    /// もう一度同じものを取りに行かないこと**（中身が入れ替わる）。
+    /// 取り出したら、最後まで使い切ってから次を取ること。
+    /// </summary>
+    private readonly List<SpaceJunkPlayerSlot> slotsView = new List<SpaceJunkPlayerSlot>();
+
+    private readonly List<string> mapsView = new List<string>();
+
     /// <summary>いま席にいる人を、入った順に返す。ロビーの一覧に使う。</summary>
     public IReadOnlyList<SpaceJunkPlayerSlot> Slots
     {
         get
         {
-            List<SpaceJunkPlayerSlot> list = new List<SpaceJunkPlayerSlot>();
+            slotsView.Clear();
             foreach (SpaceJunkPlayerSlot slot in slots)
             {
-                list.Add(slot);
+                slotsView.Add(slot);
             }
-            return list;
+            return slotsView;
         }
     }
 
@@ -235,14 +249,17 @@ public class SpaceJunkSession : NetworkBehaviour
     {
         get
         {
-            List<string> list = new List<string>();
+            mapsView.Clear();
             foreach (FixedString64Bytes map in selectedMaps)
             {
-                list.Add(map.ToString());
+                mapsView.Add(map.ToString());
             }
-            return list;
+            return mapsView;
         }
     }
+
+    /// <summary>ホストが選んでいるマップの数。**中身が要らないときはこちらを使う**（入れ物を作らない）。</summary>
+    public int SelectedMapCount => selectedMaps.Count;
 
     /// <summary>そのマップが選ばれているか。</summary>
     public bool IsMapSelected(string sceneName)

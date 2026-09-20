@@ -59,6 +59,9 @@ public class SpaceJunkLobbyUI : MonoBehaviour
 
     private const ulong NoSelection = ulong.MaxValue;
 
+    /// <summary>詳細設定の巻物の位置。中身が画面に収まらないときに使う。</summary>
+    private Vector2 settingsScroll;
+
     private GUIStyle labelStyle;
     private GUIStyle headerStyle;
 
@@ -185,7 +188,7 @@ public class SpaceJunkLobbyUI : MonoBehaviour
         GUILayout.Label($"　チーム数 … {session.TeamCount}", labelStyle);
         GUILayout.Label($"　{session.RoundsToWin} 本先取", labelStyle);
         GUILayout.Label($"　1ラウンド 最大 {Mathf.RoundToInt(session.RoundSeconds)} 秒", labelStyle);
-        GUILayout.Label($"　使うマップ … {session.SelectedMaps.Count} 個", labelStyle);
+        GUILayout.Label($"　使うマップ … {session.SelectedMapCount} 個", labelStyle);
     }
 
     /// <summary>端末の案内。**ホストが端末のそばにいるときだけ出す。**</summary>
@@ -245,6 +248,11 @@ public class SpaceJunkLobbyUI : MonoBehaviour
         GUILayout.Label("■ 詳細設定（ホストだけが変えられます）", headerStyle);
         GUILayout.Space(6f);
 
+        // **中身が増えても下のほうが押せるように、巻物（スクロール）にする。**
+        // 人数が多い・マップが多いと、そのままでは「使うマップ」が画面の外へ出て選べなくなる
+        // （申し送り 2026/9/14 の「小さい窓でボタンが押せなくなる」と同じ罠）
+        settingsScroll = GUILayout.BeginScrollView(settingsScroll);
+
         DrawStartButton(session);
         GUILayout.Space(8f);
 
@@ -262,6 +270,7 @@ public class SpaceJunkLobbyUI : MonoBehaviour
 
         DrawMapChoice(session);
 
+        GUILayout.EndScrollView();
         GUILayout.EndArea();
 
         GUI.matrix = saved;
@@ -433,7 +442,7 @@ public class SpaceJunkLobbyUI : MonoBehaviour
             }
         }
 
-        if (session.SelectedMaps.Count > 1)
+        if (session.SelectedMapCount > 1)
         {
             GUILayout.Label("　※ 直前と同じマップは選ばれません。", labelStyle);
         }
@@ -454,7 +463,7 @@ public class SpaceJunkLobbyUI : MonoBehaviour
             return;
         }
 
-        if (session.SelectedMaps.Count == 0)
+        if (session.SelectedMapCount == 0)
         {
             GUI.color = new Color(1f, 0.5f, 0.4f);
             GUILayout.Label("使うマップを1つ以上選んでください。", labelStyle);
