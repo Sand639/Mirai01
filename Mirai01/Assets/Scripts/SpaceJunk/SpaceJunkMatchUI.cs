@@ -182,6 +182,13 @@ public class SpaceJunkMatchUI : MonoBehaviour
             GUILayout.Space(4f);
         }
 
+        // **落ちて戻れなくなったときの案内。** マップの外へ落ちることがあるので出しておく
+        if (!string.IsNullOrEmpty(SpaceJunkPlayerSetup.LocalResetKeyName))
+        {
+            GUILayout.Space(4f);
+            GUILayout.Label($"落ちたら［{SpaceJunkPlayerSetup.LocalResetKeyName}］で戻れます", lineStyle);
+        }
+
         GUILayout.EndArea();
     }
 

@@ -189,6 +189,13 @@ public class SpaceJunkLobbyUI : MonoBehaviour
         GUILayout.Label($"　{session.RoundsToWin} 本先取", labelStyle);
         GUILayout.Label($"　1ラウンド 最大 {Mathf.RoundToInt(session.RoundSeconds)} 秒", labelStyle);
         GUILayout.Label($"　使うマップ … {session.SelectedMapCount} 個", labelStyle);
+
+        // **落ちて戻れなくなったときの案内。** 知らないと詰まるので常に出す
+        if (!string.IsNullOrEmpty(SpaceJunkPlayerSetup.LocalResetKeyName))
+        {
+            GUILayout.Space(4f);
+            GUILayout.Label($"落ちたら［{SpaceJunkPlayerSetup.LocalResetKeyName}］で最初の位置に戻れます", labelStyle);
+        }
     }
 
     /// <summary>端末の案内。**ホストが端末のそばにいるときだけ出す。**</summary>

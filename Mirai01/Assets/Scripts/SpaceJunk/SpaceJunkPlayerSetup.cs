@@ -1,5 +1,6 @@
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// **宇宙ごみ用に、プレイヤーへ上乗せする部品。**
@@ -43,6 +44,19 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
     [Tooltip("ゴールが見つからないときに使う、中心からの距離")]
     [SerializeField] private float fallbackRadius = 6f;
 
+    [Header("落ちたときの立て直し")]
+    [Tooltip("押すと、その場から**出てくる場所へ戻る**キー。落ちて戻れなくなったとき用")]
+    [SerializeField] private Key resetKey = Key.R;
+
+    [Tooltip("この高さより下まで落ちたら、**自動で出てくる場所へ戻す**（メートル）")]
+    [SerializeField] private float fallResetHeight = -8f;
+
+    /// <summary>
+    /// このPCで操作している人の「戻る」キーの名前。画面の案内に使う。
+    /// 自分のぶんが動き出すまでは空。
+    /// </summary>
+    public static string LocalResetKeyName { get; private set; } = string.Empty;
+
     private FishingNetPlayer netPlayer;
     private CharacterController characterController;
 
@@ -68,6 +82,10 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
             return;
         }
 
+        LocalResetKeyName = resetKey.ToString();
+
+        TickPlacement();
+
         bool inRound = SpaceJunkRound.Current != null;
 
         if (inRound && !placedInRound)
@@ -78,8 +96,115 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
         }
         else if (!inRound && placedInRound)
         {
-            // ロビーへ戻ったとき（次にまたマップへ入れるようにしておく）
+            // ロビーへ戻った。**ここでは置き直さない。**
+            //
+            // この瞬間はまだシーンの入れ替わりの途中で、前のマップの物が残っている。
+            // 置き直すのは、ロビーのシーンが読み込み終わってから
+            // （<see cref="OnSceneLoaded"/> が数えるフレームのあと）
             placedInRound = false;
+        }
+
+        CheckReset();
+    }
+
+    // ------------------------------------------------------------
+    // シーンが切り替わったときの置き直し
+    // ------------------------------------------------------------
+
+    /// <summary>
+    /// シーンが読み込まれてから、置き直すまでに待つフレーム数。
+    /// 0 より大きい間は数えている途中。
+    /// </summary>
+    private int placementCountdown;
+
+    /// <summary>
+    /// シーンの中身が出そろうまで待つフレーム数。
+    /// **読み込んだその場で置き直すと、まだ前のシーンの物が残っている。**
+    /// </summary>
+    private const int PlacementDelayFrames = 2;
+
+    private void OnEnable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    /// <summary>
+    /// **シーンが読み込まれたら、少し待ってから場所を置き直す。**
+    ///
+    /// プレイヤーはシーンをまたいで生き続けるので、**移った直後は
+    /// 「前のシーンで立っていた場所」のまま**になる。
+    /// ロビーの地面（20m四方）はマップ（40m四方）より狭いため、
+    /// マップの端にいた人は**ロビーの地面の外に出て落ちてしまう**
+    /// （2026/9/20・大槻さんの報告）。
+    ///
+    /// **その場で置き直すのではなく、数フレーム待つ。**
+    /// 読み込んだ直後はまだ中身が出そろっておらず、
+    /// 前のマップのゴールをつかんで**さらに遠くへ飛ばしてしまう**ため。
+    /// </summary>
+    private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene,
+                               UnityEngine.SceneManagement.LoadSceneMode mode)
+    {
+        if (netPlayer == null || !netPlayer.IsOwner)
+        {
+            return;
+        }
+
+        placementCountdown = PlacementDelayFrames;
+    }
+
+    /// <summary>待ち終わったら置き直す。</summary>
+    private void TickPlacement()
+    {
+        if (placementCountdown <= 0)
+        {
+            return;
+        }
+
+        placementCountdown--;
+
+        if (placementCountdown == 0)
+        {
+            MoveToSpawnPoint();
+            FollowWithCamera();
+        }
+    }
+
+    /// <summary>
+    /// **落ちて戻れなくなったときの立て直し。**
+    ///
+    /// ・自分で押して戻る（<see cref="resetKey"/>）
+    /// ・下まで落ちたら自動で戻す（<see cref="fallResetHeight"/>）
+    ///
+    /// 穴に落ちても待っていれば戻るが、**引っかかって落ちきらないこともある**ので、
+    /// 自分で戻せるキーも用意してある。
+    /// </summary>
+    private void CheckReset()
+    {
+        // 下まで落ちたら、押されなくても戻す
+        if (transform.position.y < fallResetHeight)
+        {
+            MoveToSpawnPoint();
+            FollowWithCamera();
+            return;
+        }
+
+        // ポーズ中（と閉じたフレーム）は入力を読まない
+        if (GamePause.BlocksInput)
+        {
+            return;
+        }
+
+        Keyboard keyboard = Keyboard.current;
+
+        if (keyboard != null && keyboard[resetKey].wasPressedThisFrame)
+        {
+            MoveToSpawnPoint();
+            FollowWithCamera();
         }
     }
 
@@ -148,6 +273,18 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
         int team = MyTeam();
         Vector2 scatter = Random.insideUnitCircle * spawnScatter;
 
+        // **ゴールを当てにするのは、ラウンドが動いているときだけ。**
+        //
+        // ロビーにはゴールが無い。それなのに `SpaceJunkGoal.All` を見に行くと、
+        // **シーンの入れ替わりの途中でまだ消えていない「前のマップのゴール」**を
+        // つかんでしまい、ロビーの地面のはるか外（中心から約21m）に置かれる。
+        // ロビーの地面は20m四方（中心から10m）なので、そのまま落ちる
+        // （2026/9/20・大槻さんの報告）
+        if (SpaceJunkRound.Current == null)
+        {
+            return FallbackSpawnPosition(scatter);
+        }
+
         foreach (SpaceJunkGoal goal in SpaceJunkGoal.All)
         {
             if (goal == null || goal.OwnerTeam != team)
@@ -169,11 +306,22 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
         }
 
         // ゴールが見つからないとき（まだ持ち主が配られていないなど）
+        return FallbackSpawnPosition(scatter);
+    }
+
+    /// <summary>
+    /// **ゴールを当てにしないときの出てくる場所。** ロビーでもここを使う。
+    ///
+    /// 中心のまわりに、接続番号ごとに角度をずらして並べる。
+    /// 全員が同じ場所に重なって出てこないようにするため。
+    /// </summary>
+    private Vector3 FallbackSpawnPosition(Vector2 scatter)
+    {
         ulong id = netPlayer != null ? netPlayer.OwnerClientId : 0UL;
         float angle = (id % (ulong)SpaceJunkTeams.MaxPlayers) * (360f / SpaceJunkTeams.MaxPlayers);
-        Vector3 fallback = Quaternion.Euler(0f, angle, 0f) * (Vector3.forward * fallbackRadius);
+        Vector3 spot = Quaternion.Euler(0f, angle, 0f) * (Vector3.forward * fallbackRadius);
 
-        return new Vector3(fallback.x + scatter.x, 0f, fallback.z + scatter.y);
+        return new Vector3(spot.x + scatter.x, 0f, spot.z + scatter.y);
     }
 
     /// <summary>
