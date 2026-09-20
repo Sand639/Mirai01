@@ -329,11 +329,37 @@ PrefabInstance:
       propertyPath: m_Name
       value: GoalArea
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 3594068424145672606, guid: 38bc3a8d74e44dd4d881e02156a85e99, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 2914615847599829482, guid: 38bc3a8d74e44dd4d881e02156a85e99, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 788044579}
   m_SourcePrefab: {fileID: 100100000, guid: 38bc3a8d74e44dd4d881e02156a85e99, type: 3}
+--- !u!1 &788044578 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2914615847599829482, guid: 38bc3a8d74e44dd4d881e02156a85e99, type: 3}
+  m_PrefabInstance: {fileID: 788044577}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &788044579
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 788044578}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eef93d3d3583a454db2f070f2a219580, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SpaceJunkGoal
+  ShowTopMostFoldoutHeaderGroup: 1
+  goalIndex: 0
+  padRenderer: {fileID: 0}
+  flashColor: {r: 1, g: 1, b: 1, a: 1}
+  flashSeconds: 0.4
 --- !u!1 &1196862012
 GameObject:
   m_ObjectHideFlags: 0
@@ -457,7 +483,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 531612074709015999, guid: e919f58b12fe92243881f2e6d2e2ca97, type: 3}
       propertyPath: m_Name
-      value: FishingHUD
+      value: SpaceJunkHUD
       objectReference: {fileID: 0}
     - target: {fileID: 6364774113945364294, guid: e919f58b12fe92243881f2e6d2e2ca97, type: 3}
       propertyPath: m_LocalPosition.x
@@ -499,11 +525,36 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 7135210467739549100, guid: e919f58b12fe92243881f2e6d2e2ca97, type: 3}
+    - {fileID: 3125711943171197317, guid: e919f58b12fe92243881f2e6d2e2ca97, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 531612074709015999, guid: e919f58b12fe92243881f2e6d2e2ca97, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1246659131}
   m_SourcePrefab: {fileID: 100100000, guid: e919f58b12fe92243881f2e6d2e2ca97, type: 3}
+--- !u!1 &1246659130 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 531612074709015999, guid: e919f58b12fe92243881f2e6d2e2ca97, type: 3}
+  m_PrefabInstance: {fileID: 1246659129}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1246659131
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1246659130}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e19880255d17e0e44a7bb459db19c757, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SpaceJunkMatchUI
+  showUi: 1
+  uiScale: 1.6
+  warnSeconds: 10
 --- !u!1001 &1565074695
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -514,7 +565,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 950519732629174151, guid: e024b3297c67e674d9c6bb08a8e78717, type: 3}
       propertyPath: m_Name
-      value: FishingMatch
+      value: SpaceJunkRound
       objectReference: {fileID: 0}
     - target: {fileID: 3459895605055415113, guid: e024b3297c67e674d9c6bb08a8e78717, type: 3}
       propertyPath: m_LocalPosition.x
@@ -560,11 +611,34 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 3258752110
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 7893075238856473039, guid: e024b3297c67e674d9c6bb08a8e78717, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 950519732629174151, guid: e024b3297c67e674d9c6bb08a8e78717, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1565074697}
   m_SourcePrefab: {fileID: 100100000, guid: e024b3297c67e674d9c6bb08a8e78717, type: 3}
+--- !u!1 &1565074696 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 950519732629174151, guid: e024b3297c67e674d9c6bb08a8e78717, type: 3}
+  m_PrefabInstance: {fileID: 1565074695}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1565074697
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1565074696}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84e6119bebc21cc49b6f3ca0651bad1f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SpaceJunkRound
+  ShowTopMostFoldoutHeaderGroup: 1
+  fallbackSeconds: 60
 --- !u!1001 &1905990808
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -575,7 +649,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 2357317853615164266, guid: 3098709f5d1441646ba390298641c037, type: 3}
       propertyPath: m_Name
-      value: FishingObjectSpawner
+      value: SpaceJunkSpawner
       objectReference: {fileID: 0}
     - target: {fileID: 4305935009778417676, guid: 3098709f5d1441646ba390298641c037, type: 3}
       propertyPath: m_LocalPosition.x
@@ -617,11 +691,46 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 5504319335237957624, guid: 3098709f5d1441646ba390298641c037, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 2357317853615164266, guid: 3098709f5d1441646ba390298641c037, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1905990810}
   m_SourcePrefab: {fileID: 100100000, guid: 3098709f5d1441646ba390298641c037, type: 3}
+--- !u!1 &1905990809 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2357317853615164266, guid: 3098709f5d1441646ba390298641c037, type: 3}
+  m_PrefabInstance: {fileID: 1905990808}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1905990810
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1905990809}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d28336daabacb87418b6800f0521e32a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SpaceJunkSpawner
+  platePrefab: {fileID: 4064504829068434948, guid: 5930e5cc3be1b53408f8e6002f2db1ce, type: 3}
+  circuitPrefab: {fileID: 3189207742471637318, guid: 3c9c38b810881f042b896f5a811b2f4c, type: 3}
+  fuelPrefab: {fileID: 4957126747819312394, guid: 346852ea57209a04cbeb707fae135f61, type: 3}
+  plateWeight: 1
+  circuitWeight: 1
+  fuelWeight: 1
+  maxObjects: 60
+  initialSpawnCount: 18
+  spawnIntervalSeconds: 0.8
+  startDelaySeconds: 0.5
+  areaHalfSize: {x: 16, y: 16}
+  dropHeight: 3
+  clearRadius: 0.8
+  placementTries: 8
 --- !u!1 &2013531162
 GameObject:
   m_ObjectHideFlags: 0

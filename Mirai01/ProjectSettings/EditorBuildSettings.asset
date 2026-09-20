@@ -26,6 +26,24 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Prototype/Fish/FishingMapBattle01.unity
     guid: 54fa3d43c5fa12b40a23f5a3516e527f
+  - enabled: 1
+    path: Assets/Scenes/Prototype/Fish/FishingMap03.unity
+    guid: 7fa6a2a62d0edac4bb47934262068db7
+  - enabled: 1
+    path: Assets/Scenes/Test/SpaceJunkLobby.unity
+    guid: 007da50d74b225f48aa0a5289b5db978
+  - enabled: 1
+    path: Assets/Scenes/Prototype/SpaceJunk/SpaceJunkMap01.unity
+    guid: e09ae51e15c7b6b42a67bd18b6fec0f7
+  - enabled: 1
+    path: Assets/Scenes/Prototype/SpaceJunk/SpaceJunkMap02.unity
+    guid: 7ae955111be76a24a844f20d1629ae3a
+  - enabled: 1
+    path: Assets/Scenes/Prototype/SpaceJunk/SpaceJunkMap03.unity
+    guid: dc7bbf9cf5a4b4d468c0dee5d99c5b5a
+  - enabled: 1
+    path: Assets/Scenes/Prototype/SpaceJunk/SpaceJunkMap04.unity
+    guid: b2d0f8678e6762d4c8772e3dc97e74b2
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0
