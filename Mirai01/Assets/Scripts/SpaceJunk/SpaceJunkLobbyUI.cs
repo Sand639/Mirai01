@@ -210,7 +210,7 @@ public class SpaceJunkLobbyUI : MonoBehaviour
 
         if (terminal.IsOpen)
         {
-            GUILayout.Label($"設定を開いています（{terminal.InteractKeyName} か Escape で閉じる）", labelStyle);
+            GUILayout.Label($"設定を開いています（もう一度［{terminal.InteractKeyName}］か「閉じる」で閉じます）", labelStyle);
             return;
         }
 
