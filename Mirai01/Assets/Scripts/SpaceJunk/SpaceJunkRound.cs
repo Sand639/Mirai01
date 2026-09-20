@@ -175,6 +175,56 @@ public class SpaceJunkRound : NetworkBehaviour
         SetLocalPlayerControlEnabled(true);
 
         ApplyGoalOwners();
+
+        if (IsServer)
+        {
+            CheckGoalsArePlayable();
+        }
+    }
+
+    /// <summary>
+    /// **このマップで、全チームがちゃんと戦えるかを見る。**
+    ///
+    /// ゴールが足りないマップだと、**あるチームは素材を入れる場所が無く、
+    /// 絶対にラウンドを取れない**。遊んでいる最中は気づきにくいので、開始時に知らせる。
+    ///
+    /// （2026/9/20：`SpaceJunkMap03` はコピー元の `FishingMap03` にゴールが1つしか
+    /// 置かれておらず、2チーム以上だと片方が何もできない状態だった）
+    /// </summary>
+    private void CheckGoalsArePlayable()
+    {
+        int teamCount = SpaceJunkSession.Current != null ? SpaceJunkSession.Current.TeamCount : 1;
+
+        if (SpaceJunkGoal.All.Count < SpaceJunkTeams.GoalCount)
+        {
+            Debug.LogError(
+                $"[JUNK] このマップのゴールが {SpaceJunkGoal.All.Count} 個しかありません" +
+                $"（{SpaceJunkTeams.GoalCount} 個必要）。\n" +
+                "**ゴールを持てないチームは、絶対にラウンドを取れません。**\n" +
+                "Unity でこのマップを開き、足りないゴールを置いてください。");
+        }
+
+        // 遊んでいるチームに、持ち場のゴールがあるかを1つずつ見る
+        for (int team = 0; team < teamCount; team++)
+        {
+            bool hasGoal = false;
+
+            foreach (SpaceJunkGoal goal in SpaceJunkGoal.All)
+            {
+                if (goal != null && goal.OwnerTeam == team)
+                {
+                    hasGoal = true;
+                    break;
+                }
+            }
+
+            if (!hasGoal)
+            {
+                Debug.LogError(
+                    $"[JUNK] {SpaceJunkTeams.TeamName(team)} のゴールが、このマップにありません。" +
+                    "**このチームは素材を入れる場所が無く、ラウンドを取れません。**");
+            }
+        }
     }
 
     public override void OnNetworkDespawn()
@@ -225,6 +275,14 @@ public class SpaceJunkRound : NetworkBehaviour
         }
 
         if (team < 0 || team >= collected.Count)
+        {
+            return false;
+        }
+
+        // **誰もいないチームのぶんは数えない。**
+        // 数えてしまうと、投げ間違いが積み重なるだけで
+        // 「誰もいないチーム」がラウンドを取ってしまう
+        if (SpaceJunkSession.Current != null && !SpaceJunkSession.Current.HasPlayers(team))
         {
             return false;
         }
