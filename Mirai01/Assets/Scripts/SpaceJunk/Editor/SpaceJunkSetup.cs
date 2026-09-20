@@ -271,6 +271,7 @@ public static class SpaceJunkSetup
         foreach (FishingMatch match in matches)
         {
             GameObject host = match.gameObject;
+            UnpackIfPrefabInstance(host);
             host.name = "SpaceJunkRound";
 
             Object.DestroyImmediate(match);
@@ -296,6 +297,7 @@ public static class SpaceJunkSetup
         foreach (FishingMatchUI matchUi in matchUis)
         {
             GameObject host = matchUi.gameObject;
+            UnpackIfPrefabInstance(host);
             host.name = "SpaceJunkHUD";
 
             Object.DestroyImmediate(matchUi);
@@ -323,6 +325,7 @@ public static class SpaceJunkSetup
         foreach (FishingNetPocket pocket in pockets)
         {
             GameObject host = pocket.gameObject;
+            UnpackIfPrefabInstance(host);
 
             int index = GetInt(pocket, "pocketIndex");
             Object padRenderer = GetRef(pocket, "padRenderer");
@@ -351,6 +354,7 @@ public static class SpaceJunkSetup
         foreach (FishingObjectSpawner spawner in spawners)
         {
             GameObject host = spawner.gameObject;
+            UnpackIfPrefabInstance(host);
             host.name = "SpaceJunkSpawner";
 
             Vector2 area = GetVector2(spawner, "areaHalfSize");
@@ -442,6 +446,45 @@ public static class SpaceJunkSetup
 
         scenes.Add(new EditorBuildSettingsScene(path, true));
         return true;
+    }
+
+    // ------------------------------------------------------------
+    // プレハブからの切り離し
+    // ------------------------------------------------------------
+
+    /// <summary>
+    /// **差し替える相手がプレハブのインスタンスなら、先に切り離す。**
+    ///
+    /// 釣りのマップは、試合のまとめ役・ゴール・スポナーなどを**プレハブとして**置いている。
+    /// そのまま部品を消したり足したりすると、**「プレハブに対する上書き」として記録される**ため、
+    /// できあがった宇宙ごみのマップが**釣りのプレハブに繋がったまま**になる。
+    ///
+    /// その状態だと、**釣りのプレハブを直したときに宇宙ごみのマップも一緒に変わる**
+    /// （消したはずの部品が復活する、など）。
+    /// 宇宙ごみのマップは釣りとは別物にしたいので、ここで縁を切っておく。
+    ///
+    /// プレハブでなければ何もしない。
+    /// （2026/9/20 に追加。それ以前に作られた `SpaceJunkMap` は繋がったままなので、
+    ///  作り直すときに切り離される。`リスクリスト.md` に登録済み）
+    /// </summary>
+    private static void UnpackIfPrefabInstance(GameObject target)
+    {
+        if (target == null || !PrefabUtility.IsPartOfPrefabInstance(target))
+        {
+            return;
+        }
+
+        GameObject instanceRoot = PrefabUtility.GetOutermostPrefabInstanceRoot(target);
+
+        if (instanceRoot == null)
+        {
+            return;
+        }
+
+        PrefabUtility.UnpackPrefabInstance(
+            instanceRoot, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+
+        Debug.Log($"[JUNK] 「{instanceRoot.name}」を釣りのプレハブから切り離しました。");
     }
 
     // ------------------------------------------------------------
