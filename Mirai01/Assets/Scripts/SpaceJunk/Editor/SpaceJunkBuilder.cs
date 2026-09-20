@@ -58,10 +58,15 @@ public static class SpaceJunkBuilder
     private const string WindowArgs4 = "-screen-fullscreen 0 -screen-width 960 -screen-height 540";
 
     /// <summary>
-    /// 8つ並べるとき用。**480×270 なら 1920×1080 に 4×2 で並ぶ。**
-    /// 画面の表示は窓の大きさに合わせて自動で縮むので、小さくしてもボタンは押せる。
+    /// 8つ並べるとき用。**640×360 なら 1920×1080 に 3×3 で並ぶ**（8つなら1枠余る）。
+    ///
+    /// 以前は 480×270 にしていたが、**小さすぎて中身が読めない**と報告があったため広げた
+    /// （2026/9/20・大槻さん）。
+    /// あわせて **Player Settings の Resizable Window を ON** にしたので、
+    /// **起動したあとに窓の端をドラッグして好きな大きさに変えられる。**
+    /// 画面の表示は窓の大きさに合わせて自動で伸び縮みする。
     /// </summary>
-    private const string WindowArgs8 = "-screen-fullscreen 0 -screen-width 480 -screen-height 270";
+    private const string WindowArgs8 = "-screen-fullscreen 0 -screen-width 640 -screen-height 360";
 
     [MenuItem("Tools/Mirai01/宇宙ごみ集めの検証用のビルドを作る")]
     public static void BuildFromMenu()
