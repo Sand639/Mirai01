@@ -11,8 +11,8 @@ using UnityEngine.InputSystem;
 ///
 /// | メニュー | 作られるもの |
 /// | --- | --- |
-/// | `Tools > Mirai01 > レースの検証シーンを作り直す` | **カートのレース**（`RaceTest.unity`） |
-/// | `Tools > Mirai01 > 走るレースの検証シーンを作り直す` | **ロボットが走るレース**（`RunnerRaceTest.unity`） |
+/// | `Tools > Mirai01 > アーカイブ > カーレース > レースの検証シーンを作り直す` | **カートのレース**（`RaceTest.unity`） |
+/// | `Tools > Mirai01 > アーカイブ > 月面運動会 > 走るレースの検証シーンを作り直す` | **ロボットが走るレース**（`RunnerRaceTest.unity`） |
 ///
 /// **コースは計算で並べている。**
 /// 手で置くと、道と壁とチェックポイントがずれて
@@ -74,7 +74,7 @@ public static class RaceCourseSetup
     // メニュー
     // ------------------------------------------------------------
 
-    [MenuItem("Tools/Mirai01/レースの検証シーンを作り直す")]
+    [MenuItem("Tools/Mirai01/アーカイブ/カーレース/レースの検証シーンを作り直す")]
     public static void CreateAll()
     {
         PrepareFolders();
@@ -90,7 +90,7 @@ public static class RaceCourseSetup
         Finish(KartScenePath);
     }
 
-    [MenuItem("Tools/Mirai01/走るレースの検証シーンを作り直す")]
+    [MenuItem("Tools/Mirai01/アーカイブ/月面運動会/走るレースの検証シーンを作り直す")]
     public static void CreateRunnerRace()
     {
         PrepareFolders();

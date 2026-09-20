@@ -5,7 +5,7 @@ using UnityEngine;
 /// <summary>
 /// 複製配置システムの検証用シーンと、複製元のプレハブを作り直すツール。
 ///
-/// Unityのメニュー「Tools > Mirai01 > 複製配置の検証シーンを作り直す」から実行できる。
+/// Unityのメニュー「Tools > Mirai01 > アーカイブ > 共通の部品 > 複製配置の検証シーンを作り直す」から実行できる。
 /// 必要なタグ（Duplicable / PlacedClone）の登録も自動で行う。
 ///
 /// ※ Editor フォルダにあるため、ゲームのビルドには含まれない。
@@ -26,7 +26,7 @@ public static class ObjectClonerSetup
 
     private const string InputActionsPath = "Assets/InputSystem_Actions.inputactions";
 
-    [MenuItem("Tools/Mirai01/複製配置の検証シーンを作り直す")]
+    [MenuItem("Tools/Mirai01/アーカイブ/共通の部品/複製配置の検証シーンを作り直す")]
     public static void CreateAll()
     {
         EnsureFolder("Assets/Art");

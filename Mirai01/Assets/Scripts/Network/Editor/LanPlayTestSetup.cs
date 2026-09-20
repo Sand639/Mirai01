@@ -9,7 +9,7 @@ using UnityEngine.InputSystem;
 /// <summary>
 /// LAN通信の検証用シーンと、通信用プレイヤーのプレハブを作り直すツール。
 ///
-/// Unityのメニュー「Tools > Mirai01 > LAN通信の検証シーンを作り直す」から実行できる。
+/// Unityのメニュー「Tools > Mirai01 > アーカイブ > 通信の土台 > LAN通信の検証シーンを作り直す」から実行できる。
 ///
 /// ※ Editor フォルダにあるため、ゲームのビルドには含まれない。
 /// </summary>
@@ -43,7 +43,7 @@ public static class LanPlayTestSetup
     /// <summary>箱をなめらかに見せるための待ち時間（秒）。物理なので少し長めにする</summary>
     private const float BoxInterpolationTime = 0.075f;
 
-    [MenuItem("Tools/Mirai01/LAN通信の検証シーンを作り直す")]
+    [MenuItem("Tools/Mirai01/アーカイブ/通信の土台/LAN通信の検証シーンを作り直す")]
     public static void CreateAll()
     {
         EnsureFolder("Assets/Art");

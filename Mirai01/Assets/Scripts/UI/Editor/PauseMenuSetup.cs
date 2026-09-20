@@ -6,7 +6,7 @@ using UnityEngine.InputSystem;
 /// <summary>
 /// **ポーズ画面をシーンに置くツール。**
 ///
-/// Unityのメニュー `Tools > Mirai01 > ポーズ画面を置く` から実行できる。
+/// Unityのメニュー `Tools > Mirai01 > アーカイブ > 共通の部品 > ポーズ画面を置く` から実行できる。
 ///
 /// 置かれるのは**空のゲームオブジェクトに部品が1つ付いただけ**のもの。
 /// 画面そのものは、再生したときにコードで組み立てられる（日本語フォントのため）。
@@ -18,7 +18,7 @@ public static class PauseMenuSetup
     private const string PrefabPath = "Assets/Prefabs/Common/PauseMenu.prefab";
     private const string InputActionsPath = "Assets/InputSystem_Actions.inputactions";
 
-    [MenuItem("Tools/Mirai01/ポーズ画面を置く")]
+    [MenuItem("Tools/Mirai01/アーカイブ/共通の部品/ポーズ画面を置く")]
     public static void CreatePauseMenu()
     {
         if (Object.FindFirstObjectByType<PauseMenu>() != null)

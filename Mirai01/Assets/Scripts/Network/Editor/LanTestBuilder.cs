@@ -10,7 +10,7 @@ using UnityEngine;
 /// エディタの再生ボタンだけでは確かめきれない。
 /// このツールで .exe を作り、2つ起動して試す。
 ///
-/// Unityのメニュー「Tools > Mirai01 > LAN検証用のビルドを作る」から実行できる。
+/// Unityのメニュー「Tools > Mirai01 > アーカイブ > 通信の土台 > LAN検証用のビルドを作る」から実行できる。
 /// 出力先は `Mirai01/Build/LanTest/`（Gitには入らない場所）。
 ///
 /// **ビルドと一緒に、2つ起動するための `.bat` も作られる。**
@@ -29,7 +29,7 @@ public static class LanTestBuilder
     // 2つ並べて見られるように、全画面ではなく小さめの窓で起動させる
     private const string WindowArgs = "-screen-fullscreen 0 -screen-width 960 -screen-height 540";
 
-    [MenuItem("Tools/Mirai01/LAN検証用のビルドを作る")]
+    [MenuItem("Tools/Mirai01/アーカイブ/通信の土台/LAN検証用のビルドを作る")]
     public static void BuildFromMenu()
     {
         Build(DefaultOutputFolder);
