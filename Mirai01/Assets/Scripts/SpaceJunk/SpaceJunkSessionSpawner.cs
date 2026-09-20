@@ -38,6 +38,20 @@ public class SpaceJunkSessionSpawner : MonoBehaviour
             return;
         }
 
+        // **ラウンドの最中なら、絶対に作らない。**
+        // ここで作ってしまうと、設定も勝ち数も入っていないまっさらな係ができて、
+        // ラウンドの結果を受け取らずに捨ててしまう（試合が進まなくなる）。
+        // この役は NetworkManager に付いていてシーンをまたいで生き残るので、
+        // 何も考えないとマップでも動いてしまう
+        if (SpaceJunkRound.Current != null)
+        {
+            Debug.LogError(
+                "[JUNK] ラウンド中なのに試合の係がいません。**ロビーからやり直してください。**\n" +
+                "係はシーンを切り替えても消えないはずです（Spawn の destroyWithScene が false であること）。");
+            enabled = false;
+            return;
+        }
+
         if (sessionPrefab == null)
         {
             // 毎フレーム出すとログが埋まるので、1度だけ出して自分を止める
@@ -57,7 +71,11 @@ public class SpaceJunkSessionSpawner : MonoBehaviour
             return;
         }
 
-        networkObject.Spawn(true);
+        // ⚠ **引数は「シーンが変わったら消すか（destroyWithScene）」。**
+        //   ここを true にすると、ロビーからマップへ移った瞬間に係が消えてしまい、
+        //   設定も勝ち数も失われる。**必ず false（＝引数なし）で出すこと。**
+        //   （2026/9/20：true にしていたため、ラウンド終了後に次へ進まなくなっていた）
+        networkObject.Spawn(false);
 
         Debug.Log("[JUNK] 試合の係（SpaceJunkSession）を出しました。ここから先はシーンを切り替えても消えません。");
     }

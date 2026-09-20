@@ -472,8 +472,20 @@ public class SpaceJunkSession : NetworkBehaviour
     /// </summary>
     public void ServerReportRoundResult(int winnerTeam)
     {
-        if (!IsServer || state.Value != SpaceJunkMatchState.Playing)
+        if (!IsServer)
         {
+            return;
+        }
+
+        // **黙って捨てない。** ここで捨てると、結果の表示が出たまま次へ進まず、
+        // 何が起きているのか画面からは分からなくなる
+        if (state.Value != SpaceJunkMatchState.Playing)
+        {
+            Debug.LogError(
+                $"[JUNK] 試合が始まっていない状態（{state.Value}）で、ラウンドの結果を受け取りました。\n" +
+                "次のラウンドへ進めません。**ロビーの「ゲーム開始」から始めてください。**\n" +
+                "係がマップへ移る途中で消えている可能性もあります" +
+                "（SpaceJunkSessionSpawner の Spawn は destroyWithScene を false にすること）。");
             return;
         }
 

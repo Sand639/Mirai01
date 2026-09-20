@@ -43,6 +43,8 @@
 
 | 2026/9/20 | Claude Code | 宇宙ごみ集めのロビーに「近づいて E キーで開く設定端末」を作り、`Input.GetKeyDown(KeyCode.E)` で書いた | **キーを押しても何も起きなかった。** 画面には「E キーで開く」の案内が出ていて、距離の判定は効いていたので、入力だけが届いていなかった。原因は **このプロジェクトが Input System（新）だけを使う設定**（`ProjectSettings.asset` の `activeInputHandler: 1`）になっていること。古い `UnityEngine.Input` は**エラーも出さずに何も返さない** | **キー入力は必ず `Keyboard.current` から読む。** `Keyboard keyboard = Keyboard.current; keyboard != null && keyboard[key].wasPressedThisFrame`（`using UnityEngine.InputSystem;`、キーの型は `KeyCode` ではなく `Key`）。書く前に `grep -n "activeInputHandler" Mirai01/ProjectSettings/ProjectSettings.asset` で確かめられる（`1` なら新しい入力だけ）。既存の実例は `Robot/RobotKeyUser.cs`。**`KeyCode` から `Key` に型を変えたときは、すでに保存されたシーンに古い数字（`KeyCode.E` は 101）が残る**ので、シーンを作り直すか、ツール側で `SetInt(script, "interactKey", (int)Key.E)` と入れ直すこと |
 
+| 2026/9/20 | Claude Code | ラウンドごとにシーンが切り替わる遊びで、設定と勝ち数を持つ通信オブジェクトをホストに出させた。出すときは `networkObject.Spawn(true)` と書いた | **ラウンドが終わると、結果の表示が出たまま次へ進まなくなった。** `Spawn` の引数は「出すかどうか」ではなく **`destroyWithScene`（シーンが変わったら消すか）**。`true` にしていたので、**マップへ移った瞬間に係が消えていた。** さらに、係を出す役を `NetworkManager` に付けていた（＝シーンをまたいで生き残る）ため、移った先で「係がいない」と判断して**まっさらな係を作り直し**、設定も勝ち数も初期値に戻っていた。画面には「第 **0** ラウンド」と出ていたのに、**そこが手がかりだと気づくのに時間がかかった** | **シーンをまたいで生き残らせたい通信オブジェクトは `Spawn()`（引数なし＝false）で出す。** `true` は「シーンと一緒に消してよい物」（降ってくる素材など）だけ。あわせて、**作り直す側に「作ってはいけない場面」の門番を置く**こと（例：ラウンド中なら絶対に作らず、エラーを出して止まる）。黙って作り直すと、**正常に動いているように見えて値だけが初期値**という一番分かりにくい形になる。**画面に出ている数字が初期値そのもの（0、既定のチーム数など）だったら、まずオブジェクトが作り直されていないか疑うこと** |
+
 ---
 
 ## うまくいったやり方
@@ -139,3 +141,4 @@
 | 2026/9/16 | Claude Code | `Assets/` の中で物を移動するとエディタ拡張の決め打ちパスだけが静かに壊れる件と、その洗い出し方を記録 |
 | 2026/9/16 | Claude Code | ポーズ画面と入力の取り合いは「持ち主の固定」だけでは足りない件（BlocksInput を使う）と、オンラインでそろえるには通信より「時計から計算」を先に考える件の2件を記録 |
 | 2026/9/20 | Claude Code | 古い `Input.GetKeyDown` が、このプロジェクトの入力設定（Input System のみ）では何も返さない件を記録 |
+| 2026/9/20 | Claude Code | `Spawn(true)` の `true` が `destroyWithScene` で、シーンをまたぎたいオブジェクトが消えていた件を記録。初期値のままの表示（第0ラウンド）が手がかりだった |
