@@ -139,7 +139,14 @@ public class NetworkPlayer : NetworkBehaviour
             return;
         }
 
-        Vector3 direction = GetMoveDirection();
+        // **ポーズ中は歩かない**（落ちることはする）。
+        //
+        // 以前はポーズで `Time.timeScale` が 0 になっていたので、
+        // 何もしなくても止まっていた。2026/9/20 から
+        // **通信でつながっている間は時間を止めない**ようにしたため、
+        // ここで自分から止める必要がある（`GamePause` を参照）。
+        // 他の入力を読むスクリプトと同じく `BlocksInput` を見る
+        Vector3 direction = GamePause.BlocksInput ? Vector3.zero : GetMoveDirection();
 
         if (characterController.isGrounded && verticalVelocity <= 0f)
         {
