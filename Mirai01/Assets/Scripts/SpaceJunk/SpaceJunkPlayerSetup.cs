@@ -1,5 +1,6 @@
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// **宇宙ごみ用に、プレイヤーへ上乗せする部品。**
@@ -43,6 +44,19 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
     [Tooltip("ゴールが見つからないときに使う、中心からの距離")]
     [SerializeField] private float fallbackRadius = 6f;
 
+    [Header("落ちたときの立て直し")]
+    [Tooltip("押すと、その場から**出てくる場所へ戻る**キー。落ちて戻れなくなったとき用")]
+    [SerializeField] private Key resetKey = Key.R;
+
+    [Tooltip("この高さより下まで落ちたら、**自動で出てくる場所へ戻す**（メートル）")]
+    [SerializeField] private float fallResetHeight = -8f;
+
+    /// <summary>
+    /// このPCで操作している人の「戻る」キーの名前。画面の案内に使う。
+    /// 自分のぶんが動き出すまでは空。
+    /// </summary>
+    public static string LocalResetKeyName { get; private set; } = string.Empty;
+
     private FishingNetPlayer netPlayer;
     private CharacterController characterController;
 
@@ -68,6 +82,8 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
             return;
         }
 
+        LocalResetKeyName = resetKey.ToString();
+
         bool inRound = SpaceJunkRound.Current != null;
 
         if (inRound && !placedInRound)
@@ -78,8 +94,52 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
         }
         else if (!inRound && placedInRound)
         {
-            // ロビーへ戻ったとき（次にまたマップへ入れるようにしておく）
+            // **ロビーへ戻ったときも、場所を置き直す。**
+            //
+            // プレイヤーはシーンをまたいで生き続けるので、**戻ってきた直後は
+            // 「最後にマップで立っていた場所」のまま**になる。
+            // ロビーの地面（20m四方）はマップ（40m四方）より狭いので、
+            // マップの端にいた人は**ロビーの地面の外に出て落ちてしまう**
+            // （2026/9/20・大槻さんの報告）
             placedInRound = false;
+            MoveToSpawnPoint();
+            FollowWithCamera();
+        }
+
+        CheckReset();
+    }
+
+    /// <summary>
+    /// **落ちて戻れなくなったときの立て直し。**
+    ///
+    /// ・自分で押して戻る（<see cref="resetKey"/>）
+    /// ・下まで落ちたら自動で戻す（<see cref="fallResetHeight"/>）
+    ///
+    /// 穴に落ちても待っていれば戻るが、**引っかかって落ちきらないこともある**ので、
+    /// 自分で戻せるキーも用意してある。
+    /// </summary>
+    private void CheckReset()
+    {
+        // 下まで落ちたら、押されなくても戻す
+        if (transform.position.y < fallResetHeight)
+        {
+            MoveToSpawnPoint();
+            FollowWithCamera();
+            return;
+        }
+
+        // ポーズ中（と閉じたフレーム）は入力を読まない
+        if (GamePause.BlocksInput)
+        {
+            return;
+        }
+
+        Keyboard keyboard = Keyboard.current;
+
+        if (keyboard != null && keyboard[resetKey].wasPressedThisFrame)
+        {
+            MoveToSpawnPoint();
+            FollowWithCamera();
         }
     }
 
