@@ -12,12 +12,13 @@ using UnityEngine;
 /// </summary>
 public static class ObjectClonerSetup
 {
-    private const string PrefabFolder = "Assets/Prefabs";
-    private const string SceneFolder = "Assets/Scenes/Test";
+    private const string PrefabFolder = "Assets/Prefabs/ObjectCloner";
+    private const string CommonPrefabFolder = "Assets/Prefabs/Common";
+    private const string SceneFolder = "Assets/Scenes/Prototype/ObjectCloner";
     private const string MaterialFolder = "Assets/Art/Materials";
 
     private const string ScenePath = SceneFolder + "/ObjectClonerTest.unity";
-    private const string PlayerPrefabPath = PrefabFolder + "/PlayerRig.prefab";
+    private const string PlayerPrefabPath = CommonPrefabFolder + "/PlayerRig.prefab";
 
     private const string LightBoxPath = PrefabFolder + "/CloneSourceLightBox.prefab";
     private const string HeavyBoxPath = PrefabFolder + "/CloneSourceHeavyBox.prefab";
@@ -256,6 +257,10 @@ public static class ObjectClonerSetup
         int lastSlash = path.LastIndexOf('/');
         string parent = path.Substring(0, lastSlash);
         string folderName = path.Substring(lastSlash + 1);
+
+        // 親が無ければ先に作る（Unity は1段ずつしか作れない）
+        EnsureFolder(parent);
+
         AssetDatabase.CreateFolder(parent, folderName);
     }
 }

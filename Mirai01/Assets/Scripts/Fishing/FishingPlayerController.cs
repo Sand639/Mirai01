@@ -107,7 +107,7 @@ public class FishingPlayerController : MonoBehaviour, ILaunchable
     private void Update()
     {
         // ポーズ中は何もしない（既存の PlayerController と同じ作法）
-        if (GamePause.IsPaused)
+        if (GamePause.BlocksInput)
         {
             return;
         }

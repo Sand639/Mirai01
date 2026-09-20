@@ -225,7 +225,7 @@ ping 192.168.10.1
 | スクリプト | `Assets/Scripts/Network/PushableBox.cs`（みんなで押せる箱） |
 | スクリプト（エディタ用） | `Assets/Scripts/Network/Editor/LanPlayTestSetup.cs`（シーン生成ツール） |
 | スクリプト（エディタ用） | `Assets/Scripts/Network/Editor/LanTestBuilder.cs`（検証用ビルド作成ツール） |
-| プレハブ | `Assets/Prefabs/NetworkPlayer.prefab` |
+| プレハブ | `Assets/Prefabs/Common/NetworkPlayer.prefab` |
 | シーン | `Assets/Scenes/Test/LanPlayTest.unity` |
 | マテリアル | `Assets/Art/Materials/NetworkPlayerBody.mat` ほか2つ |
 | 入力設定 | `Assets/InputSystem_Actions.inputactions`（**既存のものを使用。変更していない**） |

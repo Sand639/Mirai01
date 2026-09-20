@@ -18,7 +18,7 @@ public static class RobotRopeSetup
 {
     private const string MaterialFolder = "Assets/Art/Materials";
     private const string RopeMaterialPath = MaterialFolder + "/Rope.mat";
-    private const string PrefabPath = "Assets/Prefabs/RobotRig.prefab";
+    private const string PrefabPath = "Assets/Prefabs/Robot/RobotRig.prefab";
 
     /// <summary>ロープの見た目の太さ（直径・メートル）。</summary>
     private const float RopeThickness = 0.1f;

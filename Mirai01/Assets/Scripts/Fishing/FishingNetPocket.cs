@@ -51,6 +51,21 @@ public class FishingNetPocket : NetworkBehaviour
     private void Awake()
     {
         GetComponent<Collider>().isTrigger = true;
+
+        // **入れ忘れていたら、子どもの見た目を自動で使う。**
+        // 入っていないとチームの色が出ず、**自分のゴールが見分けられない**
+        // （プレハブから置いたときに入れ忘れやすい）
+        if (padRenderer == null)
+        {
+            padRenderer = GetComponentInChildren<Renderer>();
+        }
+
+        if (padRenderer == null)
+        {
+            Debug.LogWarning(
+                $"{name}: チームの色に塗る床（Pad Renderer）がありません。" +
+                "ゴールが何色か分からなくなるので、**色を塗る板を子どもに置いてください。**", this);
+        }
     }
 
     private void OnEnable()

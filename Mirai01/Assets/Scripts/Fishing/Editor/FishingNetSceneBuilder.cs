@@ -16,7 +16,7 @@ using UnityEngine.InputSystem;
 internal static class FishingNetSceneBuilder
 {
     public const string OnlinePlayerPrefabPath =
-        FishingSceneBuilder.PrefabFolder + "/FishingOnlinePlayer.prefab";
+        FishingSceneBuilder.FishOnlinePrefabFolder + "/FishingOnlinePlayer.prefab";
 
     /// <summary>1秒あたり何回、位置などを送るか（`LanPlayTestSetup` と同じ値）。</summary>
     public const uint NetworkTickRate = 60;
@@ -137,6 +137,8 @@ internal static class FishingNetSceneBuilder
         FishingPlayerController mover = root.AddComponent<FishingPlayerController>();
         HookController hookController = root.AddComponent<HookController>();
         ThrowController throwController = root.AddComponent<ThrowController>();
+        // 狙いの切り替え。**他の人のぶんでも目印を出すので、下の ownerOnlyScripts には入れない**
+        HookAimAssist aimAssist = root.AddComponent<HookAimAssist>();
         FishingNetPlayer netPlayer = root.AddComponent<FishingNetPlayer>();
 
         // ---- 結線 ----
@@ -157,6 +159,7 @@ internal static class FishingNetSceneBuilder
         FishingSceneBuilder.SetRef(hookController, "throwController", throwController);
         FishingSceneBuilder.SetRef(hookController, "stun", stun);
         FishingSceneBuilder.SetRef(hookController, "netPlayer", netPlayer);
+        FishingSceneBuilder.SetRef(hookController, "aimAssist", aimAssist);
         FishingSceneBuilder.SetRef(hookController, "inputActions", inputActions);
         FishingSceneBuilder.SetInt(hookController, "hookableMask", ~0);
 

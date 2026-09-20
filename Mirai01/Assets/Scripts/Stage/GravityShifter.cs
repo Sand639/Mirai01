@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
@@ -24,6 +25,17 @@ using UnityEngine;
 /// 「月面」らしさが出るのはこのため。
 ///
 /// 中身は <see cref="WorldGravity"/> に入る。
+///
+/// ## オンラインでも全員そろう
+///
+/// **何番目にどの重力になるかは、「時計」から計算で決めている。**
+/// 同じ時刻なら必ず同じ重力になるので、オンラインでは全員で共有している時計
+/// （Netcode の ServerTime）を読むだけで、**通信で送らなくても全員の画面でそろう。**
+/// そのため NetworkObject を付ける必要はない。1人用のシーンにもそのまま置ける
+/// （つながっていないときは、そのPCの時計を使う）。
+///
+/// 動く障害物（<see cref="MovingObstacle"/>）と同じ考え方である。
+/// **途中から参加した人も、いまの重力と次の予告にそのまま合流できる。**
 /// </summary>
 [DisallowMultipleComponent]
 public class GravityShifter : MonoBehaviour
@@ -67,6 +79,10 @@ public class GravityShifter : MonoBehaviour
     [Min(0.1f)]
     [SerializeField] private float startGravity = 9.81f;
 
+    [Tooltip("**並び順を決めるたね。** 同じ数字なら毎回同じ順番で変わる。\n" +
+             "オンラインでは全員がこの数字を使うので、**ステージごとに1つ決めておけばよい**")]
+    [SerializeField] private int scheduleSeed = 12345;
+
     [Tooltip("変わるたびにコンソールへ書き出す")]
     [SerializeField] private bool logChanges = true;
 
@@ -104,10 +120,21 @@ public class GravityShifter : MonoBehaviour
         }
     }
 
-    private float changeTimer;
-    private float changeDuration;
-    private float fromGravity;
-    private float toGravity;
+    // ---- いま何回目の変化の中にいるか（時計から計算する） ----
+    // 「何回目か」と「その回が始まった時刻」を覚えておき、時刻が進んだぶんだけ先へ進める。
+    // 時計が飛んだとき（オンラインに入った直後など）は、最初から数え直す
+    private int roundIndex = -1;
+    private double roundStartTime;
+    private float roundDuration;
+
+    /// <summary>この回の重力（正の数）。</summary>
+    private float roundGravity;
+
+    /// <summary>ひとつ前の回の重力（正の数）。変わりきるまでの間、ここから寄せていく。</summary>
+    private float previousGravity;
+
+    /// <summary>数え直しが暴走しないための上限。1回およそ10秒なので、これで何時間ぶんも足りる。</summary>
+    private const int MaxRoundsToWalk = 100000;
 
     // 選ぶときの作業用。毎回作り直さないよう、使い回している
     private readonly List<float> candidates = new List<float>();
@@ -120,7 +147,9 @@ public class GravityShifter : MonoBehaviour
     private void OnEnable()
     {
         WorldGravity.Set(-Mathf.Abs(startGravity));
-        NextChangeIn = RandomInterval();
+
+        // 次に Update が来たときに、時計から数え直す
+        roundIndex = -1;
     }
 
     private void OnDisable()
@@ -141,73 +170,119 @@ public class GravityShifter : MonoBehaviour
             return;
         }
 
-        if (IsChanging)
-        {
-            Advance();
-            return;
-        }
+        double now = SharedTime;
 
-        NextChangeIn -= Time.deltaTime;
-
-        if (NextChangeIn <= 0f)
-        {
-            BeginChange();
-        }
-    }
-
-    /// <summary>次の重力を決めて、変わり始める。</summary>
-    public void BeginChange()
-    {
-        fromGravity = WorldGravity.Value;
-        toGravity = -PickGravity();
-
-        changeDuration = Mathf.Max(0f, changeSeconds);
-        changeTimer = 0f;
-        IsChanging = true;
-
-        if (logChanges)
-        {
-            Debug.Log($"[GRAVITY] 重力が変わる：{Mathf.Abs(fromGravity):0.0} → {Mathf.Abs(toGravity):0.0}", this);
-        }
-
-        if (changeDuration <= 0f)
-        {
-            Finish();
-        }
-    }
-
-    private void Advance()
-    {
-        changeTimer += Time.deltaTime;
-
-        float t = Mathf.Clamp01(changeTimer / changeDuration);
-
-        // 始めと終わりをゆるやかにする（急に体が重くなると操作しづらい）
-        WorldGravity.Set(Mathf.Lerp(fromGravity, toGravity, Mathf.SmoothStep(0f, 1f, t)));
-
-        if (t >= 1f)
-        {
-            Finish();
-        }
-    }
-
-    private void Finish()
-    {
-        WorldGravity.Set(toGravity);
-
-        IsChanging = false;
-        NextChangeIn = RandomInterval();
+        AdvanceToTime(now);
+        ApplyGravityAt(now);
     }
 
     /// <summary>
-    /// **候補の中から1つ選ぶ。** 返すのは正の数。
+    /// **全員で共有している時計。** オンラインでつながっていれば ServerTime、
+    /// そうでなければこのPCの時計を使う。
+    ///
+    /// ※ ポーズ中は、1人用ならこのPCの時計も止まる（`Time.timeAsDouble` は止めた影響を受けるため）。
+    /// </summary>
+    private static double SharedTime
+    {
+        get
+        {
+            NetworkManager network = NetworkManager.Singleton;
+
+            if (network != null && network.IsListening)
+            {
+                return network.ServerTime.Time;
+            }
+
+            return Time.timeAsDouble;
+        }
+    }
+
+    /// <summary>
+    /// 時刻に合わせて「何回目の変化の中にいるか」を進める。
+    ///
+    /// **1回目は 0 から数え直す。** 途中から参加した人も、こうすれば同じ答えにたどり着く。
+    /// </summary>
+    private void AdvanceToTime(double now)
+    {
+        // まだ数えていない／時計が巻き戻った（別の試合が始まった等）ときは最初から。
+        // **0回目は「始めるときの重力」のまま**。最初の変化は1回目から
+        if (roundIndex < 0 || now < roundStartTime)
+        {
+            roundIndex = 0;
+            roundStartTime = 0d;
+            previousGravity = Mathf.Abs(startGravity);
+            roundGravity = previousGravity;
+            roundDuration = IntervalFor(0);
+        }
+
+        int startedAt = roundIndex;
+        int walked = 0;
+
+        while (now >= roundStartTime + roundDuration && walked < MaxRoundsToWalk)
+        {
+            roundStartTime += roundDuration;
+            roundIndex++;
+            walked++;
+
+            previousGravity = roundGravity;
+            roundGravity = PickGravityFor(roundIndex, previousGravity);
+            roundDuration = IntervalFor(roundIndex);
+        }
+
+        if (logChanges && roundIndex != startedAt)
+        {
+            Debug.Log($"[GRAVITY] 重力が変わる：{previousGravity:0.0} → {roundGravity:0.0}（{roundIndex}回目）", this);
+        }
+    }
+
+    /// <summary>いまの時刻の重力を決めて、実際に入れる。</summary>
+    private void ApplyGravityAt(double now)
+    {
+        float sinceRoundStart = (float)(now - roundStartTime);
+        float duration = Mathf.Max(0f, changeSeconds);
+
+        IsChanging = sinceRoundStart < duration;
+
+        if (IsChanging)
+        {
+            float t = duration <= 0f ? 1f : Mathf.Clamp01(sinceRoundStart / duration);
+
+            // 始めと終わりをゆるやかにする（急に体が重くなると操作しづらい）
+            WorldGravity.Set(-Mathf.Lerp(previousGravity, roundGravity, Mathf.SmoothStep(0f, 1f, t)));
+        }
+        else
+        {
+            WorldGravity.Set(-roundGravity);
+        }
+
+        NextChangeIn = Mathf.Max(0f, (float)(roundStartTime + roundDuration - now));
+    }
+
+    /// <summary>
+    /// **次の重力を、すぐに変え始める。**
+    /// 時計から決める作りになったので、**いまの回を早送りして次へ送る。**
+    /// </summary>
+    public void BeginChange()
+    {
+        double now = SharedTime;
+
+        // いまの回を「もう終わった」ことにして、次の回へ進める
+        roundStartTime = now - roundDuration;
+
+        AdvanceToTime(now);
+        ApplyGravityAt(now);
+    }
+
+    /// <summary>
+    /// **何回目かに合わせて、候補の中から1つ選ぶ。** 返すのは正の数。
+    ///
+    /// **同じ「たね」と同じ回数なら、どのPCでも必ず同じ答えになる**ので、
+    /// オンラインでも全員の重力がそろう。
     ///
     /// 候補が空だったり、全部が今と同じ値だったりしても止まらないようにしてある。
     /// </summary>
-    private float PickGravity()
+    private float PickGravityFor(int round, float now)
     {
-        float now = Mathf.Abs(WorldGravity.Value);
-
         candidates.Clear();
 
         if (gravityChoices != null)
@@ -234,7 +309,8 @@ public class GravityShifter : MonoBehaviour
 
         if (candidates.Count > 0)
         {
-            return candidates[Random.Range(0, candidates.Count)];
+            int index = Mathf.Clamp((int)(Hash01(round, 1) * candidates.Count), 0, candidates.Count - 1);
+            return candidates[index];
         }
 
         // 候補が1つしか無い（＝いまと同じ）なら、そのまま続ける
@@ -248,12 +324,39 @@ public class GravityShifter : MonoBehaviour
         return Mathf.Abs(WorldGravity.Standard);
     }
 
-    private float RandomInterval()
+    /// <summary>
+    /// **何回目かに合わせた、次までの秒数。**
+    /// こちらも「たね」と回数だけで決まるので、どのPCでも同じ長さになる。
+    /// </summary>
+    private float IntervalFor(int round)
     {
         float shortest = Mathf.Min(shortestInterval, longestInterval);
         float longest = Mathf.Max(shortestInterval, longestInterval);
 
-        // 予告の時間も、この中に含める
-        return Mathf.Max(warningSeconds, Random.Range(shortest, longest));
+        float interval = Mathf.Lerp(shortest, longest, Hash01(round, 0));
+
+        // 予告の時間と、変わりきるまでの時間は、この中に収める
+        return Mathf.Max(Mathf.Max(warningSeconds, changeSeconds), interval);
+    }
+
+    /// <summary>
+    /// **たねと回数から、0以上1未満の決まった数を作る。**
+    ///
+    /// `Random` を使うとPCごとに違う答えになってしまうので、
+    /// **計算だけで決まる形**にしてある（同じ入力なら必ず同じ答え）。
+    /// `salt` は「間隔用」「重力用」で別の数を出すための区別。
+    /// </summary>
+    private float Hash01(int round, int salt)
+    {
+        unchecked
+        {
+            uint h = (uint)(scheduleSeed * 73856093) ^ (uint)(round * 19349663) ^ (uint)(salt * 83492791);
+
+            h ^= h >> 13;
+            h *= 1274126177u;
+            h ^= h >> 16;
+
+            return (h & 0xFFFFFF) / (float)0x1000000;
+        }
     }
 }

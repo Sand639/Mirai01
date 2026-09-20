@@ -20,8 +20,8 @@ public static class GravityGlassSetup
     private const string CrackMaterialPath = MaterialFolder + "/GlassCrack.mat";
     private const string GroundMaterialPath = MaterialFolder + "/TestGround.mat";
 
-    private const string PrefabPath = "Assets/Prefabs/GravityGlassFloor.prefab";
-    private const string RobotPrefabPath = "Assets/Prefabs/RobotRig.prefab";
+    private const string PrefabPath = "Assets/Prefabs/GravityRace/GravityGlassFloor.prefab";
+    private const string RobotPrefabPath = "Assets/Prefabs/Robot/RobotRig.prefab";
     private const string ScenePath = "Assets/Scenes/Test/GravityGlassTest.unity";
 
     /// <summary>床1枚の大きさ。**人が乗れる広さと、ガラスと分かる厚み**にしてある。</summary>

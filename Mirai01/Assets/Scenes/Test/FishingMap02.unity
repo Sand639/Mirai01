@@ -1543,8 +1543,9 @@ MonoBehaviour:
   points:
   - {x: -9, y: 0, z: 0}
   - {x: 9, y: 0, z: 0}
-  mode: 0
-  moveSpeed: 3
+  - {x: 0, y: 0, z: 9}
+  mode: 1
+  moveSpeed: 10
   waitSeconds: 0.5
   easeInOut: 0
   startOffsetSeconds: 0
@@ -2016,8 +2017,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FishingObjectSpawner
   supplyPrefab: {fileID: 6314058618571327821, guid: 1eb3906da02e35b4b8927f7c16f3a9ff, type: 3}
   bombPrefab: {fileID: 4066168067947478377, guid: d320a7efd28aa0846a0557b4a5d4b93b, type: 3}
-  supplyWeight: 1
-  bombWeight: 6
+  supplyWeight: 5
+  bombWeight: 1
   maxObjects: 100
   initialSpawnCount: 14
   spawnIntervalSeconds: 1
@@ -2051,6 +2052,7 @@ GameObject:
   m_Component:
   - component: {fileID: 624358478}
   - component: {fileID: 624358477}
+  - component: {fileID: 624358479}
   m_Layer: 0
   m_Name: Directional Light
   m_TagString: Untagged
@@ -2138,6 +2140,35 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &624358479
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 624358476}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
+  m_UsePipelineSettings: 1
+  m_AdditionalLightsShadowResolutionTier: 2
+  m_CustomShadowLayers: 0
+  m_LightCookieSize: {x: 1, y: 1}
+  m_LightCookieOffset: {x: 0, y: 0}
+  m_SoftShadowQuality: 0
+  m_RenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_ShadowRenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_Version: 4
+  m_LightLayerMask: 1
+  m_ShadowLayerMask: 1
+  m_RenderingLayers: 1
+  m_ShadowRenderingLayers: 1
 --- !u!1 &630841971
 GameObject:
   m_ObjectHideFlags: 0

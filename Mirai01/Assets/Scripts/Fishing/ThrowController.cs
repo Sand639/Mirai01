@@ -233,7 +233,7 @@ public class ThrowController : MonoBehaviour
             return;
         }
 
-        if (GamePause.IsPaused)
+        if (GamePause.BlocksInput)
         {
             return;
         }

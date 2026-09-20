@@ -22,8 +22,8 @@ public static class BombSetup
     private const string GroundMaterialPath = MaterialFolder + "/TestGround.mat";
     private const string LineMaterialPath = MaterialFolder + "/RaceStartLine.mat";
 
-    private const string PrefabPath = "Assets/Prefabs/Bomb.prefab";
-    private const string RobotPrefabPath = "Assets/Prefabs/RobotRig.prefab";
+    private const string PrefabPath = "Assets/Prefabs/GravityRace/Bomb.prefab";
+    private const string RobotPrefabPath = "Assets/Prefabs/Robot/RobotRig.prefab";
     private const string ScenePath = "Assets/Scenes/Test/BombTest.unity";
 
     /// <summary>爆弾の見た目の直径（メートル）。</summary>

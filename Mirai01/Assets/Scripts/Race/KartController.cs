@@ -94,8 +94,21 @@ public class KartController : MonoBehaviour
             return;
         }
 
+        // **入力の設定は、このカート専用の複製を使う。**
+        // 元のアセットをそのまま使うと、1つのシーンに複数台が出たとき
+        // （オンラインや画面分割）に、**他の台の操作を止めると自分の入力まで一緒に止まる**
+        inputActions = Instantiate(inputActions);
+
         playerMap = inputActions.FindActionMap("Player", true);
         moveAction = playerMap.FindAction("Move", true);
+    }
+
+    private void OnDestroy()
+    {
+        if (inputActions != null)
+        {
+            Destroy(inputActions);
+        }
     }
 
     private void OnEnable()
@@ -110,7 +123,7 @@ public class KartController : MonoBehaviour
 
     private void Update()
     {
-        if (GamePause.IsPaused)
+        if (GamePause.BlocksInput)
         {
             return;
         }

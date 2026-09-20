@@ -42,6 +42,11 @@ public class PauseMenu : MonoBehaviour
     [Tooltip("ポーズ画面を開く／閉じるキー")]
     [SerializeField] private Key pauseKey = Key.Escape;
 
+    [Tooltip("ONだと、開いている間は**世界の時間も止まる**（1人用）。\n" +
+             "**オンラインのシーンでは OFF にすること。** 自分のPCだけ時間を止めても" +
+             "他の人は動き続けるので、閉じた瞬間に相手が飛んで見える")]
+    [SerializeField] private bool freezeTime = true;
+
     [Header("つなぐもの")]
     [Tooltip("Assets/InputSystem_Actions を入れる。**UIのクリックに使う。**" +
              "シーンにすでに EventSystem があるなら空でもよい")]
@@ -194,10 +199,15 @@ public class PauseMenu : MonoBehaviour
 
         IsOpen = true;
 
+        // **開くたびに確かめる。**
+        // シーンが切り替わると、シーンに置かれていた EventSystem は消えてしまう。
+        // 無ければここで作り直さないと、ボタンが反応しない
+        EnsureEventSystem();
+
         ShowSettings(false);
         SetVisible(true);
 
-        GamePause.SetPaused(true);
+        GamePause.SetPaused(true, freezeTime);
 
         // 閉じたときに元へ戻せるよう、開く前の状態を控えておく
         cursorLockBeforeOpen = Cursor.lockState;
@@ -482,6 +492,16 @@ public class PauseMenu : MonoBehaviour
     ///
     /// このプロジェクトは新しい入力方式（Input System）を使っているので、
     /// 古い受け取り方（`StandaloneInputModule`）ではエラーになる。
+    ///
+    /// ## シーンが変わっても残るようにしてある（2026/9/20 修正）
+    ///
+    /// 以前はここで作った `EventSystem` に `DontDestroyOnLoad` を付けていなかった。
+    /// ポーズ画面そのものは残るのに、**クリックを受け取る係だけがシーンと一緒に消える**ため、
+    /// オンラインで会場へ移ったあと、**ポーズ画面は開くのにボタンが反応しない**状態になっていた
+    /// （ロビーでは同じシーンにいるので気づけない）。
+    ///
+    /// 作り直せるよう、**開くたびに呼ぶ**ようにもしてある。
+    /// シーンに置かれていた `EventSystem` が消えた場合にも、ここで作り直される。
     /// </summary>
     private void EnsureEventSystem()
     {
@@ -492,6 +512,10 @@ public class PauseMenu : MonoBehaviour
 
         GameObject eventSystem = new GameObject("EventSystem",
             typeof(EventSystem), typeof(InputSystemUIInputModule));
+
+        // **ポーズ画面と一緒に生き残らせる。** これが無いと、
+        // シーンを切り替えた先でボタンが押せなくなる
+        DontDestroyOnLoad(eventSystem);
 
         InputSystemUIInputModule module = eventSystem.GetComponent<InputSystemUIInputModule>();
 

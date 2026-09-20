@@ -13,7 +13,7 @@ using UnityEngine;
 ///
 /// ## 使い方
 ///
-/// **プレハブ（`Assets/Prefabs/Bomb.prefab`）を置くだけ。** つなぐものは無い。
+/// **プレハブ（`Assets/Prefabs/GravityRace/Bomb.prefab`）を置くだけ。** つなぐものは無い。
 /// メニューの `Tools > Mirai01 > 爆弾を置く` でも置ける。
 ///
 /// ## 「触れた」の見分け方

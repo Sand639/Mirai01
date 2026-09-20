@@ -15,7 +15,7 @@ using UnityEngine.InputSystem;
 /// </summary>
 public static class RobotRigSetup
 {
-    private const string PrefabFolder = "Assets/Prefabs";
+    private const string PrefabFolder = "Assets/Prefabs/Robot";
     private const string SceneFolder = "Assets/Scenes/Test";
     private const string MaterialFolder = "Assets/Art/Materials";
 

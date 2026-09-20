@@ -254,6 +254,11 @@ public class ObjectCloner : MonoBehaviour
             return;
         }
 
+        // **入力の設定は、この体専用の複製を使う。**
+        // 元のアセットをそのまま使うと、1つのシーンに複数の体が出たとき
+        // （オンラインや画面分割）に、**他の体の操作を止めると自分の入力まで一緒に止まる**
+        inputActions = Instantiate(inputActions);
+
         playerMap = inputActions.FindActionMap("Player", true);
         pickAction = playerMap.FindAction("Interact", true);
         placeAction = playerMap.FindAction("Attack", true);
@@ -299,11 +304,20 @@ public class ObjectCloner : MonoBehaviour
         SetLookSuspended(false);
     }
 
+    private void OnDestroy()
+    {
+        if (inputActions != null)
+        {
+            Destroy(inputActions);
+        }
+    }
+
     private void Update()
     {
-        // **止まっている間は何も受け付けない。**
-        // ポーズ画面を開く Escape で、複製の下書きまで消えてしまうため
-        if (GamePause.IsPaused)
+        // **止まっている間と、閉じた瞬間のフレームは何も受け付けない。**
+        // ポーズ画面を開く Escape で複製の下書きが消えてしまうのと、
+        // 閉じた同じフレームに、その Escape やクリックをもう一度拾ってしまうのを防ぐ
+        if (GamePause.BlocksInput)
         {
             return;
         }

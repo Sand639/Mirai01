@@ -25,12 +25,13 @@ using UnityEngine.InputSystem;
 /// </summary>
 public static class RaceCourseSetup
 {
-    private const string PrefabFolder = "Assets/Prefabs";
-    private const string SceneFolder = "Assets/Scenes/Test";
+    private const string PrefabFolder = "Assets/Prefabs/GravityRace";
+    private const string RobotPrefabFolder = "Assets/Prefabs/Robot";
+    private const string SceneFolder = "Assets/Scenes/Prototype/GravityRaceStage";
     private const string MaterialFolder = "Assets/Art/Materials";
 
     private const string KartPrefabPath = PrefabFolder + "/RaceKart.prefab";
-    private const string RobotPrefabPath = PrefabFolder + "/RobotRig.prefab";
+    private const string RobotPrefabPath = RobotPrefabFolder + "/RobotRig.prefab";
     private const string KartScenePath = SceneFolder + "/RaceTest.unity";
     private const string RunnerScenePath = SceneFolder + "/RunnerRaceTest.unity";
     private const string InputActionsPath = "Assets/InputSystem_Actions.inputactions";

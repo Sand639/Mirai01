@@ -12,8 +12,8 @@ using UnityEngine.SceneManagement;
 ///
 /// やること：
 ///   1. スポナーが出す物のプレハブを作る（すでにあれば作り直す）
-///      ・`Assets/Prefabs/FishingSupply.prefab` / `FishingBomb.prefab` … 1人用
-///      ・`Assets/Prefabs/FishingOnlineSupply.prefab` / `FishingOnlineBomb.prefab` … オンライン用
+///      ・`Assets/Prefabs/Fish/FishingSupply.prefab` / `Fish/Offline/FishingBomb.prefab` … 1人用
+///      ・`Assets/Prefabs/Fish/Online/Gimmick/FishingOnlineSupply.prefab` / `FishingOnlineBomb.prefab` … オンライン用
 ///   2. オンライン用の2つを `Assets/DefaultNetworkPrefabs.asset` に登録する（しないと全員の画面に出せない）
 ///   3. `FishingArenaTest.unity` と `FishingOnline.unity` から、**最初から置いてあった物資と爆発物を取り除き**、
 ///      代わりにスポナーを1つ置く
@@ -25,12 +25,12 @@ using UnityEngine.SceneManagement;
 /// </summary>
 public static class FishingSpawnerSetup
 {
-    public const string SupplyPrefabPath = FishingSceneBuilder.PrefabFolder + "/FishingSupply.prefab";
-    public const string BombPrefabPath = FishingSceneBuilder.PrefabFolder + "/FishingBomb.prefab";
-    public const string OnlineSupplyPrefabPath = FishingSceneBuilder.PrefabFolder + "/FishingOnlineSupply.prefab";
-    public const string OnlineBombPrefabPath = FishingSceneBuilder.PrefabFolder + "/FishingOnlineBomb.prefab";
+    public const string SupplyPrefabPath = FishingSceneBuilder.FishPrefabFolder + "/FishingSupply.prefab";
+    public const string BombPrefabPath = FishingSceneBuilder.FishOfflinePrefabFolder + "/FishingBomb.prefab";
+    public const string OnlineSupplyPrefabPath = FishingSceneBuilder.FishOnlineGimmickFolder + "/FishingOnlineSupply.prefab";
+    public const string OnlineBombPrefabPath = FishingSceneBuilder.FishOnlineGimmickFolder + "/FishingOnlineBomb.prefab";
 
-    private const string ExplosionPrefabPath = FishingSceneBuilder.PrefabFolder + "/FishingExplosion.prefab";
+    private const string ExplosionPrefabPath = FishingSceneBuilder.FishPrefabFolder + "/FishingExplosion.prefab";
     private const string NetworkPrefabsListPath = "Assets/DefaultNetworkPrefabs.asset";
 
     private const string ArenaScenePath = FishingSceneBuilder.SceneFolder + "/FishingArenaTest.unity";
