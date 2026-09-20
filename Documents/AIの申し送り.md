@@ -53,6 +53,7 @@
 
 | 日付 | 書いたAI | 場面 | やり方 |
 | --- | --- | --- | --- |
+| 2026/9/20 | Claude Code | **Unityを開かずにコンパイルを確かめたら、身に覚えのない `CS0246 型が見つかりません` が出たとき** | **`.csproj` が古いだけ**のことがある。`Mirai01/*.csproj` は **Unityが自動生成するもので Git 管理外**（`.gitignore` に `*.csproj`）。**Unityを最後に開いたあとに増えたファイルは載っていない**ので、そのファイルを参照しているコードが「型が見つかりません」になる（実際に `HookAimAssist.cs` がこれで引っかかった。`develop` を取り込んだあとに増えたファイルだった）。確かめ方：`grep -c "型名" Mirai01/Assembly-CSharp.csproj` が 0 なら載っていない。**その場合は自分のコードの誤りではない。** `.csproj` に `<Compile Include="Assets\…\そのファイル.cs" />` を1行足せばビルドできる（Git 管理外なので足して問題ない）。**足すときは sed ではなく `awk -v bs='\\'` を使うこと**（sed だとバックスラッシュが消えてパスが壊れる） |
 | 2026/9/16 | Claude Code | **釣りのマップに、新しい形のステージを足したいとき** | **`FishingMapSetup.cs` の `Build〜Stage` を1つ書いて、メニューを1行足すだけでよい。** マップを作る処理（床・壁・ゴール・試合の仕組み・カメラ・スポナー・UI・通信の番号付け・ビルドの一覧への登録）は `CreateMap()` に1つにまとめてあり、**マップごとに違うのは「床の上に何を置くか」だけ**を `System.Action<Transform, Transform>`（`Stage` と `Obstacles`）で受け取る形にした。実例は `BuildBattleStage`。**寸法は定数にして、上に「なぜその値か」を書いておくと、あとで人が調整しやすい** |
 | 2026/9/16 | Claude Code | **Unityが開いたまま、シーン（`.unity`）の設定値だけを変えたいとき** | `grep -n "項目名" *.unity` で行を探し、`sed` でその行だけ書き換えれば、**シーン全体を作り直さずに値を変えられる**（例：スポナーの `supplyWeight`）。ただし**Unityで開いているシーンは、そのまま Ctrl+S されると書き戻されて消える。** どのシーンが開いているかは `Mirai01/Library/LastSceneManagerSetup.txt` で分かるので、**開いているシーンを直したときは「Unityで開き直してください」と必ず伝えること** |
 | 2026/9/15 | Claude Code | **Unityを開かずにコンパイルを確かめる方法（9/14の手順の補足）** | 9/15時点の `Assembly-CSharp.csproj` には `<ProjectReference>` が無く、**パッケージのDLLが `<HintPath>Library\ScriptAssemblies\...` の相対パスで書かれていた。** 作業用フォルダに複製する場合は、①`Compile Include="Assets` ②`HintPath>Library\` `HintPath>Assets\` `HintPath>Packages\` を**すべて絶対パスに置き換える**だけで `dotnet msbuild 複製.csproj -v:q` が通った。**csproj はUnityが最後に開いた時点のもの**なので、その後に増えた .cs（9/15は16本）は `Get-ChildItem Assets -Recurse -Filter *.cs` と突き合わせて Compile に足す。エディタ用は `Assembly-CSharp-Editor.csproj` を同様に直し、`<ProjectReference Include="Assembly-CSharp.csproj">` を**先に作った Assembly-CSharp.dll への `<Reference>` に差し替える**と通る。**PowerShell で一時ファイルを消すコマンドに `'\Editor\'` のような文字列が混ざると、安全装置に止められる**ので、一時ファイルは最初から scratchpad に置くこと |
@@ -152,3 +153,4 @@
 | 2026/9/17 | Claude Code | 釣りフックのオートエイムのブランチを `develop` に取り込み、衝突した行をまとめた |
 | 2026/9/20 | Claude Code | 古い `Input.GetKeyDown` が、このプロジェクトの入力設定（Input System のみ）では何も返さない件を記録 |
 | 2026/9/20 | Claude Code | `Spawn(true)` の `true` が `destroyWithScene` で、シーンをまたぎたいオブジェクトが消えていた件を記録。初期値のままの表示（第0ラウンド）が手がかりだった |
+| 2026/9/20 | Claude Code | 「うまくいったやり方」に、`.csproj` が古くて身に覚えのない `CS0246` が出る件と、その直し方を追加 |
