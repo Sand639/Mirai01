@@ -59,6 +59,9 @@ public class SpaceJunkLobbyUI : MonoBehaviour
 
     private const ulong NoSelection = ulong.MaxValue;
 
+    /// <summary>詳細設定の巻物の位置。中身が画面に収まらないときに使う。</summary>
+    private Vector2 settingsScroll;
+
     private GUIStyle labelStyle;
     private GUIStyle headerStyle;
 
@@ -185,7 +188,7 @@ public class SpaceJunkLobbyUI : MonoBehaviour
         GUILayout.Label($"　チーム数 … {session.TeamCount}", labelStyle);
         GUILayout.Label($"　{session.RoundsToWin} 本先取", labelStyle);
         GUILayout.Label($"　1ラウンド 最大 {Mathf.RoundToInt(session.RoundSeconds)} 秒", labelStyle);
-        GUILayout.Label($"　使うマップ … {session.SelectedMaps.Count} 個", labelStyle);
+        GUILayout.Label($"　使うマップ … {session.SelectedMapCount} 個", labelStyle);
     }
 
     /// <summary>端末の案内。**ホストが端末のそばにいるときだけ出す。**</summary>
@@ -207,7 +210,7 @@ public class SpaceJunkLobbyUI : MonoBehaviour
 
         if (terminal.IsOpen)
         {
-            GUILayout.Label($"設定を開いています（{terminal.InteractKeyName} か Escape で閉じる）", labelStyle);
+            GUILayout.Label($"設定を開いています（もう一度［{terminal.InteractKeyName}］か「閉じる」で閉じます）", labelStyle);
             return;
         }
 
@@ -242,8 +245,23 @@ public class SpaceJunkLobbyUI : MonoBehaviour
 
         GUILayout.BeginArea(area, GUI.skin.window);
 
+        GUILayout.BeginHorizontal();
         GUILayout.Label("■ 詳細設定（ホストだけが変えられます）", headerStyle);
+
+        // **閉じるボタンも置いておく。** キーだけだと、
+        // 閉じ方が分からなくなった人がその場から動けなくなる
+        if (GUILayout.Button("閉じる", GUILayout.Width(80f)))
+        {
+            terminal.Close();
+        }
+        GUILayout.EndHorizontal();
+
         GUILayout.Space(6f);
+
+        // **中身が増えても下のほうが押せるように、巻物（スクロール）にする。**
+        // 人数が多い・マップが多いと、そのままでは「使うマップ」が画面の外へ出て選べなくなる
+        // （申し送り 2026/9/14 の「小さい窓でボタンが押せなくなる」と同じ罠）
+        settingsScroll = GUILayout.BeginScrollView(settingsScroll);
 
         DrawStartButton(session);
         GUILayout.Space(8f);
@@ -262,6 +280,7 @@ public class SpaceJunkLobbyUI : MonoBehaviour
 
         DrawMapChoice(session);
 
+        GUILayout.EndScrollView();
         GUILayout.EndArea();
 
         GUI.matrix = saved;
@@ -326,24 +345,28 @@ public class SpaceJunkLobbyUI : MonoBehaviour
         {
             GUILayout.BeginVertical(GUI.skin.box);
 
+            int members = session.PlayerCountOf(team);
+
             Color saved = GUI.color;
             GUI.color = SpaceJunkTeams.TeamColor(team);
-            GUILayout.Label(SpaceJunkTeams.TeamName(team), headerStyle);
+            GUILayout.Label($"{SpaceJunkTeams.TeamName(team)}（{members}人）", headerStyle);
             GUI.color = saved;
 
-            int members = 0;
             foreach (SpaceJunkPlayerSlot slot in session.Slots)
             {
                 if (slot.Team == team)
                 {
                     GUILayout.Label($"　{NameOf(slot.ClientId)}", labelStyle);
-                    members++;
                 }
             }
 
             if (members == 0)
             {
-                GUILayout.Label("　（いません）", labelStyle);
+                // **無人のチームのゴールは、素材を入れても数えない。**
+                // 知らないと「入れたのに増えない」と混乱するので、ここで伝える
+                GUI.color = new Color(1f, 0.6f, 0.4f);
+                GUILayout.Label("　（いません）\n　このチームのゴールは\n　数えません", labelStyle);
+                GUI.color = saved;
             }
 
             GUI.enabled = selectedClientId != NoSelection;
@@ -433,7 +456,7 @@ public class SpaceJunkLobbyUI : MonoBehaviour
             }
         }
 
-        if (session.SelectedMaps.Count > 1)
+        if (session.SelectedMapCount > 1)
         {
             GUILayout.Label("　※ 直前と同じマップは選ばれません。", labelStyle);
         }
@@ -454,7 +477,7 @@ public class SpaceJunkLobbyUI : MonoBehaviour
             return;
         }
 
-        if (session.SelectedMaps.Count == 0)
+        if (session.SelectedMapCount == 0)
         {
             GUI.color = new Color(1f, 0.5f, 0.4f);
             GUILayout.Label("使うマップを1つ以上選んでください。", labelStyle);

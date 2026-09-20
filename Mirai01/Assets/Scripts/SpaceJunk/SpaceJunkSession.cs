@@ -167,6 +167,41 @@ public class SpaceJunkSession : NetworkBehaviour
         return roundWins[team];
     }
 
+    /// <summary>
+    /// **そのチームに誰か入っているか。**
+    ///
+    /// 誰もいないチームのゴールに素材が入っても数えないようにするために使う。
+    /// 入れてしまうと、**投げ間違いだけで「誰もいないチーム」がラウンドを取る**ことがある。
+    /// </summary>
+    public bool HasPlayers(int team)
+    {
+        foreach (SpaceJunkPlayerSlot slot in slots)
+        {
+            if (slot.Team == team)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>そのチームの人数。ロビーの表示にも使う。</summary>
+    public int PlayerCountOf(int team)
+    {
+        int count = 0;
+
+        foreach (SpaceJunkPlayerSlot slot in slots)
+        {
+            if (slot.Team == team)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
     /// <summary>その人の所属チーム。席が無ければ 0。</summary>
     public int TeamOf(ulong clientId)
     {
@@ -181,17 +216,31 @@ public class SpaceJunkSession : NetworkBehaviour
         return 0;
     }
 
+    /// <summary>
+    /// <see cref="Slots"/> と <see cref="SelectedMaps"/> が返す入れ物。**毎回作らず使い回す。**
+    ///
+    /// ロビーの画面は `OnGUI` で描いていて、**1フレームに何度も呼ばれる。**
+    /// そのたびに新しいリストを作ると、捨てるゴミが積み上がって動きが重くなる。
+    ///
+    /// ⚠ **使い回しているので、1つの `foreach` を回している途中で
+    /// もう一度同じものを取りに行かないこと**（中身が入れ替わる）。
+    /// 取り出したら、最後まで使い切ってから次を取ること。
+    /// </summary>
+    private readonly List<SpaceJunkPlayerSlot> slotsView = new List<SpaceJunkPlayerSlot>();
+
+    private readonly List<string> mapsView = new List<string>();
+
     /// <summary>いま席にいる人を、入った順に返す。ロビーの一覧に使う。</summary>
     public IReadOnlyList<SpaceJunkPlayerSlot> Slots
     {
         get
         {
-            List<SpaceJunkPlayerSlot> list = new List<SpaceJunkPlayerSlot>();
+            slotsView.Clear();
             foreach (SpaceJunkPlayerSlot slot in slots)
             {
-                list.Add(slot);
+                slotsView.Add(slot);
             }
-            return list;
+            return slotsView;
         }
     }
 
@@ -200,14 +249,17 @@ public class SpaceJunkSession : NetworkBehaviour
     {
         get
         {
-            List<string> list = new List<string>();
+            mapsView.Clear();
             foreach (FixedString64Bytes map in selectedMaps)
             {
-                list.Add(map.ToString());
+                mapsView.Add(map.ToString());
             }
-            return list;
+            return mapsView;
         }
     }
+
+    /// <summary>ホストが選んでいるマップの数。**中身が要らないときはこちらを使う**（入れ物を作らない）。</summary>
+    public int SelectedMapCount => selectedMaps.Count;
 
     /// <summary>そのマップが選ばれているか。</summary>
     public bool IsMapSelected(string sceneName)
@@ -516,7 +568,17 @@ public class SpaceJunkSession : NetworkBehaviour
 
     private IEnumerator NextRoundAfterDelay()
     {
-        yield return new WaitForSeconds(roundResultSeconds);
+        // ⚠ **WaitForSeconds ではなく WaitForSecondsRealtime を使うこと。**
+        //
+        // `WaitForSeconds` は `Time.timeScale` の影響を受けるので、時間が止まると
+        // **ここで永久に待ち続け、次のラウンドへ進まなくなる。**
+        // 残り時間のほうは同期された時計で数えていて止まらないため、
+        // 「時間だけ過ぎて試合が進まない」という分かりにくい形で出る。
+        //
+        // ※ 2026/9/20 から `GamePause` が**つながっている間は時間を止めない**ように
+        //    なったので、いまは止まらないはず。**それでも realtime のままにしておく。**
+        //    ラウンドの進行を、ポーズの作りに依存させたくないため
+        yield return new WaitForSecondsRealtime(roundResultSeconds);
 
         if (!IsServer || state.Value != SpaceJunkMatchState.Playing)
         {
@@ -529,7 +591,8 @@ public class SpaceJunkSession : NetworkBehaviour
 
     private IEnumerator ReturnToLobbyAfterDelay()
     {
-        yield return new WaitForSeconds(matchResultSeconds);
+        // 上と同じ理由で、止まらない時計で数える
+        yield return new WaitForSecondsRealtime(matchResultSeconds);
 
         if (!IsServer)
         {
@@ -572,16 +635,33 @@ public class SpaceJunkSession : NetworkBehaviour
         string chosen = candidates[UnityEngine.Random.Range(0, candidates.Count)];
         currentMap.Value = new FixedString64Bytes(chosen);
 
-        LoadScene(chosen);
+        // **読み込めなかったら、試合を打ち切ってロビーへ戻す。**
+        // ここで黙って止まると、結果の表示が出たまま永久に動かなくなり、
+        // 遊んでいる人には何が起きたのか分からない
+        if (!LoadScene(chosen))
+        {
+            Debug.LogError($"[JUNK] マップ「{chosen}」へ移れませんでした。試合を打ち切ってロビーへ戻ります。");
+            AbortToLobby();
+        }
     }
 
-    /// <summary>全員のシーンをまとめて切り替える。</summary>
-    private void LoadScene(string sceneName)
+    /// <summary>試合を打ち切って、全員をロビーへ戻す。</summary>
+    private void AbortToLobby()
+    {
+        state.Value = SpaceJunkMatchState.Lobby;
+        currentRound.Value = 0;
+        matchWinner.Value = -1;
+
+        LoadScene(lobbySceneName);
+    }
+
+    /// <summary>全員のシーンをまとめて切り替える。切り替えを始められたら true。</summary>
+    private bool LoadScene(string sceneName)
     {
         if (NetworkManager == null || NetworkManager.SceneManager == null)
         {
             Debug.LogError("[JUNK] SceneManager がまだ使えません。");
-            return;
+            return false;
         }
 
         SceneEventProgressStatus status = NetworkManager.SceneManager.LoadScene(
@@ -595,6 +675,10 @@ public class SpaceJunkSession : NetworkBehaviour
                 "・**File > Build Profiles のシーン一覧に、そのシーンが入っていない**\n" +
                 "・NetworkManager の Enable Scene Management が OFF\n" +
                 "・別のシーン切り替えがまだ終わっていない（SceneEventInProgress）");
+
+            return false;
         }
+
+        return true;
     }
 }

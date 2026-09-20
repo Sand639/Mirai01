@@ -83,7 +83,13 @@ public class SpaceJunkLobbyTerminal : MonoBehaviour
                     && player != null
                     && Vector3.Distance(player.position, transform.position) <= interactRange;
 
-        if (IsHostNearby && WasPressed(interactKey))
+        // **ポーズ画面が開いている間（と、閉じたそのフレーム）は入力を読まない。**
+        // 読んでしまうと、ポーズを Escape で閉じた瞬間に、同じ Escape で
+        // 詳細設定まで閉じてしまう（申し送り 2026/9/8・2026/9/16 と同じ取り合い）。
+        // `BlocksInput` は「切り替わったフレーム」も含むので、これだけで防げる
+        bool inputBlocked = GamePause.BlocksInput;
+
+        if (IsHostNearby && !inputBlocked && WasPressed(interactKey))
         {
             IsOpen = !IsOpen;
         }
@@ -94,14 +100,25 @@ public class SpaceJunkLobbyTerminal : MonoBehaviour
             IsOpen = false;
         }
 
-        // Escape でも閉じられるようにする（ポーズ画面と取り合いにならないよう、開いているときだけ）
-        if (IsOpen && WasPressed(Key.Escape))
-        {
-            IsOpen = false;
-        }
+        // ⚠ **Escape はここでは見ない。**
+        //
+        // Escape は**ポーズ画面の持ち物**である（`PauseMenu`）。
+        // ここでも見ると、ポーズ画面が先に動いて開いたあと、同じ Escape で
+        // 詳細設定まで閉じる、という取り合いになる。
+        // このプロジェクトでは同じ失敗を何度もしているので、
+        // **「同じキーを2か所で見ない。持ち主を固定する」**という決まりに従う
+        // （`AIの申し送り.md` 2026/9/8・2026/9/16）。
+        //
+        // 閉じ方は「もう一度 E」か、画面の「閉じる」ボタン。
 
         ApplyHighlight();
         SetLocalPlayerControlEnabled(!IsOpen);
+    }
+
+    /// <summary>詳細設定を閉じる。画面の「閉じる」ボタンから呼ばれる。</summary>
+    public void Close()
+    {
+        IsOpen = false;
     }
 
     /// <summary>

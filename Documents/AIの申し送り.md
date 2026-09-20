@@ -53,6 +53,8 @@
 
 | 日付 | 書いたAI | 場面 | やり方 |
 | --- | --- | --- | --- |
+| 2026/9/20 | Claude Code | **いまある遊びを土台に、別の遊びを作りたいとき**（釣り → 宇宙ごみ集め） | **「操作は共用、ルールは別ファイル」で分けると、両方の作業がぶつからない。** ①操作まわり（`HookController` `ThrowController` `FishingPlayerController` など）は**そのまま使う**。片方で操作感を直せばもう片方にも効く ②勝敗・チーム・得点などの**ルールだけ新しいフォルダに作る**（`Assets/Scripts/SpaceJunk/`）③**シーンは既存をコピーして、中の部品を差し替えるツールを書く**（`SpaceJunkSetup.cs` が実例。地形や壁はそのまま活きる）。**差し替える前に `PrefabUtility.UnpackPrefabInstance` で切り離すこと**（しないと元のプレハブに繋がったままになり、向こうを直すとこちらが壊れる）。**注意：共用した側が「別の遊びには合わない前提」を持っていることがある。** 釣りの `FishingNetPlayer` は「会場に着いたか」を **`FishingMatch` がいるか**で判断していて、置かないと**位置もカメラも合わない**まま気づけなかった。共用するときは `grep -rn "相手のクラス名\." --include=*.cs` で**前提を全部数えてから**、足りない分を「上乗せ部品」で埋めるとよい（`SpaceJunkPlayerSetup.cs` が実例。**相手のファイルを1行も変えずに済む**） |
+| 2026/9/20 | Claude Code | **Unityを開かずにコンパイルを確かめたら、身に覚えのない `CS0246 型が見つかりません` が出たとき** | **`.csproj` が古いだけ**のことがある。`Mirai01/*.csproj` は **Unityが自動生成するもので Git 管理外**（`.gitignore` に `*.csproj`）。**Unityを最後に開いたあとに増えたファイルは載っていない**ので、そのファイルを参照しているコードが「型が見つかりません」になる（実際に `HookAimAssist.cs` がこれで引っかかった。`develop` を取り込んだあとに増えたファイルだった）。確かめ方：`grep -c "型名" Mirai01/Assembly-CSharp.csproj` が 0 なら載っていない。**その場合は自分のコードの誤りではない。** `.csproj` に `<Compile Include="Assets\…\そのファイル.cs" />` を1行足せばビルドできる（Git 管理外なので足して問題ない）。**足すときは sed ではなく `awk -v bs='\\'` を使うこと**（sed だとバックスラッシュが消えてパスが壊れる） |
 | 2026/9/16 | Claude Code | **釣りのマップに、新しい形のステージを足したいとき** | **`FishingMapSetup.cs` の `Build〜Stage` を1つ書いて、メニューを1行足すだけでよい。** マップを作る処理（床・壁・ゴール・試合の仕組み・カメラ・スポナー・UI・通信の番号付け・ビルドの一覧への登録）は `CreateMap()` に1つにまとめてあり、**マップごとに違うのは「床の上に何を置くか」だけ**を `System.Action<Transform, Transform>`（`Stage` と `Obstacles`）で受け取る形にした。実例は `BuildBattleStage`。**寸法は定数にして、上に「なぜその値か」を書いておくと、あとで人が調整しやすい** |
 | 2026/9/16 | Claude Code | **Unityが開いたまま、シーン（`.unity`）の設定値だけを変えたいとき** | `grep -n "項目名" *.unity` で行を探し、`sed` でその行だけ書き換えれば、**シーン全体を作り直さずに値を変えられる**（例：スポナーの `supplyWeight`）。ただし**Unityで開いているシーンは、そのまま Ctrl+S されると書き戻されて消える。** どのシーンが開いているかは `Mirai01/Library/LastSceneManagerSetup.txt` で分かるので、**開いているシーンを直したときは「Unityで開き直してください」と必ず伝えること** |
 | 2026/9/15 | Claude Code | **Unityを開かずにコンパイルを確かめる方法（9/14の手順の補足）** | 9/15時点の `Assembly-CSharp.csproj` には `<ProjectReference>` が無く、**パッケージのDLLが `<HintPath>Library\ScriptAssemblies\...` の相対パスで書かれていた。** 作業用フォルダに複製する場合は、①`Compile Include="Assets` ②`HintPath>Library\` `HintPath>Assets\` `HintPath>Packages\` を**すべて絶対パスに置き換える**だけで `dotnet msbuild 複製.csproj -v:q` が通った。**csproj はUnityが最後に開いた時点のもの**なので、その後に増えた .cs（9/15は16本）は `Get-ChildItem Assets -Recurse -Filter *.cs` と突き合わせて Compile に足す。エディタ用は `Assembly-CSharp-Editor.csproj` を同様に直し、`<ProjectReference Include="Assembly-CSharp.csproj">` を**先に作った Assembly-CSharp.dll への `<Reference>` に差し替える**と通る。**PowerShell で一時ファイルを消すコマンドに `'\Editor\'` のような文字列が混ざると、安全装置に止められる**ので、一時ファイルは最初から scratchpad に置くこと |
@@ -106,6 +108,15 @@
 > 作業を途中で終えたとき、続きを引き継ぐための置き手紙。
 > 終わった話は消してよい。
 
+- **2026/9/20　宇宙ごみ集めの自律点検を行った（ブランチ `auto/spacejunk-review-0920`）。**
+  直した分はそのブランチにあり、**まだ `develop` に取り込んでいない**（大槻さんの確認待ち）。
+  **再生しての確認は一切していない**（AIはUnityを操作できない）ので、引き継ぐときは
+  まずビルドを2つ起動して遊んでみること。
+  **とくに `GamePause` を変えた**（つながっている間は `Time.timeScale` を変えない）ので、
+  **釣りのほうにも影響する。** 釣りでポーズを開いて、①物が空中で止まらないこと
+  ②閉じた瞬間に相手が飛ばないこと を確かめてほしい。
+  判断待ちは `質問リスト.md` の2件（`SpaceJunkMap03` のゴール／既存マップの作り直し）。
+
 - **2026/9/17　ポーズ画面（`PauseMenu`）は、オンラインのシーンにも自動で作られ、`Time.timeScale` を 0 にする。** 通信の対戦で「止める」と、ホストの物理と `Time.deltaTime` で数える処理だけが止まり、`ServerTime` で決めている試合の残り時間は進む（`リスクリスト.md` に登録）。**オンラインの機能で `Time.deltaTime` や FixedUpdate に頼るときは、ポーズで止まる前提で考えること。**
 
 - **2026/9/15　`develop_prototype_fishing` を `develop` に取り込んだ**（小野田さんの依頼）。`Documents/` の7ファイルの衝突は、**両方の行を残す**形で直した（`リスクリスト.md` の釣りの行は「未解決／様子見／対応済み」に振り分け、`ネットワークの制作工程.md` の状況は釣りで進んだ内容を採用）。**残っている確認：** ①釣りのマップ（`Assets/Scenes/Test/FishingMap〜`）を `Assets/Scenes/Prototype/` へ移すかどうか。移す場合は Unity 上で移し、ツールの置き場所の定数も合わせる ②`機能と検証シーンの一覧.md` に、釣りの機能と検証シーンがまだ載っていない
@@ -152,3 +163,6 @@
 | 2026/9/17 | Claude Code | 釣りフックのオートエイムのブランチを `develop` に取り込み、衝突した行をまとめた |
 | 2026/9/20 | Claude Code | 古い `Input.GetKeyDown` が、このプロジェクトの入力設定（Input System のみ）では何も返さない件を記録 |
 | 2026/9/20 | Claude Code | `Spawn(true)` の `true` が `destroyWithScene` で、シーンをまたぎたいオブジェクトが消えていた件を記録。初期値のままの表示（第0ラウンド）が手がかりだった |
+| 2026/9/20 | Claude Code | 「うまくいったやり方」に、`.csproj` が古くて身に覚えのない `CS0246` が出る件と、その直し方を追加 |
+| 2026/9/20 | Claude Code | 「うまくいったやり方」に、いまある遊びを土台に別の遊びを作るときの分け方（操作は共用・ルールは別ファイル・上乗せ部品で前提の差を埋める）を追加 |
+| 2026/9/20 | Claude Code | 次のAIへの伝言に、宇宙ごみの自律点検の状況（未検証・未マージ・GamePause は釣りにも影響）を追加 |

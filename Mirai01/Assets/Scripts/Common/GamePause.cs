@@ -59,6 +59,20 @@ public static class GamePause
         IsPaused = paused;
         lastChangedFrame = Time.frameCount;
 
+        // **オンラインでつながっている間は、世界の時間を止めない。**
+        //
+        // 自分のPCだけ `Time.timeScale` を 0 にしても、ホストと他の参加者は動き続ける。
+        // ホストが止めた場合はもっと悪く、**ホストが動かしている物や物資が全員の画面で
+        // 空中に止まるのに、試合の残り時間（共有の時計で数えている）だけは減り続ける。**
+        // 閉じた瞬間に相手が飛んで見える原因にもなる。
+        //
+        // 呼ぶ側が freezeTime を指定し忘れても事故にならないよう、ここでまとめて面倒を見る。
+        // （`リスクリスト.md` 2026/9/16・2026/9/17 に登録されていた件。2026/9/20 に対応）
+        if (paused && IsOnline())
+        {
+            freezeTime = false;
+        }
+
         if (paused)
         {
             timeWasFrozen = freezeTime;
@@ -81,6 +95,18 @@ public static class GamePause
 
     /// <summary>止めたときに、世界の時間まで止めたか。戻すときに使う。</summary>
     private static bool timeWasFrozen;
+
+    /// <summary>
+    /// いま通信でつながっているか（1人で遊んでいるのではないか）。
+    ///
+    /// **ここでしか Netcode を見ていない。** 通信を使わない遊びでも
+    /// `NetworkManager` が無ければ false になるだけなので、影響しない。
+    /// </summary>
+    private static bool IsOnline()
+    {
+        return Unity.Netcode.NetworkManager.Singleton != null
+            && Unity.Netcode.NetworkManager.Singleton.IsListening;
+    }
 
     /// <summary>
     /// 再生を始めるたびに、止まっていない状態から始める。
