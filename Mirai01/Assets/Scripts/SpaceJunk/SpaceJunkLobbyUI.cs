@@ -245,7 +245,17 @@ public class SpaceJunkLobbyUI : MonoBehaviour
 
         GUILayout.BeginArea(area, GUI.skin.window);
 
+        GUILayout.BeginHorizontal();
         GUILayout.Label("■ 詳細設定（ホストだけが変えられます）", headerStyle);
+
+        // **閉じるボタンも置いておく。** キーだけだと、
+        // 閉じ方が分からなくなった人がその場から動けなくなる
+        if (GUILayout.Button("閉じる", GUILayout.Width(80f)))
+        {
+            terminal.Close();
+        }
+        GUILayout.EndHorizontal();
+
         GUILayout.Space(6f);
 
         // **中身が増えても下のほうが押せるように、巻物（スクロール）にする。**
@@ -335,24 +345,28 @@ public class SpaceJunkLobbyUI : MonoBehaviour
         {
             GUILayout.BeginVertical(GUI.skin.box);
 
+            int members = session.PlayerCountOf(team);
+
             Color saved = GUI.color;
             GUI.color = SpaceJunkTeams.TeamColor(team);
-            GUILayout.Label(SpaceJunkTeams.TeamName(team), headerStyle);
+            GUILayout.Label($"{SpaceJunkTeams.TeamName(team)}（{members}人）", headerStyle);
             GUI.color = saved;
 
-            int members = 0;
             foreach (SpaceJunkPlayerSlot slot in session.Slots)
             {
                 if (slot.Team == team)
                 {
                     GUILayout.Label($"　{NameOf(slot.ClientId)}", labelStyle);
-                    members++;
                 }
             }
 
             if (members == 0)
             {
-                GUILayout.Label("　（いません）", labelStyle);
+                // **無人のチームのゴールは、素材を入れても数えない。**
+                // 知らないと「入れたのに増えない」と混乱するので、ここで伝える
+                GUI.color = new Color(1f, 0.6f, 0.4f);
+                GUILayout.Label("　（いません）\n　このチームのゴールは\n　数えません", labelStyle);
+                GUI.color = saved;
             }
 
             GUI.enabled = selectedClientId != NoSelection;

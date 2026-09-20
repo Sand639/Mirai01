@@ -104,6 +104,12 @@ public class SpaceJunkLobbyTerminal : MonoBehaviour
         SetLocalPlayerControlEnabled(!IsOpen);
     }
 
+    /// <summary>詳細設定を閉じる。画面の「閉じる」ボタンから呼ばれる。</summary>
+    public void Close()
+    {
+        IsOpen = false;
+    }
+
     /// <summary>
     /// キーが押された瞬間か。
     ///
