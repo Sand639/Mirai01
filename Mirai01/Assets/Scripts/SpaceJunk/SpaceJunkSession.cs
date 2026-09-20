@@ -569,11 +569,15 @@ public class SpaceJunkSession : NetworkBehaviour
     private IEnumerator NextRoundAfterDelay()
     {
         // ⚠ **WaitForSeconds ではなく WaitForSecondsRealtime を使うこと。**
-        // ポーズ画面は Time.timeScale を 0 にする（Freeze Time が ON のとき）。
-        // WaitForSeconds は止まった時間で数えるので、**ホストがポーズを開くと
-        // ここで永久に止まり、次のラウンドへ進まなくなる。**
+        //
+        // `WaitForSeconds` は `Time.timeScale` の影響を受けるので、時間が止まると
+        // **ここで永久に待ち続け、次のラウンドへ進まなくなる。**
         // 残り時間のほうは同期された時計で数えていて止まらないため、
-        // 「時間だけ過ぎて試合が進まない」という分かりにくい形で出る
+        // 「時間だけ過ぎて試合が進まない」という分かりにくい形で出る。
+        //
+        // ※ 2026/9/20 から `GamePause` が**つながっている間は時間を止めない**ように
+        //    なったので、いまは止まらないはず。**それでも realtime のままにしておく。**
+        //    ラウンドの進行を、ポーズの作りに依存させたくないため
         yield return new WaitForSecondsRealtime(roundResultSeconds);
 
         if (!IsServer || state.Value != SpaceJunkMatchState.Playing)
