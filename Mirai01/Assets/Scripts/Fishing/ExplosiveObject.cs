@@ -195,18 +195,48 @@ public class ExplosiveObject : MonoBehaviour
 
         foreach (Collider hit in hits)
         {
-            PlayerStun stun = hit.GetComponentInParent<PlayerStun>();
-            if (stun != null && handled.Add(stun.gameObject))
-            {
-                stun.Stun(playerStunSeconds);
-            }
+            ApplyPlayerEffect(hit, handled);
 
             HookableObject other = hit.GetComponentInParent<HookableObject>();
             if (other != null && other != hookable && handled.Add(other.gameObject))
             {
-                other.Vanish();
+                ApplyHookableEffect(other);
             }
         }
+    }
+
+    /// <summary>
+    /// **爆発が当たったプレイヤーに、何をするか。** ふつうの爆弾はスタンさせる。
+    ///
+    /// **別の効果の爆弾を作るときは、ここを差し替える**（継承して override する）。
+    /// 実例：`Sou/KnockBackExplosiveObject.cs` は、スタンさせずに吹き飛ばす。
+    ///
+    /// <paramref name="handled"/> は「この爆発でもう処理した物」の控え。
+    /// 1つの物に当たり判定が複数付いていても二重に効かないよう、
+    /// **効果を与える前に `handled.Add(相手)` が true かどうかを見ること。**
+    /// </summary>
+    protected virtual void ApplyPlayerEffect(Collider hit, HashSet<GameObject> handled)
+    {
+        PlayerStun stun = hit.GetComponentInParent<PlayerStun>();
+
+        if (stun != null && handled.Add(stun.gameObject))
+        {
+            stun.Stun(playerStunSeconds);
+        }
+    }
+
+    /// <summary>
+    /// **爆発が当たった物資に、何をするか。** ふつうの爆弾は消す。
+    ///
+    /// **別の効果の爆弾を作るときは、ここを差し替える**（継承して override する）。
+    /// 実例：`Sou/KnockBackExplosiveObject.cs` は、消さずに吹き飛ばす。
+    ///
+    /// 呼ぶ側で「自分自身ではないか」「もう処理していないか」は確かめてあるので、
+    /// ここでは効果だけを書けばよい。
+    /// </summary>
+    protected virtual void ApplyHookableEffect(HookableObject other)
+    {
+        other.Vanish();
     }
 
     private void RestoreLook()

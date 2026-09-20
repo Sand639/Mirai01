@@ -14,6 +14,7 @@ using UnityEngine.InputSystem;
 /// フックの実際の飛び方の計算はここに置き、HookProjectile は当たり判定だけにしている。
 /// 引き寄せ・投げは ThrowController、糸の見た目は HookLine に分けてある。
 /// </summary>
+
 public class HookController : MonoBehaviour
 {
     /// <summary>フックがいまどの段階にいるか。</summary>
@@ -551,6 +552,16 @@ public class HookController : MonoBehaviour
 
         phase = HookPhase.Returning;
         Debug.Log("[FISH] その物資は先に取られていました。フックを戻します。");
+    }
+
+    /// <summary>古い依頼への断りでは、現在引っ掛けている別の物資を外さない。</summary>
+    public void CancelAttachBecauseTaken(HookableObject expectedTarget)
+    {
+        if (attached != expectedTarget)
+        {
+            return;
+        }
+        CancelAttachBecauseTaken();
     }
 
     /// <summary>糸とフックの見た目を、いまの段階に合わせて更新する。</summary>
