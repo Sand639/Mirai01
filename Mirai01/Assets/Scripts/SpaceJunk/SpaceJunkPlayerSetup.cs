@@ -84,6 +84,8 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
 
         LocalResetKeyName = resetKey.ToString();
 
+        TickPlacement();
+
         bool inRound = SpaceJunkRound.Current != null;
 
         if (inRound && !placedInRound)
@@ -94,19 +96,82 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
         }
         else if (!inRound && placedInRound)
         {
-            // **ロビーへ戻ったときも、場所を置き直す。**
+            // ロビーへ戻った。**ここでは置き直さない。**
             //
-            // プレイヤーはシーンをまたいで生き続けるので、**戻ってきた直後は
-            // 「最後にマップで立っていた場所」のまま**になる。
-            // ロビーの地面（20m四方）はマップ（40m四方）より狭いので、
-            // マップの端にいた人は**ロビーの地面の外に出て落ちてしまう**
-            // （2026/9/20・大槻さんの報告）
+            // この瞬間はまだシーンの入れ替わりの途中で、前のマップの物が残っている。
+            // 置き直すのは、ロビーのシーンが読み込み終わってから
+            // （<see cref="OnSceneLoaded"/> が数えるフレームのあと）
             placedInRound = false;
-            MoveToSpawnPoint();
-            FollowWithCamera();
         }
 
         CheckReset();
+    }
+
+    // ------------------------------------------------------------
+    // シーンが切り替わったときの置き直し
+    // ------------------------------------------------------------
+
+    /// <summary>
+    /// シーンが読み込まれてから、置き直すまでに待つフレーム数。
+    /// 0 より大きい間は数えている途中。
+    /// </summary>
+    private int placementCountdown;
+
+    /// <summary>
+    /// シーンの中身が出そろうまで待つフレーム数。
+    /// **読み込んだその場で置き直すと、まだ前のシーンの物が残っている。**
+    /// </summary>
+    private const int PlacementDelayFrames = 2;
+
+    private void OnEnable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    /// <summary>
+    /// **シーンが読み込まれたら、少し待ってから場所を置き直す。**
+    ///
+    /// プレイヤーはシーンをまたいで生き続けるので、**移った直後は
+    /// 「前のシーンで立っていた場所」のまま**になる。
+    /// ロビーの地面（20m四方）はマップ（40m四方）より狭いため、
+    /// マップの端にいた人は**ロビーの地面の外に出て落ちてしまう**
+    /// （2026/9/20・大槻さんの報告）。
+    ///
+    /// **その場で置き直すのではなく、数フレーム待つ。**
+    /// 読み込んだ直後はまだ中身が出そろっておらず、
+    /// 前のマップのゴールをつかんで**さらに遠くへ飛ばしてしまう**ため。
+    /// </summary>
+    private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene,
+                               UnityEngine.SceneManagement.LoadSceneMode mode)
+    {
+        if (netPlayer == null || !netPlayer.IsOwner)
+        {
+            return;
+        }
+
+        placementCountdown = PlacementDelayFrames;
+    }
+
+    /// <summary>待ち終わったら置き直す。</summary>
+    private void TickPlacement()
+    {
+        if (placementCountdown <= 0)
+        {
+            return;
+        }
+
+        placementCountdown--;
+
+        if (placementCountdown == 0)
+        {
+            MoveToSpawnPoint();
+            FollowWithCamera();
+        }
     }
 
     /// <summary>
@@ -208,6 +273,18 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
         int team = MyTeam();
         Vector2 scatter = Random.insideUnitCircle * spawnScatter;
 
+        // **ゴールを当てにするのは、ラウンドが動いているときだけ。**
+        //
+        // ロビーにはゴールが無い。それなのに `SpaceJunkGoal.All` を見に行くと、
+        // **シーンの入れ替わりの途中でまだ消えていない「前のマップのゴール」**を
+        // つかんでしまい、ロビーの地面のはるか外（中心から約21m）に置かれる。
+        // ロビーの地面は20m四方（中心から10m）なので、そのまま落ちる
+        // （2026/9/20・大槻さんの報告）
+        if (SpaceJunkRound.Current == null)
+        {
+            return FallbackSpawnPosition(scatter);
+        }
+
         foreach (SpaceJunkGoal goal in SpaceJunkGoal.All)
         {
             if (goal == null || goal.OwnerTeam != team)
@@ -229,11 +306,22 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
         }
 
         // ゴールが見つからないとき（まだ持ち主が配られていないなど）
+        return FallbackSpawnPosition(scatter);
+    }
+
+    /// <summary>
+    /// **ゴールを当てにしないときの出てくる場所。** ロビーでもここを使う。
+    ///
+    /// 中心のまわりに、接続番号ごとに角度をずらして並べる。
+    /// 全員が同じ場所に重なって出てこないようにするため。
+    /// </summary>
+    private Vector3 FallbackSpawnPosition(Vector2 scatter)
+    {
         ulong id = netPlayer != null ? netPlayer.OwnerClientId : 0UL;
         float angle = (id % (ulong)SpaceJunkTeams.MaxPlayers) * (360f / SpaceJunkTeams.MaxPlayers);
-        Vector3 fallback = Quaternion.Euler(0f, angle, 0f) * (Vector3.forward * fallbackRadius);
+        Vector3 spot = Quaternion.Euler(0f, angle, 0f) * (Vector3.forward * fallbackRadius);
 
-        return new Vector3(fallback.x + scatter.x, 0f, fallback.z + scatter.y);
+        return new Vector3(spot.x + scatter.x, 0f, spot.z + scatter.y);
     }
 
     /// <summary>
