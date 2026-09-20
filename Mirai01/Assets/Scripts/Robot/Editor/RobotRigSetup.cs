@@ -6,7 +6,7 @@ using UnityEngine.InputSystem;
 /// <summary>
 /// ロボット（上半身・下半身の分離）のプレハブと検証用シーンを作り直すツール。
 ///
-/// Unityのメニュー「Tools > Mirai01 > ロボット分離の検証シーンを作り直す」から実行できる。
+/// Unityのメニュー「Tools > Mirai01 > アーカイブ > ロボットステージ > ロボット分離の検証シーンを作り直す」から実行できる。
 ///
 /// **合体した姿の体・上半身・下半身の3つを作り、出し入れで切り替える。**
 /// 物理で繋ぐ方式はガタつくためやめた。
@@ -27,7 +27,7 @@ public static class RobotRigSetup
     private static readonly Vector3 UpperSize = new Vector3(0.9f, 0.9f, 0.7f);
     private static readonly Vector3 LowerSize = new Vector3(0.8f, 1.1f, 0.6f);
 
-    [MenuItem("Tools/Mirai01/ロボット分離の検証シーンを作り直す")]
+    [MenuItem("Tools/Mirai01/アーカイブ/ロボットステージ/ロボット分離の検証シーンを作り直す")]
     public static void CreateAll()
     {
         EnsureFolder("Assets/Art");

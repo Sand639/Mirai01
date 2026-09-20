@@ -169,7 +169,7 @@ PlayerRig                 ← CharacterController / PlayerController / PlayerVie
 
 プレハブやシーンを壊してしまった場合、Unityのメニューから作り直せる。
 
-**`Tools > Mirai01 > プレイヤーの検証シーンを作り直す`**
+**`Tools > Mirai01 > アーカイブ > 共通の部品 > プレイヤーの検証シーンを作り直す`**
 
 `PlayerRig.prefab` と `PlayerRigTest.unity` が上書きで作り直される。
 **手で調整した内容は消える**ので、実行する前に確認すること。
@@ -188,3 +188,4 @@ PlayerRig                 ← CharacterController / PlayerController / PlayerVie
 | 2026/9/6 | Claude Code | **TPSでカメラが壁をすり抜ける問題に対応**（大槻さんの依頼）。体とカメラの間に物があるときだけ、カメラが手前に寄る。向きは変わらない。中身は `Assets/Scripts/Common/CameraObstacleAvoid.cs` にあり、ロボット側と共通 |
 | 2026/9/7 | Claude Code | **Escape がポーズ画面のものになった**（ポーズ画面を置いたシーンのみ）。あわせて、**設定画面のマウス感度**が視点の速さに掛かるようになった。詳細は `ポーズ画面.md` |
 | 2026/9/8 | Claude Code | **Escape はポーズ画面だけのものになった。** ポーズ画面がどのシーンでも自動で用意されるようになったため、こちらでは Escape を見ていない（クリックでカーソルを固定するのは今までどおり）。詳細は `ポーズ画面.md` |
+| 2026/9/20 | Claude Code | `Tools > Mirai01` のメニュー整理にあわせて、メニューの場所の書き方を直した（`アーカイブ > ゲーム名 > …`）。**ツールの中身と動きは変わっていない** |

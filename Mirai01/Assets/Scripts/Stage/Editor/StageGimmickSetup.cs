@@ -6,7 +6,7 @@ using UnityEngine;
 /// <summary>
 /// **踏むボタンと、動く壁をステージに置くためのツール。**
 ///
-/// Unityのメニュー `Tools > Mirai01 > 踏むボタンと動く壁を置く` から実行できる。
+/// Unityのメニュー `Tools > Mirai01 > アーカイブ > ロボットステージ > 踏むボタンと動く壁を置く` から実行できる。
 /// **ボタンと壁が繋がった状態**で置かれるので、そのまま再生すれば動く。
 ///
 /// ※ Editor フォルダにあるため、ゲームのビルドには含まれない。
@@ -28,7 +28,7 @@ public static class StageGimmickSetup
     private const string GlassShaderName = "Mirai01/Glass";
     private const string GlassMaterialPath = MaterialFolder + "/Glass.mat";
 
-    [MenuItem("Tools/Mirai01/踏むボタンと動く壁を置く")]
+    [MenuItem("Tools/Mirai01/アーカイブ/ロボットステージ/踏むボタンと動く壁を置く")]
     public static void CreateButtonAndWall()
     {
         Vector3 position = FindGroundPosition();
@@ -48,7 +48,7 @@ public static class StageGimmickSetup
                   "別の物を動かしたいときは、ボタンの「Pressed」に相手を入れ替えてください。", button);
     }
 
-    [MenuItem("Tools/Mirai01/鍵と鍵付きの扉を置く")]
+    [MenuItem("Tools/Mirai01/アーカイブ/ロボットステージ/鍵と鍵付きの扉を置く")]
     public static void CreateKeyAndDoor()
     {
         Vector3 position = FindGroundPosition();
@@ -67,7 +67,7 @@ public static class StageGimmickSetup
                   "鍵の種類を分けたいときは、鍵と扉の Key Id に同じ言葉を入れてください。", door);
     }
 
-    [MenuItem("Tools/Mirai01/ガラスの板を置く")]
+    [MenuItem("Tools/Mirai01/アーカイブ/ロボットステージ/ガラスの板を置く")]
     public static void CreateGlassPane()
     {
         Vector3 position = FindGroundPosition() + Vector3.up * (GlassSize.y * 0.5f);

@@ -8,7 +8,7 @@ using UnityEngine.UI;
 /// <summary>
 /// PlayerRig のプレハブと、その検証用シーンを自動で作り直すツール。
 ///
-/// Unityのメニュー「Tools > Mirai01 > プレイヤーの検証シーンを作り直す」から実行できる。
+/// Unityのメニュー「Tools > Mirai01 > アーカイブ > 共通の部品 > プレイヤーの検証シーンを作り直す」から実行できる。
 /// 手で組み立てると付け忘れが起きるので、作り直したいときはこれを使う。
 ///
 /// ※ このスクリプトは Editor フォルダにあるため、ゲームのビルドには含まれない。
@@ -28,7 +28,7 @@ public static class PlayerRigSetup
     private const string GroundMaterialPath = MaterialFolder + "/TestGround.mat";
     private const string InputActionsPath = "Assets/InputSystem_Actions.inputactions";
 
-    [MenuItem("Tools/Mirai01/プレイヤーの検証シーンを作り直す")]
+    [MenuItem("Tools/Mirai01/アーカイブ/共通の部品/プレイヤーの検証シーンを作り直す")]
     public static void CreateAll()
     {
         EnsureFolder("Assets/Scripts");
