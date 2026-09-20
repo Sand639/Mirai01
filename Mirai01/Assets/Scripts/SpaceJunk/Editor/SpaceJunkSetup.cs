@@ -112,6 +112,47 @@ public static class SpaceJunkSetup
             skipped);
     }
 
+    /// <summary>
+    /// **すでにあるマップを、作り直さずに点検するだけのメニュー。**
+    ///
+    /// 「ゴールが足りない」「進行役がいない」といった、遊ばないと気づきにくい抜けを探す。
+    /// 手でマップを直したあとの確認にも使える。
+    /// </summary>
+    [MenuItem("Tools/Mirai01/宇宙ごみのマップを点検する（作り直さない）")]
+    public static void VerifyAllMaps()
+    {
+        if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+        {
+            return;
+        }
+
+        int checkedCount = 0;
+
+        for (int i = 0; i < MapSources.GetLength(0); i++)
+        {
+            string path = MapSources[i, 1];
+
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(path) == null)
+            {
+                continue;
+            }
+
+            EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
+            VerifyMap(path);
+            checkedCount++;
+        }
+
+        if (checkedCount == 0)
+        {
+            Debug.LogWarning("[JUNK] 点検できる宇宙ごみのマップがありません。" +
+                             "先に『宇宙ごみ集めのシーンを作る』を実行してください。");
+            return;
+        }
+
+        Debug.Log($"[JUNK] 宇宙ごみのマップ {checkedCount} 個を点検しました。" +
+                  "**赤いエラーが出ていなければ、全部そろっています。**");
+    }
+
     // ------------------------------------------------------------
     // ロビーのシーン
     // ------------------------------------------------------------
@@ -260,6 +301,92 @@ public static class SpaceJunkSetup
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, scenePath);
+
+        VerifyMap(scenePath);
+    }
+
+    /// <summary>
+    /// **できあがったマップが、ちゃんと遊べる形になっているかを点検する。**
+    ///
+    /// コピー元の釣りマップは、作られた時期によって中身がそろっていない。
+    /// 足りないまま気づかずに遊ぶと、**あるチームだけ点が入らない**といった
+    /// 分かりにくい形で出るので、作った直後にここで知らせる。
+    ///
+    /// （2026/9/20：`FishingMap03` にゴールが1つしか無く、コピー先の
+    ///  `SpaceJunkMap03` も1つのままだったのを、遊んだあとに気づいた）
+    /// </summary>
+    private static void VerifyMap(string scenePath)
+    {
+        string name = System.IO.Path.GetFileNameWithoutExtension(scenePath);
+        List<string> problems = new List<string>();
+
+        int rounds = Object.FindObjectsByType<SpaceJunkRound>(
+            FindObjectsInactive.Include, FindObjectsSortMode.None).Length;
+
+        if (rounds != 1)
+        {
+            problems.Add($"ラウンドの進行役（SpaceJunkRound）が {rounds} 個です。**1個必要**" +
+                         "（コピー元に FishingMatch が無かった可能性があります）");
+        }
+
+        SpaceJunkGoal[] goals = Object.FindObjectsByType<SpaceJunkGoal>(
+            FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+        if (goals.Length != SpaceJunkTeams.GoalCount)
+        {
+            problems.Add($"ゴールが {goals.Length} 個です。**{SpaceJunkTeams.GoalCount} 個必要**。" +
+                         "足りないと、そのゴールを持つはずのチームは**絶対にラウンドを取れません**");
+        }
+
+        // ゴールの番号（北=0/東=1/南=2/西=3）が重複していないか
+        bool[] used = new bool[SpaceJunkTeams.GoalCount];
+
+        foreach (SpaceJunkGoal goal in goals)
+        {
+            int index = goal.GoalIndex;
+
+            if (index < 0 || index >= used.Length)
+            {
+                problems.Add($"ゴール「{goal.name}」の Goal Index が {index} です（0〜{used.Length - 1} のはず）");
+                continue;
+            }
+
+            if (used[index])
+            {
+                problems.Add($"ゴールの Goal Index {index}（{SpaceJunkTeams.GoalPlaceName(index)}）が重複しています");
+            }
+
+            used[index] = true;
+        }
+
+        int spawners = Object.FindObjectsByType<SpaceJunkSpawner>(
+            FindObjectsInactive.Include, FindObjectsSortMode.None).Length;
+
+        if (spawners != 1)
+        {
+            problems.Add($"素材のスポナー（SpaceJunkSpawner）が {spawners} 個です。**1個必要**");
+        }
+
+        int uis = Object.FindObjectsByType<SpaceJunkMatchUI>(
+            FindObjectsInactive.Include, FindObjectsSortMode.None).Length;
+
+        if (uis != 1)
+        {
+            problems.Add($"プレイ中の画面（SpaceJunkMatchUI）が {uis} 個です。**1個必要**");
+        }
+
+        if (problems.Count == 0)
+        {
+            Debug.Log($"[JUNK] {name} … 点検OK（ゴール4つ・進行役・スポナー・画面がそろっています）");
+            return;
+        }
+
+        Debug.LogError(
+            $"[JUNK] **{name} は、このままでは正しく遊べません。**\n・" +
+            string.Join("\n・", problems) +
+            "\n\nUnity でこのシーンを開いて直してください。" +
+            "ゴールを足すときは `Assets/Prefabs/Fish/Online/GoalArea.prefab` を置き、" +
+            "その `SpaceJunkGoal` の Goal Index を空いている番号にします。");
     }
 
     /// <summary>試合のまとめ役 → 1ラウンドの進行役。**NetworkObject はそのまま使い回す。**</summary>
