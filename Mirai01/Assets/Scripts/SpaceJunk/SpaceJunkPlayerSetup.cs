@@ -55,6 +55,10 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
     [Tooltip("この高さより下まで落ちたら、**自動で出てくる場所へ戻す**（メートル）")]
     [SerializeField] private float fallResetHeight = -8f;
 
+    [Tooltip("**ラウンド中に**戻ったとき（キー・落下）、動けない秒数（復活時間）。0 で止めない。ロビーでは止めない")]
+    [Min(0f)]
+    [SerializeField] private float respawnLockSeconds = 3f;
+
     [Header("レーダー（自分のぶんにだけ付く）")]
     [Tooltip("レーダーの外枠の画像（Assets/Art/Sprites/Radar）")]
     [SerializeField] private Sprite radarFrame;
@@ -71,8 +75,18 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
     /// </summary>
     public static string LocalResetKeyName { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// このPCで操作している人の、**復活までの残り秒数**。0 なら動ける。画面の案内に使う。
+    /// </summary>
+    public static float LocalRespawnRemaining { get; private set; }
+
     private FishingNetPlayer netPlayer;
     private CharacterController characterController;
+    private FishingPlayerController mover;
+    private HookController hookController;
+
+    /// <summary>復活までの残り秒数（自分のぶんだけ使う）。</summary>
+    private float respawnRemaining;
 
     /// <summary>マップに着いて、場所とカメラを合わせ終わったか。</summary>
     private bool placedInRound;
@@ -84,6 +98,8 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
     {
         netPlayer = GetComponent<FishingNetPlayer>();
         characterController = GetComponent<CharacterController>();
+        mover = GetComponent<FishingPlayerController>();
+        hookController = GetComponent<HookController>();
     }
 
     private void Update()
@@ -101,12 +117,19 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
         EnsureRadar();
 
         TickPlacement();
+        TickRespawnLock();
 
         bool inRound = SpaceJunkRound.Current != null;
 
         if (inRound && !placedInRound)
         {
             placedInRound = true;
+
+            // 新しいラウンドの始まり。前のラウンドの復活待ちが残っていても、ここで解く
+            // （操作はラウンドの係が戻している）
+            respawnRemaining = 0f;
+            LocalRespawnRemaining = 0f;
+
             MoveToSpawnPoint();
             FollowWithCamera();
         }
@@ -206,6 +229,7 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
         {
             MoveToSpawnPoint();
             FollowWithCamera();
+            StartRespawnLock();
             return;
         }
 
@@ -217,10 +241,70 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
 
         Keyboard keyboard = Keyboard.current;
 
+        // 復活待ちの間は、もう一度押しても何もしない（押し続けて待ち時間を延ばせないように）
+        if (respawnRemaining > 0f)
+        {
+            return;
+        }
+
         if ((keyboard != null && keyboard[resetKey].wasPressedThisFrame) || GamepadInput.WasPressed(resetButton))
         {
             MoveToSpawnPoint();
             FollowWithCamera();
+            StartRespawnLock();
+        }
+    }
+
+    // ------------------------------------------------------------
+    // 復活時間（ラウンド中に戻ったとき、しばらく動けない）
+    // ------------------------------------------------------------
+
+    /// <summary>
+    /// **ラウンド中なら、復活時間のあいだ動けなくする。**（2026/9/22・大槻さん）
+    /// R キーで戻るのを「逃げ」に使えないようにするため。ロビーでは止めない。
+    /// </summary>
+    private void StartRespawnLock()
+    {
+        if (SpaceJunkRound.Current == null || respawnLockSeconds <= 0f)
+        {
+            return;
+        }
+
+        respawnRemaining = respawnLockSeconds;
+        LocalRespawnRemaining = respawnRemaining;
+        SetControlEnabled(false);
+    }
+
+    private void TickRespawnLock()
+    {
+        if (respawnRemaining <= 0f)
+        {
+            return;
+        }
+
+        respawnRemaining -= Time.deltaTime;
+        LocalRespawnRemaining = Mathf.Max(0f, respawnRemaining);
+
+        if (respawnRemaining <= 0f)
+        {
+            respawnRemaining = 0f;
+
+            // **ラウンドが終わって結果を出している最中なら、戻さない**（ラウンドの係が止めているため）
+            SetControlEnabled(SpaceJunkRound.PlayAllowed);
+        }
+    }
+
+    /// <summary>移動とフックを止める／戻す。</summary>
+    private void SetControlEnabled(bool enabledState)
+    {
+        if (mover != null)
+        {
+            mover.enabled = enabledState;
+        }
+
+        if (hookController != null)
+        {
+            hookController.enabled = enabledState;
         }
     }
 
@@ -278,9 +362,20 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
         }
     }
 
-    /// <summary>**自分のチームのゴールの近く**へ移す。見つからなければ円周上へ散らす。</summary>
+    /// <summary>
+    /// **自分のチームのゴールの近く**へ移す。見つからなければ円周上へ散らす。
+    ///
+    /// **移す前に、フックを手元に戻して、つかんでいる物資も離す**（2026/9/22）。
+    /// R キー・落下・ラウンドの始まり・ロビーへ戻ったとき、のどれでもここを通るので、
+    /// 物資をつかんだまま戻ったり、伸ばしたフックが次のラウンドに残ったりしない。
+    /// </summary>
     private void MoveToSpawnPoint()
     {
+        if (hookController != null)
+        {
+            hookController.ResetHook();
+        }
+
         Vector3 position = FindSpawnPosition();
         Quaternion rotation = Quaternion.LookRotation(
             new Vector3(-position.x, 0f, -position.z).sqrMagnitude > 0.01f

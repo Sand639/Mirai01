@@ -567,6 +567,40 @@ public class HookController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// **フックを一瞬で手元に戻し、つかんでいる物資も離す。**（2026/9/22）
+    ///
+    /// 出てくる場所へ戻ったとき（R キー・落下）や、シーンが切り替わったときに呼ぶ。
+    /// 呼ばないと、**物資をつかんだまま戻ったり、伸ばしたフックがそのまま次のラウンドに残ったり**する。
+    /// つかんでいた物資はその場に落ちる（オンラインではホストへ「離した」と伝える）。
+    /// </summary>
+    public void ResetHook()
+    {
+        if (throwController != null)
+        {
+            throwController.ForceRelease();
+        }
+
+        if (attached != null && !attached.IsVanished)
+        {
+            attached.SetHooked(false);
+        }
+
+        attached = null;
+        autoTarget = null;
+        charge = 0f;
+        phase = HookPhase.Idle;
+        hookPosition = handPoint != null ? handPoint.position : transform.position;
+
+        if (ui != null)
+        {
+            ui.ShowCharge(false);
+            ui.ShowTiming(false);
+        }
+
+        UpdateHookVisual();
+    }
+
     /// <summary>ThrowController が投げ終わったら呼ぶ。フックを手元へ戻し始める。</summary>
     public void NotifyThrowFinished()
     {

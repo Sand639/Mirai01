@@ -819,6 +819,44 @@ public class ThrowController : MonoBehaviour
     }
 
     /// <summary>
+    /// **つかんでいる物資を、力を加えずにその場で離す。** <see cref="HookController.ResetHook"/> から呼ばれる。
+    /// 出てくる場所へ戻ったとき・シーンが切り替わったときに、つかんだままにならないようにするため（2026/9/22）。
+    /// </summary>
+    public void ForceRelease()
+    {
+        if (!active)
+        {
+            return;
+        }
+
+        if (target != null && !target.IsVanished)
+        {
+            FishingNetSupply netSupply = GetNetSupply();
+
+            // 物理を戻すのは、いまの持ち主のときだけ（持ち主でないPCは、ホストから配られる位置に従う）
+            if (netSupply == null || !netSupply.IsSpawned || netSupply.IsOwner)
+            {
+                RestorePhysics(target.Body);
+            }
+
+            if (netSupply != null)
+            {
+                netSupply.RequestRelease(Vector3.zero, 0f, hook.LocalPlayerIndex);
+            }
+
+            target.SetHooked(false);
+        }
+
+        target = null;
+        active = false;
+
+        if (hook != null && hook.UI != null)
+        {
+            hook.UI.ShowTiming(false);
+        }
+    }
+
+    /// <summary>
     /// いま引っ張っている物資のオンライン部品。
     /// **オンラインでないとき、または部品が無いときは null**（そのときは手元で処理する）。
     /// </summary>
