@@ -287,7 +287,7 @@ public static class SpaceJunkFixedCameraSetup
     /// Netcode はこの番号で全員のPCの物を対応づけるので、付け直さないと同期しない
     /// （`AIの申し送り.md` 2026/9/15。`FishingMapSetup.EnsureNetworkIdsInScene` と同じやり方）。
     /// </summary>
-    private static void RefreshNetworkIds()
+    internal static void RefreshNetworkIds()
     {
         System.Reflection.MethodInfo validate = typeof(NetworkObject).GetMethod("OnValidate",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic |
