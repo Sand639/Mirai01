@@ -55,6 +55,16 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
     [Tooltip("この高さより下まで落ちたら、**自動で出てくる場所へ戻す**（メートル）")]
     [SerializeField] private float fallResetHeight = -8f;
 
+    [Header("レーダー（自分のぶんにだけ付く）")]
+    [Tooltip("レーダーの外枠の画像（Assets/Art/Sprites/Radar）")]
+    [SerializeField] private Sprite radarFrame;
+
+    [Tooltip("レーダーの方角（N/E/S/W）の輪の画像。自分の向きに合わせて回る")]
+    [SerializeField] private Sprite radarCompass;
+
+    [Tooltip("レーダーの真ん中に出す自分の印の画像")]
+    [SerializeField] private Sprite radarSelf;
+
     /// <summary>
     /// このPCで操作している人の「戻る」キーの名前。画面の案内に使う。
     /// 自分のぶんが動き出すまでは空。
@@ -87,6 +97,8 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
         }
 
         LocalResetKeyName = $"{resetKey}／{GamepadInput.Label(resetButton)}";
+
+        EnsureRadar();
 
         TickPlacement();
 
@@ -210,6 +222,22 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
             MoveToSpawnPoint();
             FollowWithCamera();
         }
+    }
+
+    /// <summary>
+    /// **自分のぶんにだけ、レーダーを付ける。**（2026/9/22）
+    /// 他の人のぶんに付けると、その人を中心にしたレーダーがもう1枚出てしまう。
+    /// レーダーはマップにいる間だけ出る（<see cref="SpaceJunkRadar"/>）。
+    /// </summary>
+    private void EnsureRadar()
+    {
+        if (GetComponent<SpaceJunkRadar>() != null)
+        {
+            return;
+        }
+
+        SpaceJunkRadar radar = gameObject.AddComponent<SpaceJunkRadar>();
+        radar.Setup(radarFrame, radarCompass, radarSelf);
     }
 
     /// <summary>このプレイヤーのチーム。係がいなければ 0。</summary>
