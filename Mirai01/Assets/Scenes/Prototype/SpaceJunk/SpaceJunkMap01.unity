@@ -4048,8 +4048,8 @@ MonoBehaviour:
   plateWeight: 1
   circuitWeight: 1
   fuelWeight: 1
-  maxObjects: 60
-  initialSpawnCount: 18
+  maxObjects: 20
+  initialSpawnCount: 5
   spawnIntervalSeconds: 0.8
   startDelaySeconds: 0.5
   areaHalfSize: {x: 16, y: 16}

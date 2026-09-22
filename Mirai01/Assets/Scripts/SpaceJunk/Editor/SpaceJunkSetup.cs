@@ -315,7 +315,7 @@ public static class SpaceJunkSetup
     /// （2026/9/20：`FishingMap03` にゴールが1つしか無く、コピー先の
     ///  `SpaceJunkMap03` も1つのままだったのを、遊んだあとに気づいた）
     /// </summary>
-    private static void VerifyMap(string scenePath)
+    internal static void VerifyMap(string scenePath)
     {
         string name = System.IO.Path.GetFileNameWithoutExtension(scenePath);
         List<string> problems = new List<string>();
@@ -536,7 +536,7 @@ public static class SpaceJunkSetup
     /// 入っている必要がある。** 入っていないと「読み込めません」で止まる。
     /// すでに入っていれば何もしない（何度実行しても増えない）。
     /// </summary>
-    private static void RegisterScenesInBuildSettings(List<string> mapPaths)
+    internal static void RegisterScenesInBuildSettings(List<string> mapPaths)
     {
         List<EditorBuildSettingsScene> scenes = new List<EditorBuildSettingsScene>(
             EditorBuildSettings.scenes);
@@ -594,7 +594,7 @@ public static class SpaceJunkSetup
     /// （2026/9/20 に追加。それ以前に作られた `SpaceJunkMap` は繋がったままなので、
     ///  作り直すときに切り離される。`リスクリスト.md` に登録済み）
     /// </summary>
-    private static void UnpackIfPrefabInstance(GameObject target)
+    internal static void UnpackIfPrefabInstance(GameObject target)
     {
         if (target == null || !PrefabUtility.IsPartOfPrefabInstance(target))
         {
