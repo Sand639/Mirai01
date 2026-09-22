@@ -127,11 +127,22 @@ public class FishingPlayerController : MonoBehaviour, ILaunchable
         {
             Vector2 input = moveAction.ReadValue<Vector2>();
 
-            // 画面の上下左右＝ワールドの XZ。見下ろしカメラは真上から見ているのでこれで合う
             direction = new Vector3(input.x, 0f, input.y);
             if (direction.sqrMagnitude > 1f)
             {
                 direction.Normalize();
+            }
+
+            // **画面の上下左右に合わせる。** カメラが水平に回っていたら、そのぶん入力も回す。
+            //
+            // 以前は「画面の上＝ワールドの北」と決め打ちしていた。釣りのカメラは常に北向きなので
+            // それで合っていたが、宇宙ごみの「自陣が手前に来るカメラ」（SpaceJunkTeamFollowCamera）は
+            // チームによって向きが回るので、決め打ちだと W で画面の下や横へ進んでしまう
+            // （2026/9/22）。**カメラが北向きなら回す量は 0 なので、釣りの動きは変わらない。**
+            Camera view = Camera.main;
+            if (view != null)
+            {
+                direction = Quaternion.Euler(0f, view.transform.eulerAngles.y, 0f) * direction;
             }
         }
 

@@ -336,6 +336,13 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
             follow.SetTarget(transform);
         }
 
+        // 自陣が手前に来るように回るカメラ（SpaceJunkMap01TeamCam など）
+        SpaceJunkTeamFollowCamera teamCamera = FindFirstObjectByType<SpaceJunkTeamFollowCamera>();
+        if (teamCamera != null)
+        {
+            teamCamera.SetTarget(transform);
+        }
+
         PlayerAimController aim = GetComponent<PlayerAimController>();
         if (aim != null && Camera.main != null)
         {
