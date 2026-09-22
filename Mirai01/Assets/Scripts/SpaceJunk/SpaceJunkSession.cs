@@ -86,6 +86,15 @@ public class SpaceJunkSession : NetworkBehaviour
     [Tooltip("試合の結果を見せてから、ロビーへ戻るまでの秒数")]
     [SerializeField] private float matchResultSeconds = 8f;
 
+    [Header("ラウンドの勝ち方")]
+    [Tooltip("Score＝時間いっぱい得点を競う（いまのルール）。\n" +
+             "ThreeKinds＝素材3種類をそろえたチームがその場で勝つ（前のルール。**コードだけ残してある**）。\n" +
+             "ロビーには出していない。戻したいときはここを切り替える")]
+    [SerializeField] private SpaceJunkWinRule winRule = SpaceJunkWinRule.Score;
+
+    /// <summary>ラウンドの勝ち方。**ホストの値が使われる**（<see cref="SpaceJunkRound"/> が開始時に全員へ配る）。</summary>
+    public SpaceJunkWinRule WinRule => winRule;
+
     // ------------------------------------------------------------
     // ホストが決めて全員へ配るもの
     // ------------------------------------------------------------

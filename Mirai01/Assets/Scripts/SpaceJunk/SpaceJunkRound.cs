@@ -11,10 +11,30 @@ public enum SpaceJunkRoundPhase
     Result
 }
 
+/// <summary>ラウンドの勝ち方。</summary>
+public enum SpaceJunkWinRule
+{
+    /// <summary>**時間いっぱい得点を競う**（2026/9/22 から。いまのルール）</summary>
+    Score,
+
+    /// <summary>素材3種類をそろえたチームが、その場で勝つ（2026/9/17 の最初のルール。コードだけ残してある）</summary>
+    ThreeKinds
+}
+
 /// <summary>
 /// **1ラウンドぶんの進行役。** マップ（ステージ）のシーンに1つ置く。
 ///
-/// ## ラウンドの決まり（2026/9/17・大槻さん）
+/// 勝ち方は2つあり、<see cref="SpaceJunkSession"/> の Win Rule で切り替える（ロビーには出していない）。
+///
+/// ## 得点制（Score・いまのルール。2026/9/22・大槻さん）
+///
+/// - **時間いっぱい遊び、得点の高いチームがラウンドを取る**（途中で決着はつかない）
+/// - 素材を自陣のゴールに入れると **1点**。同じ種類を2個目以降入れても1点ずつ入る
+/// - **同じ種類を3回続けて入れると、別に5点**（<see cref="StreakLength"/>・<see cref="StreakBonus"/>）。
+///   ボーナスが入ったら数え直す（4・5回目は1点ずつ、6回目でまた5点）。違う種類を入れても数え直し
+/// - **1位が同点なら引き分け**で、誰も取らずに次へ行く（全チーム0点も引き分け）
+///
+/// ## 3種類そろえたら勝ち（ThreeKinds・最初のルール。2026/9/17・大槻さん）
 ///
 /// - **自陣のゴールに素材3種類を1個ずつ入れたチームが、その場でラウンド勝利**
 /// - 誰もそろえられないまま最大時間に達したら、**集めた種類が多いチームがラウンドを取る**
@@ -65,6 +85,56 @@ public class SpaceJunkRound : NetworkBehaviour
 
     /// <summary>このラウンドを取ったチーム。-1 なら引き分け。</summary>
     private readonly NetworkVariable<int> roundWinner = new NetworkVariable<int>(-1);
+
+    /// <summary>このラウンドの勝ち方。**ホストが開始時に決めて全員に配る。**</summary>
+    private readonly NetworkVariable<SpaceJunkWinRule> rule =
+        new NetworkVariable<SpaceJunkWinRule>(SpaceJunkWinRule.Score);
+
+    /// <summary>チームごとの得点（得点制のとき）。長さは常に <see cref="SpaceJunkTeams.MaxTeams"/>。</summary>
+    private readonly NetworkList<int> scores = new NetworkList<int>();
+
+    /// <summary>チームごとの「続けて入れている種類」。-1 ならまだ無い。</summary>
+    private readonly NetworkList<int> streakKinds = new NetworkList<int>();
+
+    /// <summary>チームごとの「同じ種類を続けて入れた回数」。ボーナスが入ると 0 に戻る。</summary>
+    private readonly NetworkList<int> streakCounts = new NetworkList<int>();
+
+    /// <summary>素材1個を入れたときの得点。</summary>
+    public const int PointPerItem = 1;
+
+    /// <summary>ボーナスになる「同じ種類を続けて入れる回数」。</summary>
+    public const int StreakLength = 3;
+
+    /// <summary>同じ種類を <see cref="StreakLength"/> 回続けて入れたときに、別に入る得点。</summary>
+    public const int StreakBonus = 5;
+
+    /// <summary>このラウンドの勝ち方。</summary>
+    public SpaceJunkWinRule Rule => rule.Value;
+
+    /// <summary>そのチームの得点（得点制のとき）。</summary>
+    public int ScoreOf(int team)
+    {
+        return team >= 0 && team < scores.Count ? scores[team] : 0;
+    }
+
+    /// <summary>
+    /// そのチームが、いまどの種類を何回続けて入れているか。
+    /// まだ無ければ false（連続の表示に使う）。
+    /// </summary>
+    public bool TryGetStreak(int team, out SpaceJunkMaterialKind kind, out int count)
+    {
+        kind = default;
+        count = 0;
+
+        if (team < 0 || team >= streakKinds.Count || team >= streakCounts.Count || streakKinds[team] < 0)
+        {
+            return false;
+        }
+
+        kind = SpaceJunkMaterials.FromIndex(streakKinds[team]);
+        count = streakCounts[team];
+        return count > 0;
+    }
 
     /// <summary>集めている最中か。</summary>
     public bool IsPlaying => phase.Value == SpaceJunkRoundPhase.Playing;
@@ -153,10 +223,21 @@ public class SpaceJunkRound : NetworkBehaviour
         if (IsServer)
         {
             collected.Clear();
+            scores.Clear();
+            streakKinds.Clear();
+            streakCounts.Clear();
+
             for (int i = 0; i < SpaceJunkTeams.MaxTeams; i++)
             {
                 collected.Add(0);
+                scores.Add(0);
+                streakKinds.Add(-1);
+                streakCounts.Add(0);
             }
+
+            rule.Value = SpaceJunkSession.Current != null
+                ? SpaceJunkSession.Current.WinRule
+                : SpaceJunkWinRule.Score;
 
             phase.Value = SpaceJunkRoundPhase.Playing;
             roundWinner.Value = -1;
@@ -253,7 +334,14 @@ public class SpaceJunkRound : NetworkBehaviour
         // 最大時間に達した
         if (NetworkManager.ServerTime.Time >= endServerTime.Value)
         {
-            FinishByCount();
+            if (rule.Value == SpaceJunkWinRule.Score)
+            {
+                FinishByScore();
+            }
+            else
+            {
+                FinishByCount();
+            }
         }
     }
 
@@ -264,9 +352,9 @@ public class SpaceJunkRound : NetworkBehaviour
     /// <summary>
     /// **ゴールに素材が入ったことを受け取る。** <see cref="SpaceJunkGoal"/> から呼ばれる。
     ///
-    /// すでに持っている種類だったときは何もしない（素材は消えるだけ）。
+    /// 得点制なら点を足す。3種類ルールなら、すでに持っている種類のときは何もしない（素材は消えるだけ）。
     /// </summary>
-    /// <returns>新しい種類として数えたら true。</returns>
+    /// <returns>数えたら true（ゴールの床が光る）。</returns>
     public bool ServerCollect(int team, SpaceJunkMaterialKind kind)
     {
         if (!IsServer || phase.Value != SpaceJunkRoundPhase.Playing)
@@ -285,6 +373,12 @@ public class SpaceJunkRound : NetworkBehaviour
         if (SpaceJunkSession.Current != null && !SpaceJunkSession.Current.HasPlayers(team))
         {
             return false;
+        }
+
+        if (rule.Value == SpaceJunkWinRule.Score)
+        {
+            ServerAddScore(team, kind);
+            return true;
         }
 
         int bit = KindBit(kind);
@@ -309,9 +403,71 @@ public class SpaceJunkRound : NetworkBehaviour
         return true;
     }
 
+    /// <summary>
+    /// **得点制の点の足し方。** 1個で1点。同じ種類を <see cref="StreakLength"/> 回続けたら、別に <see cref="StreakBonus"/> 点。
+    /// ボーナスが入ったら数え直す。違う種類を入れたら、その種類の1回目から数え直す。
+    /// </summary>
+    private void ServerAddScore(int team, SpaceJunkMaterialKind kind)
+    {
+        int kindIndex = (int)kind;
+
+        // 集めた種類の印も付けておく（画面の表示に使う）
+        collected[team] = collected[team] | KindBit(kind);
+
+        int streak = streakKinds[team] == kindIndex ? streakCounts[team] + 1 : 1;
+        int gained = PointPerItem;
+
+        if (streak >= StreakLength)
+        {
+            gained += StreakBonus;
+            streak = 0;
+        }
+
+        streakKinds[team] = kindIndex;
+        streakCounts[team] = streak;
+        scores[team] = scores[team] + gained;
+
+        Debug.Log($"[JUNK] {SpaceJunkTeams.TeamName(team)} が {SpaceJunkMaterials.Name(kind)} を入れました" +
+                  $"（+{gained} 点{(gained > PointPerItem ? $"。{StreakLength} 連続のボーナス込み" : string.Empty)}／" +
+                  $"合計 {scores[team]} 点）。");
+    }
+
     // ------------------------------------------------------------
     // 決着（**ホストだけが判定する**）
     // ------------------------------------------------------------
+
+    /// <summary>
+    /// 得点制で、最大時間に達したときの決着。**得点の高いチームがラウンドを取る。**
+    /// 1位が同点なら引き分けで、誰も取らない（全チーム0点も引き分け）。
+    /// </summary>
+    private void FinishByScore()
+    {
+        int bestTeam = -1;
+        int bestScore = -1;
+        bool tied = false;
+
+        int teams = SpaceJunkSession.Current != null
+            ? SpaceJunkSession.Current.TeamCount
+            : SpaceJunkTeams.MaxTeams;
+
+        for (int team = 0; team < teams; team++)
+        {
+            int score = ScoreOf(team);
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestTeam = team;
+                tied = false;
+            }
+            else if (score == bestScore)
+            {
+                tied = true;
+            }
+        }
+
+        FinishRound(tied || bestScore <= 0 ? -1 : bestTeam);
+    }
 
     /// <summary>
     /// 最大時間に達したときの決着。**集めた種類が多いチームがラウンドを取る。**
