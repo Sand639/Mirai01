@@ -159,6 +159,15 @@ public class DraggableGuiPanel
         {
             contents?.Invoke(id);
         }
+        else
+        {
+            // **たたんでいるときも、幅を保つための空の場所を1つ置く。**
+            //
+            // GUILayout.Window は、中身が1つも無いと**幅の指定（GUILayout.Width）を無視して**
+            // 枠の余白ぶんまで縮んでしまう。そうなると帯も「＋」も窓の外にはみ出して見えなくなり、
+            // **二度と開けない小さな楕円**だけが残る（2026/9/22・大槻さんの報告）
+            GUILayoutUtility.GetRect(width - 20f, 2f);
+        }
 
         // 帯の部分だけをつかめるようにする（全体にすると、ボタンや入力欄が押しにくくなる）
         GUI.DragWindow(new Rect(0f, 0f, width - 28f, TitleBarHeight));
