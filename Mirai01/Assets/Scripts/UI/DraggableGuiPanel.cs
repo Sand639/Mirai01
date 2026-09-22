@@ -45,6 +45,23 @@ public class DraggableGuiPanel
     private bool collapsed;
     private GUI.WindowFunction contents;
 
+    /// <summary>
+    /// 「＋」「－」が押されて、**次の並べ直しで切り替える予定**があるか。
+    ///
+    /// ## なぜその場で切り替えないのか（2026/9/22 修正）
+    ///
+    /// `OnGUI` は1回の描画の中で、まず**並べ方を決める**（Layout）、次に**描く・クリックを受け取る**、
+    /// の順に何度も呼ばれる。ボタンが押されたと分かるのは後のほう。
+    ///
+    /// そこで開いてしまうと、**並べ方は「閉じた状態」で決まっているのに、中身を描こうとする**ことになり、
+    /// Unity が「並べ方が決まっていない物を描こうとした」と失敗する
+    /// （`Getting control 0's position in a group with only 0 controls`）。
+    /// 見た目は**「＋」を押すと開こうとするが、開けない**になっていた（大槻さんの報告）。
+    ///
+    /// そのため、押されたら**印だけ付けておき、次に並べ方を決めるときに切り替える。**
+    /// </summary>
+    private bool toggleRequested;
+
     /// <summary>折りたたまれているか。</summary>
     public bool Collapsed
     {
@@ -99,6 +116,13 @@ public class DraggableGuiPanel
 
         contents = drawContents;
 
+        // **開く・閉じるは、並べ方を決める段階でだけ切り替える**（toggleRequested の説明を参照）
+        if (toggleRequested && Event.current.type == EventType.Layout)
+        {
+            collapsed = !collapsed;
+            toggleRequested = false;
+        }
+
         Matrix4x4 saved = GUI.matrix;
         GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
 
@@ -110,7 +134,9 @@ public class DraggableGuiPanel
         {
             rect.height = 0f;
         }
-        rect = GUILayout.Window(windowId, rect, DrawWindow, title, GUILayout.Width(width));
+        // 閉じているときも、帯と「＋」が押せる高さは必ず残す
+        rect = GUILayout.Window(windowId, rect, DrawWindow, title,
+            GUILayout.Width(width), GUILayout.MinHeight(TitleBarHeight + 6f));
 
         // **帯が画面の外へ出てつかめなくならない**ところまで戻す
         // （中身は画面の外へはみ出してもよい。帯さえ見えていれば引き戻せる）
@@ -123,9 +149,10 @@ public class DraggableGuiPanel
     private void DrawWindow(int id)
     {
         // 帯の右端に、折りたたみのボタン
+        // ここでは切り替えない。印だけ付けて、次に並べ方を決めるときに切り替える
         if (GUI.Button(new Rect(width - 24f, 2f, 20f, TitleBarHeight - 4f), collapsed ? "+" : "-"))
         {
-            collapsed = !collapsed;
+            toggleRequested = true;
         }
 
         if (!collapsed)
