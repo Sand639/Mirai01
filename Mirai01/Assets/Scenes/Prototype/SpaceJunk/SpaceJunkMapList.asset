@@ -38,3 +38,8 @@ MonoBehaviour:
     displayName: 
     sceneName: SpaceJunkMap04
     scenePath: Assets/Scenes/Prototype/SpaceJunk/SpaceJunkMap04.unity
+  - scene: {fileID: 102900000, guid: 9df372df960c19a4696c8aef662a7cff, type: 3}
+    showInLobby: 1
+    displayName: 
+    sceneName: SpaceJunkMap01TeamCam
+    scenePath: Assets/Scenes/Prototype/SpaceJunk/SpaceJunkMap01TeamCam.unity
