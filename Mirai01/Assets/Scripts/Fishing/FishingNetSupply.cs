@@ -209,7 +209,36 @@ public class FishingNetSupply : NetworkBehaviour
         }
     }
 
-    /// <summary>爆風で脱鉤して吹き飛ばす。各PCの爆弾が呼んでもホストだけが処理する。</summary>
+    /// <summary>
+    /// **ほかの人のフックが当たったので、つかんでいる人の引っ掛けを外してほしい**とホストへ頼む。
+    /// 宇宙ごみ式（<see cref="ThrowStyle.TwoButtons"/>）の <see cref="HookController"/> だけが呼ぶ（2026/9/22）。
+    /// 釣りでは呼ばれないので、釣りの動きは変わらない。
+    /// </summary>
+    public void RequestInterfere(int playerIndex)
+    {
+        RequestInterfereServerRpc(playerIndex);
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void RequestInterfereServerRpc(int playerIndex)
+    {
+        // 誰もつかんでいない／自分でつかんでいるなら何もしない
+        if (!IsClaimed || hookedByPlayerIndex.Value == playerIndex)
+        {
+            return;
+        }
+
+        Debug.Log($"[FISH] 参加番号 {playerIndex} のフックが当たったので、" +
+                  $"参加番号 {hookedByPlayerIndex.Value} の引っ掛けを外しました。");
+
+        // 爆風と同じ外し方をする。**力は加えない**（その場に落ちる）
+        ServerApplyExplosion(Vector3.zero);
+    }
+
+    /// <summary>
+    /// 爆風で脱鉤して吹き飛ばす。各PCの爆弾が呼んでもホストだけが処理する。
+    /// ほかの人のフックが当たって外すとき（<see cref="RequestInterfere"/>）も、力 0 でここを使う。
+    /// </summary>
     public void ServerApplyExplosion(Vector3 velocity)
     {
         if (!IsSpawned || !IsServer || hookable.IsVanished || body == null)

@@ -431,6 +431,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ThrowController
   hook: {fileID: 7806790527041640585}
   inputActions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  style: 1
   skillCheckDuration: 1.6
   overheadHeight: 2.6
   passDistance: 3.5

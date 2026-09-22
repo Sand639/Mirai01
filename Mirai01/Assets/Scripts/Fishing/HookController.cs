@@ -11,6 +11,9 @@ using UnityEngine.InputSystem;
 ///   4. 物資に当たる    → フックした状態にして、引き寄せ・投げを ThrowController に渡す
 ///   5. 何も当たらない  → 最大距離まで伸びて手元へ戻る
 ///
+/// **宇宙ごみ式（ThrowController の Style が TwoButtons）では、左クリック（LT）でも右クリック（RT）でも撃てる。**
+/// どちらで撃ったかを ThrowController に伝え、引っ掛けたあとの流れが変わる（左＝引っ張る／右＝投げる）。
+///
 /// フックの実際の飛び方の計算はここに置き、HookProjectile は当たり判定だけにしている。
 /// 引き寄せ・投げは ThrowController、糸の見た目は HookLine に分けてある。
 /// </summary>
@@ -99,6 +102,15 @@ public class HookController : MonoBehaviour
 
     /// <summary>オートエイムで発射したときの相手。飛んでいる間だけ入っていて、フックはこれを追いかける。</summary>
     private HookableObject autoTarget;
+
+    /// <summary>宇宙ごみ式で、いま右（投げる）のボタンでチャージしているか。false なら左（引っ張る）。</summary>
+    private bool chargingWithThrow;
+
+    /// <summary>
+    /// **宇宙ごみ式（<see cref="ThrowStyle.TwoButtons"/>）で撃つか。**
+    /// そのときは Attack ではなく、左クリック（LT）と右クリック（RT）を直接見る。釣り式では今までどおり Attack。
+    /// </summary>
+    private bool UsesTwoButtons => throwController != null && throwController.Style == ThrowStyle.TwoButtons;
 
     /// <summary>オートエイムで飛ばすとき、届く範囲（Max Range）にどれだけ上乗せして伸ばすか（メートル）。</summary>
     private const float AutoReachMargin = 1.5f;
@@ -312,7 +324,23 @@ public class HookController : MonoBehaviour
             return;
         }
 
-        if (attackAction.WasPressedThisFrame())
+        bool pressed;
+
+        if (UsesTwoButtons)
+        {
+            // **宇宙ごみ式：左（LT）でも右（RT）でも撃てる。** どちらで撃ったかで、引っ掛けたあとの流れが変わる
+            // （左＝くっついた場所で止まって引っ張る／右＝頭上で止まって投げる）
+            bool left = ThrowController.PullPressed();
+            bool right = !left && ThrowController.ThrowPressed();
+            pressed = left || right;
+            chargingWithThrow = right;
+        }
+        else
+        {
+            pressed = attackAction.WasPressedThisFrame();
+        }
+
+        if (pressed)
         {
             phase = HookPhase.Charging;
             charge = 0f;
@@ -334,8 +362,17 @@ public class HookController : MonoBehaviour
             ui.SetCharge(charge);
         }
 
-        if (attackAction.WasReleasedThisFrame())
+        bool released = UsesTwoButtons
+            ? (chargingWithThrow ? ThrowController.ThrowReleased() : ThrowController.PullReleased())
+            : attackAction.WasReleasedThisFrame();
+
+        if (released)
         {
+            if (UsesTwoButtons)
+            {
+                throwController.SetNextIsThrow(chargingWithThrow);
+            }
+
             Fire();
         }
     }
@@ -478,6 +515,15 @@ public class HookController : MonoBehaviour
             {
                 if (netSupply.IsClaimed)
                 {
+                    // **宇宙ごみ式では、ほかの人がつかんでいる物資にフックが当たったら、その人の引っ掛けを外す**
+                    // （2026/9/22・大槻さん）。こちらのフックは引っ掛けずに戻る。
+                    // 釣り式では今までどおり、何もせず素通りする
+                    if (throwController != null && throwController.BreaksOthersGrab)
+                    {
+                        netSupply.RequestInterfere(LocalPlayerIndex);
+                        phase = HookPhase.Returning;
+                    }
+
                     return;
                 }
 
