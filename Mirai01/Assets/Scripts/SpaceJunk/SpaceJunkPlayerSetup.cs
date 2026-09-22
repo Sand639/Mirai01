@@ -193,8 +193,8 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
             return;
         }
 
-        // ポーズ中（と閉じたフレーム）は入力を読まない
-        if (GamePause.BlocksInput)
+        // ポーズ中（と閉じたフレーム）と、設定の入力欄に打ち込んでいる最中は入力を読まない
+        if (GamePause.BlocksInput || SpaceJunkLobbyUI.IsEditingText)
         {
             return;
         }

@@ -62,6 +62,30 @@ public class SpaceJunkLobbyUI : MonoBehaviour
     /// <summary>詳細設定の巻物の位置。中身が画面に収まらないときに使う。</summary>
     private Vector2 settingsScroll;
 
+    // ---- 1ラウンドの最大時間の入力欄 ----
+
+    /// <summary>入力欄の名前。「いまここに打ち込んでいるか」を調べるのに使う。</summary>
+    private const string RoundSecondsControl = "SpaceJunkRoundSeconds";
+
+    private const int MinRoundSeconds = SpaceJunkSession.MinRoundSeconds;
+    private const int MaxRoundSeconds = SpaceJunkSession.MaxRoundSeconds;
+
+    /// <summary>入力欄に出している文字。打ち込んでいる最中は、決定するまでこちらを使う。</summary>
+    private string roundSecondsText = string.Empty;
+
+    /// <summary>入力が範囲の外だった、などのお知らせ。</summary>
+    private string roundSecondsMessage = string.Empty;
+
+    /// <summary>
+    /// **いま入力欄に文字を打ち込んでいるか。**
+    ///
+    /// 打ち込み中に `E`（設定を閉じる）や `R`（位置を戻す）が効くと、
+    /// 数字を入れようとしただけで設定が閉じたり、体が飛んだりする。
+    /// そこで、キーを読む側（<see cref="SpaceJunkLobbyTerminal"/>・<see cref="SpaceJunkPlayerSetup"/>）が
+    /// これを見て手を引く。
+    /// </summary>
+    public static bool IsEditingText { get; private set; }
+
     private GUIStyle labelStyle;
     private GUIStyle headerStyle;
 
@@ -91,6 +115,11 @@ public class SpaceJunkLobbyUI : MonoBehaviour
 
     private void OnGUI()
     {
+        // 「打ち込み中か」は毎回まず下ろし、入力欄を描いたときだけ立て直す。
+        // **途中で return しても、古い「打ち込み中」が残らない**ようにするため
+        // （残ると E や R がずっと効かなくなる）
+        IsEditingText = false;
+
         if (!showUi)
         {
             return;
@@ -237,6 +266,15 @@ public class SpaceJunkLobbyUI : MonoBehaviour
 
         if (terminal == null || !terminal.IsOpen || session == null || !manager.IsServer)
         {
+            // **入力欄に打ち込んだまま設定が閉じられた場合に、入力欄から外しておく。**
+            // 外さないと、次に開いたときに古い文字が残ったり、
+            // 見えない入力欄がキーを受け取り続けたりする
+            if (GUI.GetNameOfFocusedControl() == RoundSecondsControl)
+            {
+                GUIUtility.keyboardControl = 0;
+            }
+
+            roundSecondsMessage = string.Empty;
             return;
         }
 
@@ -413,27 +451,112 @@ public class SpaceJunkLobbyUI : MonoBehaviour
     }
 
     /// <summary>1ラウンドの最大時間を決める。</summary>
+    /// <summary>
+    /// 1ラウンドの最大時間を**数字で打ち込んで**決める（2026/9/22・大槻さんの依頼で、選ぶ形から変更）。
+    ///
+    /// 打ち込んだだけでは変わらない。**「決定」か Enter で反映する。**
+    /// 1文字打つたびに反映すると、「120」と打つ途中の「1」「12」が一瞬入ってしまうため。
+    /// </summary>
     private void DrawRoundSeconds(SpaceJunkSession session)
     {
-        GUILayout.Label("■ 1ラウンドの最大時間", headerStyle);
+        GUILayout.Label($"■ 1ラウンドの最大時間（{MinRoundSeconds}〜{MaxRoundSeconds} 秒）", headerStyle);
 
-        int[] choices = { 30, 45, 60, 90, 120 };
+        int current = Mathf.RoundToInt(session.RoundSeconds);
+        bool focused = GUI.GetNameOfFocusedControl() == RoundSecondsControl;
+
+        // キーを読む側に「いま打ち込み中」と知らせる
+        IsEditingText = focused;
+
+        // 打ち込んでいる最中は、手元の文字を上書きしない
+        if (!focused)
+        {
+            roundSecondsText = current.ToString();
+        }
+
+        // **Enter で決定。** 入力欄が先に Enter を受け取る前に見ておく
+        Event e = Event.current;
+        bool enterPressed = focused
+                         && e.type == EventType.KeyDown
+                         && (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter);
+
+        if (enterPressed)
+        {
+            e.Use();
+        }
 
         GUILayout.BeginHorizontal();
 
-        foreach (int seconds in choices)
-        {
-            bool isSelected = Mathf.RoundToInt(session.RoundSeconds) == seconds;
+        GUI.SetNextControlName(RoundSecondsControl);
+        string edited = GUILayout.TextField(roundSecondsText, 3, GUILayout.Width(80f));
 
-            if (GUILayout.Button(isSelected ? $"● {seconds} 秒" : $"{seconds} 秒"))
-            {
-                session.ServerSetRoundSeconds(seconds);
-            }
+        // **数字以外は受け付けない**
+        roundSecondsText = KeepDigits(edited);
+
+        GUILayout.Label("秒", labelStyle, GUILayout.Width(24f));
+
+        if (GUILayout.Button("決定", GUILayout.Width(70f)) || enterPressed)
+        {
+            ApplyRoundSeconds(session);
         }
+
+        GUILayout.Label($"いま：{current} 秒", labelStyle);
 
         GUILayout.EndHorizontal();
 
+        if (!string.IsNullOrEmpty(roundSecondsMessage))
+        {
+            GUI.color = new Color(1f, 0.6f, 0.4f);
+            GUILayout.Label("　" + roundSecondsMessage, labelStyle);
+            GUI.color = Color.white;
+        }
+
+        GUILayout.Label("　※ 打ち込んだら「決定」か Enter で反映します。", labelStyle);
         GUILayout.Label("　※ 3種類そろえたチームが出たら、その時点でラウンドは終わります。", labelStyle);
+    }
+
+    /// <summary>打ち込んだ秒数を確かめて、ホストの設定に入れる。</summary>
+    private void ApplyRoundSeconds(SpaceJunkSession session)
+    {
+        if (!int.TryParse(roundSecondsText, out int seconds))
+        {
+            roundSecondsMessage = "数字を入れてください。";
+            return;
+        }
+
+        int clamped = Mathf.Clamp(seconds, MinRoundSeconds, MaxRoundSeconds);
+
+        // 範囲の外だったら、直した値を入れたうえで知らせる（黙って変えると気づけない）
+        roundSecondsMessage = clamped != seconds
+            ? $"{MinRoundSeconds}〜{MaxRoundSeconds} 秒の間にしてください。{clamped} 秒にしました。"
+            : string.Empty;
+
+        session.ServerSetRoundSeconds(clamped);
+
+        roundSecondsText = clamped.ToString();
+
+        // 入力欄から外す（外さないと、E や R が打ち込み扱いのまま効かない）
+        GUIUtility.keyboardControl = 0;
+    }
+
+    /// <summary>数字だけを残す。</summary>
+    private static string KeepDigits(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return string.Empty;
+        }
+
+        System.Text.StringBuilder digits = new System.Text.StringBuilder(text.Length);
+
+        foreach (char c in text)
+        {
+            if (c >= '0' && c <= '9')
+            {
+                digits.Append(c);
+            }
+        }
+
+        return digits.ToString();
     }
 
     /// <summary>この試合で使うマップを選ぶ。**ラウンドごとに、この中からランダムに選ばれる。**</summary>

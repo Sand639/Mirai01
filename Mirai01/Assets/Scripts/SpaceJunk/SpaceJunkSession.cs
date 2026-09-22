@@ -451,12 +451,18 @@ public class SpaceJunkSession : NetworkBehaviour
         }
     }
 
-    /// <summary>1ラウンドの最大時間を変える。</summary>
+    /// <summary>1ラウンドの最大時間として、ホストが入れられる一番短い秒数。</summary>
+    public const int MinRoundSeconds = 10;
+
+    /// <summary>1ラウンドの最大時間として、ホストが入れられる一番長い秒数。</summary>
+    public const int MaxRoundSeconds = 300;
+
+    /// <summary>1ラウンドの最大時間を変える。範囲の外なら端にそろえる。</summary>
     public void ServerSetRoundSeconds(float value)
     {
         if (IsServer)
         {
-            roundSeconds.Value = Mathf.Clamp(value, 10f, 300f);
+            roundSeconds.Value = Mathf.Clamp(value, MinRoundSeconds, MaxRoundSeconds);
         }
     }
 
