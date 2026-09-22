@@ -499,6 +499,9 @@ MonoBehaviour:
   spawnInset: 4
   spawnScatter: 1.5
   fallbackRadius: 6
+  radarFrame: {fileID: 21300000, guid: b652b1e57f0aa4044bd3287a56cba29e, type: 3}
+  radarCompass: {fileID: 21300000, guid: 6f1aabd4b43821e4fa99e58794b86fff, type: 3}
+  radarSelf: {fileID: 21300000, guid: 90809c33bf2411348aa5b44ada3cb6c2, type: 3}
 --- !u!1 &5068645823779250506
 GameObject:
   m_ObjectHideFlags: 0
