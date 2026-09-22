@@ -128,10 +128,20 @@ public static class SpaceJunkSetup
 
         int checkedCount = 0;
 
+        // **マップの一覧に入っているもの**と、ツールで作るマップの両方を点検する
+        // （一覧には、どんな名前のマップでも入れられるため）
+        List<string> paths = SpaceJunkMapListSetup.ScenePaths();
+
         for (int i = 0; i < MapSources.GetLength(0); i++)
         {
-            string path = MapSources[i, 1];
+            if (!paths.Contains(MapSources[i, 1]))
+            {
+                paths.Add(MapSources[i, 1]);
+            }
+        }
 
+        foreach (string path in paths)
+        {
             if (AssetDatabase.LoadAssetAtPath<SceneAsset>(path) == null)
             {
                 continue;
@@ -217,7 +227,11 @@ public static class SpaceJunkSetup
         FishingSceneBuilder.SetInt(internet, "maxPlayers", SpaceJunkTeams.MaxPlayers);
 
         // ロビーの画面（参加者一覧と、端末を開いたときの詳細設定）
-        managerObject.AddComponent<SpaceJunkLobbyUI>();
+        SpaceJunkLobbyUI lobbyUI = managerObject.AddComponent<SpaceJunkLobbyUI>();
+
+        // **マップの一覧を結びつける。** ロビーの候補は、この一覧に入っているマップだけになる
+        // （いまロビーを作っている最中なので、一覧の側からロビーを書き換えさせない）
+        FishingSceneBuilder.SetRef(lobbyUI, "mapList", SpaceJunkMapListSetup.EnsureList(wireLobby: false));
 
         // 試合の係を、ホストが1つだけ出す役
         SpaceJunkSessionSpawner spawner = managerObject.AddComponent<SpaceJunkSessionSpawner>();
@@ -285,6 +299,13 @@ public static class SpaceJunkSetup
 
             ConvertOneMap(destination, materialPrefabs);
             made.Add(destination);
+        }
+
+        // **作ったマップを、マップの一覧にも入れる**（入っていないとロビーの候補に出ない）。
+        // すでに一覧にあるものは、チェックや表示名を上書きしない
+        foreach (string path in made)
+        {
+            SpaceJunkMapListSetup.AddMap(path);
         }
     }
 

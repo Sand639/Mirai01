@@ -23,10 +23,10 @@ using UnityEngine.SceneManagement;
 /// 見下ろす角度はふだんのカメラと同じ 60 度。16:9 の画面で、四辺に少し余白が残る。
 /// 置いたあとに Unity で `Main Camera` を動かして、好きな位置に直してよい。
 ///
-/// ## 名前について
+/// ## ロビーの候補について
 ///
-/// **`SpaceJunkMap` で始まる名前にしてある**ので、ロビーの「使うマップ」の候補にも、
-/// 検証用ビルドにも、**何もしなくても自動で入る。**
+/// 作ったマップは**マップの一覧（<see cref="SpaceJunkMapList"/>）に自動で入る**ので、
+/// ロビーの「使うマップ」の候補にも、検証用ビルドにも、何もしなくても入る。
 ///
 /// ## 釣りを壊さないために
 ///
@@ -105,6 +105,9 @@ public static class SpaceJunkFixedCameraSetup
 
         SpaceJunkSetup.RegisterScenesInBuildSettings(new List<string> { DestinationPath });
         SpaceJunkSetup.VerifyMap(DestinationPath);
+
+        // **マップの一覧に入れる**（入れないとロビーの候補に出ない）
+        SpaceJunkMapListSetup.AddMap(DestinationPath, true);
 
         AssetDatabase.SaveAssets();
 

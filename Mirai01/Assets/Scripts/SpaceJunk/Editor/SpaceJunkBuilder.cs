@@ -38,7 +38,7 @@ public static class SpaceJunkBuilder
 {
     /// <summary>
     /// **起動したときに最初に開くシーン。** ロビーであること。
-    /// このあとに `SpaceJunkMap〜.unity` が全部足される。
+    /// このあとに、**マップの一覧（SpaceJunkMapList）に入っているマップ**が全部足される。
     /// </summary>
     private const string LobbyScenePath = SpaceJunkSetup.LobbyScenePath;
 
@@ -84,8 +84,8 @@ public static class SpaceJunkBuilder
         if (maps.Count == 0)
         {
             Debug.LogError(
-                $"マップのシーン（{MapScenePrefix}〜）が1つも見つかりません。\n" +
-                "先に `Tools > Mirai01 > 宇宙ごみ集めのシーンを作る（ロビー＋マップ）` を実行してください。\n" +
+                "マップが1つも見つかりません（マップの一覧が空か、まだ作られていません）。\n" +
+                "`Tools > Mirai01 > 宇宙ごみのマップの一覧を開く` で、マップを一覧に足してください。\n" +
                 "**マップが無いと、ロビーで「ゲーム開始」を押せません。**");
             return;
         }
@@ -134,11 +134,23 @@ public static class SpaceJunkBuilder
     }
 
     /// <summary>
-    /// **マップのシーンを探す。** `Assets/Scenes` の下ならどこにあってもよい。
-    /// 名前順に並べて返すので、ビルドに入る順番が毎回そろう。
+    /// **ビルドに入れるマップを決める。**
+    /// マップの一覧（<see cref="SpaceJunkMapList"/>）があればその中身を、一覧の順に返す。
+    /// 一覧がまだ無いときだけ、名前が `SpaceJunkMap` で始まるシーンを名前順に返す。
     /// </summary>
     private static List<string> FindMapScenePaths()
     {
+        // **マップの一覧があれば、そこに入っているマップを全部入れる**（名前は自由）。
+        // 「ロビーに出す」を外したマップも入れるが、ロビーの候補には出ない。
+        // 一覧の中身はビルドに焼き込まれるので、**出す・出さないを変えたらビルドし直すこと**
+        List<string> listed = SpaceJunkMapListSetup.ScenePaths();
+
+        if (listed.Count > 0)
+        {
+            return listed;
+        }
+
+        // 一覧がまだ無いときだけ、昔どおり名前で拾う
         List<string> paths = new List<string>();
 
         foreach (string guid in AssetDatabase.FindAssets("t:Scene", new[] { SceneSearchFolder }))
