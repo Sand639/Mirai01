@@ -256,7 +256,7 @@ public class SpaceJunkLobbyUI : MonoBehaviour
         }
 
         GUILayout.Label(terminal.IsHostNearby
-            ? $"［{terminal.InteractKeyName}］キーで詳細設定を開く"
+            ? $"［{terminal.InteractKeyName}］で詳細設定を開く"
             : "設定端末に近づくと、詳細設定を開けます", labelStyle);
     }
 

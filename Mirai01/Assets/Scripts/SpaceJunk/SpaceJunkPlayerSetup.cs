@@ -1,6 +1,7 @@
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 
 /// <summary>
 /// **宇宙ごみ用に、プレイヤーへ上乗せする部品。**
@@ -48,6 +49,9 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
     [Tooltip("押すと、その場から**出てくる場所へ戻る**キー。落ちて戻れなくなったとき用")]
     [SerializeField] private Key resetKey = Key.R;
 
+    [Tooltip("同じことをする、コントローラーのボタン（North＝Xbox の Y）")]
+    [SerializeField] private GamepadButton resetButton = GamepadButton.North;
+
     [Tooltip("この高さより下まで落ちたら、**自動で出てくる場所へ戻す**（メートル）")]
     [SerializeField] private float fallResetHeight = -8f;
 
@@ -82,7 +86,7 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
             return;
         }
 
-        LocalResetKeyName = resetKey.ToString();
+        LocalResetKeyName = $"{resetKey}／{GamepadInput.Label(resetButton)}";
 
         TickPlacement();
 
@@ -201,7 +205,7 @@ public class SpaceJunkPlayerSetup : MonoBehaviour
 
         Keyboard keyboard = Keyboard.current;
 
-        if (keyboard != null && keyboard[resetKey].wasPressedThisFrame)
+        if ((keyboard != null && keyboard[resetKey].wasPressedThisFrame) || GamepadInput.WasPressed(resetButton))
         {
             MoveToSpawnPoint();
             FollowWithCamera();

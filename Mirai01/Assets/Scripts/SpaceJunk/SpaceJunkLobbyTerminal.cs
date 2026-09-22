@@ -1,6 +1,7 @@
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 
 /// <summary>
 /// **ロビーに置く「設定端末」。** 近づいて `E` を押すと、ホストの詳細設定が開く。
@@ -35,6 +36,9 @@ public class SpaceJunkLobbyTerminal : MonoBehaviour
     [Tooltip("開く／閉じるキー")]
     [SerializeField] private Key interactKey = Key.E;
 
+    [Tooltip("開く／閉じる、コントローラーのボタン（South＝Xbox の A）")]
+    [SerializeField] private GamepadButton interactButton = GamepadButton.South;
+
     [Header("見た目")]
     [Tooltip("近づいたときに色を変える見た目。空でもよい")]
     [SerializeField] private Renderer highlightRenderer;
@@ -48,8 +52,8 @@ public class SpaceJunkLobbyTerminal : MonoBehaviour
     /// <summary>ホストがこの端末のそばにいるか（案内を出すかどうかの判断に使う）。</summary>
     public bool IsHostNearby { get; private set; }
 
-    /// <summary>押すキーの名前（案内の文言に使う）。</summary>
-    public string InteractKeyName => interactKey.ToString();
+    /// <summary>押すキーとボタンの名前（案内の文言に使う。例：「E／A」）。</summary>
+    public string InteractKeyName => $"{interactKey}／{GamepadInput.Label(interactButton)}";
 
     private Color originalColor = Color.white;
 
@@ -90,7 +94,7 @@ public class SpaceJunkLobbyTerminal : MonoBehaviour
         // 入力欄に打ち込んでいる最中も、E を読まない（打った文字で設定が閉じないように）
         bool inputBlocked = GamePause.BlocksInput || SpaceJunkLobbyUI.IsEditingText;
 
-        if (IsHostNearby && !inputBlocked && WasPressed(interactKey))
+        if (IsHostNearby && !inputBlocked && (WasPressed(interactKey) || GamepadInput.WasPressed(interactButton)))
         {
             IsOpen = !IsOpen;
         }

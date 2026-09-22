@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
@@ -41,6 +42,12 @@ public class PauseMenu : MonoBehaviour
     [Header("キーの割り当て")]
     [Tooltip("ポーズ画面を開く／閉じるキー")]
     [SerializeField] private Key pauseKey = Key.Escape;
+
+    [Tooltip("ポーズ画面を開く／閉じる、コントローラーのボタン（Xbox の Start）")]
+    [SerializeField] private GamepadButton pauseButton = GamepadButton.Start;
+
+    [Tooltip("ひとつ前へ戻る、コントローラーのボタン（East＝Xbox の B）。設定の画面なら最初の画面へ、最初の画面なら閉じる")]
+    [SerializeField] private GamepadButton backButton = GamepadButton.East;
 
     [Tooltip("ONだと、開いている間は**世界の時間も止まる**（1人用）。\n" +
              "**オンラインのシーンでは OFF にすること。** 自分のPCだけ時間を止めても" +
@@ -157,9 +164,20 @@ public class PauseMenu : MonoBehaviour
     {
         Keyboard keyboard = Keyboard.current;
 
-        if (keyboard != null && keyboard[pauseKey].wasPressedThisFrame)
+        if ((keyboard != null && keyboard[pauseKey].wasPressedThisFrame) || GamepadInput.WasPressed(pauseButton))
         {
             Toggle();
+        }
+        else if (IsOpen && GamepadInput.WasPressed(backButton))
+        {
+            if (settingsPage != null && settingsPage.activeSelf)
+            {
+                ShowSettings(false);
+            }
+            else
+            {
+                Close();
+            }
         }
     }
 
@@ -204,8 +222,8 @@ public class PauseMenu : MonoBehaviour
         // 無ければここで作り直さないと、ボタンが反応しない
         EnsureEventSystem();
 
-        ShowSettings(false);
         SetVisible(true);
+        ShowSettings(false);
 
         GamePause.SetPaused(true, freezeTime);
 
@@ -248,6 +266,24 @@ public class PauseMenu : MonoBehaviour
         {
             settingsPage.SetActive(show);
         }
+
+        SelectFirstForGamepad(show ? settingsPage : mainPage);
+    }
+
+    /// <summary>
+    /// **コントローラーがつながっていれば、その画面の最初の項目を選んでおく。**
+    /// 何も選ばれていないと、十字キーやスティックを倒しても何も動かないため（2026/9/22）。
+    /// 選んだ項目は A で決定できる。
+    /// </summary>
+    private void SelectFirstForGamepad(GameObject page)
+    {
+        if (Gamepad.current == null || page == null || !page.activeInHierarchy || EventSystem.current == null)
+        {
+            return;
+        }
+
+        Selectable first = page.GetComponentInChildren<Selectable>();
+        EventSystem.current.SetSelectedGameObject(first != null ? first.gameObject : null);
     }
 
     /// <summary>

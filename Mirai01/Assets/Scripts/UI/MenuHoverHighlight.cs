@@ -18,7 +18,8 @@ using UnityEngine.UI;
 /// そのまま使うと**アニメーションが一切動かない**ので、
 /// 止まっていても進む `Time.unscaledDeltaTime` を使っている。
 /// </summary>
-public class MenuHoverHighlight : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+public class MenuHoverHighlight : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler,
+    ISelectHandler, IDeselectHandler
 {
     [Tooltip("色を変える背景")]
     [SerializeField] private Image background;
@@ -42,13 +43,17 @@ public class MenuHoverHighlight : MonoBehaviour, IPointerEnterHandler, IPointerE
 
     private bool hovered;
 
-    /// <summary>いまマウスが重なっているか。</summary>
-    public bool IsHovered => hovered;
+    // コントローラーの十字キー／スティックで選ばれているか（2026/9/22）
+    private bool selectedByPad;
+
+    /// <summary>いまマウスが重なっているか、コントローラーで選ばれているか。</summary>
+    public bool IsHovered => hovered || selectedByPad;
 
     private void OnEnable()
     {
         // 開き直したときに、前回の状態が残らないようにする
         hovered = false;
+        selectedByPad = false;
         Apply(true);
     }
 
@@ -67,11 +72,25 @@ public class MenuHoverHighlight : MonoBehaviour, IPointerEnterHandler, IPointerE
         hovered = false;
     }
 
+    /// <summary>
+    /// **コントローラーで選ばれたときも、マウスが重なったときと同じ見た目にする。**
+    /// マウスでクリックしたときも「選ばれた」扱いになるが、それはマウスの重なりで足りているので数えない。
+    /// </summary>
+    public void OnSelect(BaseEventData eventData)
+    {
+        selectedByPad = !(eventData is PointerEventData);
+    }
+
+    public void OnDeselect(BaseEventData eventData)
+    {
+        selectedByPad = false;
+    }
+
     /// <summary>いまの状態を見た目に反映する。`instant` が true なら一瞬で変える。</summary>
     private void Apply(bool instant)
     {
-        float wantedScale = hovered ? hoverScale : 1f;
-        Color wantedColor = hovered ? hoverColor : normalColor;
+        float wantedScale = IsHovered ? hoverScale : 1f;
+        Color wantedColor = IsHovered ? hoverColor : normalColor;
 
         // **止まっていても進む時間**を使う（ポーズ中に動かないと困る）
         float t = instant || smooth <= 0f
@@ -85,9 +104,9 @@ public class MenuHoverHighlight : MonoBehaviour, IPointerEnterHandler, IPointerE
             background.color = Color.Lerp(background.color, wantedColor, t);
         }
 
-        if (marker != null && marker.activeSelf != hovered)
+        if (marker != null && marker.activeSelf != IsHovered)
         {
-            marker.SetActive(hovered);
+            marker.SetActive(IsHovered);
         }
     }
 

@@ -51,6 +51,8 @@
 
 | 2026/9/20 | Claude Code | 宇宙ごみ集めのロビーに「近づいて E キーで開く設定端末」を作り、`Input.GetKeyDown(KeyCode.E)` で書いた | **キーを押しても何も起きなかった。** 画面には「E キーで開く」の案内が出ていて、距離の判定は効いていたので、入力だけが届いていなかった。原因は **このプロジェクトが Input System（新）だけを使う設定**（`ProjectSettings.asset` の `activeInputHandler: 1`）になっていること。古い `UnityEngine.Input` は**エラーも出さずに何も返さない** | **キー入力は必ず `Keyboard.current` から読む。** `Keyboard keyboard = Keyboard.current; keyboard != null && keyboard[key].wasPressedThisFrame`（`using UnityEngine.InputSystem;`、キーの型は `KeyCode` ではなく `Key`）。書く前に `grep -n "activeInputHandler" Mirai01/ProjectSettings/ProjectSettings.asset` で確かめられる（`1` なら新しい入力だけ）。既存の実例は `Robot/RobotKeyUser.cs`。**`KeyCode` から `Key` に型を変えたときは、すでに保存されたシーンに古い数字（`KeyCode.E` は 101）が残る**ので、シーンを作り直すか、ツール側で `SetInt(script, "interactKey", (int)Key.E)` と入れ直すこと |
 
+| 2026/9/22 | Claude Code | コントローラーのボタンを `Gamepad.current[GamepadButton.South]` で読もうとして、`using UnityEngine.InputSystem;` だけを書いた | **`GamepadButton` が見つからないというエラーになった。** `Gamepad` や `Key` と違い、`GamepadButton` だけは **`UnityEngine.InputSystem.LowLevel`** にある | コントローラーのボタンを型で扱うときは `using UnityEngine.InputSystem.LowLevel;` も足す。押された瞬間は `Common/GamepadInput.cs` の `GamepadInput.WasPressed(GamepadButton.South)` で読める（画面に出す名前は `GamepadInput.Label`＝Xbox の A/B/X/Y）。**フックのように Input Actions で読んでいる操作は、コードではなく `InputSystem_Actions.inputactions` にボタンを足す**（RT は Attack に足してある） |
+
 | 2026/9/20 | Claude Code | ラウンドごとにシーンが切り替わる遊びで、設定と勝ち数を持つ通信オブジェクトをホストに出させた。出すときは `networkObject.Spawn(true)` と書いた | **ラウンドが終わると、結果の表示が出たまま次へ進まなくなった。** `Spawn` の引数は「出すかどうか」ではなく **`destroyWithScene`（シーンが変わったら消すか）**。`true` にしていたので、**マップへ移った瞬間に係が消えていた。** さらに、係を出す役を `NetworkManager` に付けていた（＝シーンをまたいで生き残る）ため、移った先で「係がいない」と判断して**まっさらな係を作り直し**、設定も勝ち数も初期値に戻っていた。画面には「第 **0** ラウンド」と出ていたのに、**そこが手がかりだと気づくのに時間がかかった** | **シーンをまたいで生き残らせたい通信オブジェクトは `Spawn()`（引数なし＝false）で出す。** `true` は「シーンと一緒に消してよい物」（降ってくる素材など）だけ。あわせて、**作り直す側に「作ってはいけない場面」の門番を置く**こと（例：ラウンド中なら絶対に作らず、エラーを出して止まる）。黙って作り直すと、**正常に動いているように見えて値だけが初期値**という一番分かりにくい形になる。**画面に出ている数字が初期値そのもの（0、既定のチーム数など）だったら、まずオブジェクトが作り直されていないか疑うこと** |
 
 ---
@@ -177,3 +179,4 @@
 | 2026/9/20 | Claude Code | 次のAIへの伝言に、宇宙ごみの自律点検の状況（未検証・未マージ・GamePause は釣りにも影響）を追加 |
 | 2026/9/20 | Claude Code | ロビーへ戻るたびに NetworkManager が重なって窓が増える件と、戻ったときに場所を置き直さないと地面から落ちる件の2つを記録 |
 | 2026/9/22 | Claude Code | OnGUI の窓で、押された瞬間に中身の「ある・なし」を切り替えると開けなくなる件を記録 |
+| 2026/9/22 | Claude Code | `GamepadButton` の置き場所（LowLevel）と、コントローラーのボタンの読み方を追記 |
