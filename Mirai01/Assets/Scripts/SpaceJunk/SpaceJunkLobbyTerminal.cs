@@ -87,7 +87,8 @@ public class SpaceJunkLobbyTerminal : MonoBehaviour
         // 読んでしまうと、ポーズを Escape で閉じた瞬間に、同じ Escape で
         // 詳細設定まで閉じてしまう（申し送り 2026/9/8・2026/9/16 と同じ取り合い）。
         // `BlocksInput` は「切り替わったフレーム」も含むので、これだけで防げる
-        bool inputBlocked = GamePause.BlocksInput;
+        // 入力欄に打ち込んでいる最中も、E を読まない（打った文字で設定が閉じないように）
+        bool inputBlocked = GamePause.BlocksInput || SpaceJunkLobbyUI.IsEditingText;
 
         if (IsHostNearby && !inputBlocked && WasPressed(interactKey))
         {
@@ -178,6 +179,14 @@ public class SpaceJunkLobbyTerminal : MonoBehaviour
             if (hook != null)
             {
                 hook.enabled = enabledState;
+            }
+
+            // **オートエイムも止める。** 狙い方の切り替えに数字の 1・2・3 を使っているので、
+            // 止めないと、設定に「120」と打ち込んだだけで狙い方が切り替わってしまう
+            HookAimAssist aimAssist = player.GetComponent<HookAimAssist>();
+            if (aimAssist != null)
+            {
+                aimAssist.enabled = enabledState;
             }
         }
     }
