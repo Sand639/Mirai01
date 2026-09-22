@@ -67,6 +67,13 @@ public class SpaceJunkMatchUI : MonoBehaviour
         {
             DrawResult(round, viewWidth, Screen.height / scale);
         }
+        else if (SpaceJunkPlayerSetup.LocalRespawnRemaining > 0f)
+        {
+            // 戻った直後の、動けない時間（復活時間）
+            float viewHeight = Screen.height / scale;
+            int seconds = Mathf.CeilToInt(SpaceJunkPlayerSetup.LocalRespawnRemaining);
+            GUI.Label(new Rect(0f, viewHeight * 0.5f - 60f, viewWidth, 60f), $"復活まで {seconds}", resultStyle);
+        }
 
         GUI.matrix = saved;
     }
