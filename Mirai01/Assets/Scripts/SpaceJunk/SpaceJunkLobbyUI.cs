@@ -34,7 +34,12 @@ using UnityEngine;
 public class SpaceJunkLobbyUI : MonoBehaviour
 {
     [Header("マップの候補")]
-    [Tooltip("名前がこれで始まるシーンを、**マップの候補として自動で並べる**（ビルドの一覧に入っているものだけ）")]
+    [Tooltip("マップの一覧（SpaceJunkMapList）。**ここに入っていて「Show In Lobby」が付いたマップだけが候補に出る。**" +
+             "`Tools > Mirai01 > 宇宙ごみのマップの一覧を開く` で自動で入る")]
+    [SerializeField] private SpaceJunkMapList mapList;
+
+    [Tooltip("マップの一覧が入っていないときだけ使う、昔の見分け方。" +
+             "名前がこれで始まるシーンを候補に並べる")]
     [SerializeField] private string mapScenePrefix = "SpaceJunkMap";
 
     [Header("表示")]
@@ -564,25 +569,30 @@ public class SpaceJunkLobbyUI : MonoBehaviour
     {
         GUILayout.Label("■ 使うマップ（この中からラウンドごとにランダム）", headerStyle);
 
-        List<string> maps = GetAvailableMaps();
+        List<KeyValuePair<string, string>> maps = GetAvailableMaps();
 
         if (maps.Count == 0)
         {
             GUI.color = new Color(1f, 0.5f, 0.4f);
             GUILayout.Label(
-                $"「{mapScenePrefix}〜」という名前のシーンが、ビルドの一覧に入っていません。\n" +
-                "File > Build Profiles を開いて、遊びたいマップのシーンを入れてください。", labelStyle);
+                mapList != null
+                    ? "マップの一覧に、ロビーに出すマップが1つもありません。\n" +
+                      "Unity の `Tools > Mirai01 > 宇宙ごみのマップの一覧を開く` で、マップを足すか「Show In Lobby」を付けてください。"
+                    : $"「{mapScenePrefix}〜」という名前のシーンが、ビルドの一覧に入っていません。\n" +
+                      "Unity の `Tools > Mirai01 > 宇宙ごみのマップの一覧を開く` を実行してください。",
+                labelStyle);
             GUI.color = Color.white;
             return;
         }
 
-        foreach (string map in maps)
+        // Key＝シーンの名前（切り替えに使う）、Value＝ロビーに出す名前
+        foreach (KeyValuePair<string, string> map in maps)
         {
-            bool isSelected = session.IsMapSelected(map);
+            bool isSelected = session.IsMapSelected(map.Key);
 
-            if (GUILayout.Button(isSelected ? $"☑ {map}" : $"☐ {map}"))
+            if (GUILayout.Button(isSelected ? $"☑ {map.Value}" : $"☐ {map.Value}"))
             {
-                session.ServerToggleMap(map);
+                session.ServerToggleMap(map.Key);
             }
         }
 
@@ -667,10 +677,34 @@ public class SpaceJunkLobbyUI : MonoBehaviour
         return NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClientId == clientId;
     }
 
-    /// <summary>ビルドの一覧から、マップの候補を拾う。</summary>
-    private List<string> GetAvailableMaps()
+    /// <summary>
+    /// **ロビーに出すマップの候補を拾う。** Key＝シーンの名前、Value＝ロビーに出す名前。
+    ///
+    /// マップの一覧（<see cref="SpaceJunkMapList"/>）があれば、**そこに入っていて
+    /// 「ロビーに出す」が付いたもの**だけを、一覧の順に並べる。
+    /// ビルドの一覧に入っていないシーンは、選んでも切り替えられないので出さない。
+    ///
+    /// 一覧が無いときだけ、昔どおり「名前が `SpaceJunkMap` で始まるシーン」を拾う。
+    /// </summary>
+    private List<KeyValuePair<string, string>> GetAvailableMaps()
     {
-        List<string> maps = new List<string>();
+        List<KeyValuePair<string, string>> maps = new List<KeyValuePair<string, string>>();
+
+        if (mapList != null)
+        {
+            foreach (SpaceJunkMapList.Entry entry in mapList.Maps)
+            {
+                if (entry == null || !entry.IsValid || !entry.showInLobby || !IsSceneInBuildList(entry.SceneName))
+                {
+                    continue;
+                }
+
+                maps.Add(new KeyValuePair<string, string>(entry.SceneName, entry.Label));
+            }
+
+            return maps;
+        }
+
         int count = UnityEngine.SceneManagement.SceneManager.sceneCountInBuildSettings;
 
         for (int i = 0; i < count; i++)
@@ -678,9 +712,9 @@ public class SpaceJunkLobbyUI : MonoBehaviour
             string path = UnityEngine.SceneManagement.SceneUtility.GetScenePathByBuildIndex(i);
             string name = Path.GetFileNameWithoutExtension(path);
 
-            if (!string.IsNullOrEmpty(mapScenePrefix) && name.StartsWith(mapScenePrefix) && !maps.Contains(name))
+            if (!string.IsNullOrEmpty(mapScenePrefix) && name.StartsWith(mapScenePrefix))
             {
-                maps.Add(name);
+                maps.Add(new KeyValuePair<string, string>(name, name));
             }
         }
 

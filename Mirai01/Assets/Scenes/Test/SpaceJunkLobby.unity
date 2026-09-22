@@ -169,6 +169,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2894b2258a2f5b647906f1adb045ae06, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SpaceJunkLobbyUI
+  mapList: {fileID: 11400000, guid: bb013c056c7234a49b2dc18780269c5b, type: 2}
   mapScenePrefix: SpaceJunkMap
   showUi: 1
   uiScale: 1.5

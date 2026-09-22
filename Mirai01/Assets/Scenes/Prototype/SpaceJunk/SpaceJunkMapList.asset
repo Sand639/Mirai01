@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5a1a7f4a6b4f24446bb467fae69928a1, type: 3}
+  m_Name: SpaceJunkMapList
+  m_EditorClassIdentifier: Assembly-CSharp::SpaceJunkMapList
+  maps:
+  - scene: {fileID: 102900000, guid: e09ae51e15c7b6b42a67bd18b6fec0f7, type: 3}
+    showInLobby: 1
+    displayName: 
+    sceneName: SpaceJunkMap01
+    scenePath: Assets/Scenes/Prototype/SpaceJunk/SpaceJunkMap01.unity
+  - scene: {fileID: 102900000, guid: 08fd351c105fd3b4997a959175e597d3, type: 3}
+    showInLobby: 1
+    displayName: 
+    sceneName: SpaceJunkMap01Fixed
+    scenePath: Assets/Scenes/Prototype/SpaceJunk/SpaceJunkMap01Fixed.unity
+  - scene: {fileID: 102900000, guid: 7ae955111be76a24a844f20d1629ae3a, type: 3}
+    showInLobby: 1
+    displayName: 
+    sceneName: SpaceJunkMap02
+    scenePath: Assets/Scenes/Prototype/SpaceJunk/SpaceJunkMap02.unity
+  - scene: {fileID: 102900000, guid: dc7bbf9cf5a4b4d468c0dee5d99c5b5a, type: 3}
+    showInLobby: 0
+    displayName: 
+    sceneName: SpaceJunkMap03
+    scenePath: Assets/Scenes/Prototype/SpaceJunk/SpaceJunkMap03.unity
+  - scene: {fileID: 102900000, guid: b2d0f8678e6762d4c8772e3dc97e74b2, type: 3}
+    showInLobby: 0
+    displayName: 
+    sceneName: SpaceJunkMap04
+    scenePath: Assets/Scenes/Prototype/SpaceJunk/SpaceJunkMap04.unity
