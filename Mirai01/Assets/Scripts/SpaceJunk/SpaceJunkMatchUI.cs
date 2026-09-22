@@ -8,7 +8,8 @@ using UnityEngine;
 ///
 ///   ・**いま何ラウンド目か**と、何本先取か
 ///   ・**残り時間**（残り10秒を切ると赤くなる）
-///   ・**チームごとに、どの素材をそろえたか**（3種類ぶんの印）
+///   ・得点制 … **チームごとの得点**と、**同じ種類を何回続けているか**
+///   ・3種類ルール … **チームごとに、どの素材をそろえたか**（3種類ぶんの印）
 ///   ・**チームごとのラウンドの勝ち数**
 ///   ・決着後 … **このラウンドを取ったチーム**（引き分けならその旨）
 ///   ・試合が終わったら … **試合に勝ったチーム**
@@ -154,6 +155,16 @@ public class SpaceJunkMatchUI : MonoBehaviour
             string mark = team == myTeam ? "▶ " : "　 ";
             int wins = session != null ? session.RoundWinsOf(team) : 0;
 
+            if (round.Rule == SpaceJunkWinRule.Score)
+            {
+                GUILayout.Label($"{mark}{SpaceJunkTeams.TeamName(team)}　{round.ScoreOf(team)} 点　（{wins} 本）", lineStyle);
+                GUI.color = saved;
+
+                DrawStreak(round, team);
+                GUILayout.Space(4f);
+                continue;
+            }
+
             GUILayout.Label($"{mark}{SpaceJunkTeams.TeamName(team)}　（{wins} 本）", lineStyle);
 
             GUI.color = saved;
@@ -192,6 +203,36 @@ public class SpaceJunkMatchUI : MonoBehaviour
         GUILayout.EndArea();
     }
 
+    /// <summary>
+    /// 得点制のとき、**同じ種類を何回続けているか**を出す（例：「燃料タンク ×2　あと1回で +5」）。
+    /// 続けている種類の色で出すので、次に何を入れればよいかが分かる。
+    /// </summary>
+    private void DrawStreak(SpaceJunkRound round, int team)
+    {
+        GUILayout.BeginHorizontal();
+        GUILayout.Space(16f);
+
+        if (round.TryGetStreak(team, out SpaceJunkMaterialKind kind, out int count))
+        {
+            Color saved = GUI.color;
+            GUI.color = SpaceJunkMaterials.Color(kind);
+
+            int left = SpaceJunkRound.StreakLength - count;
+            GUILayout.Label($"■ {SpaceJunkMaterials.Name(kind)} ×{count}　あと{left}回で +{SpaceJunkRound.StreakBonus}", lineStyle);
+
+            GUI.color = saved;
+        }
+        else
+        {
+            Color saved = GUI.color;
+            GUI.color = new Color(0.55f, 0.55f, 0.6f);
+            GUILayout.Label($"同じ種類を{SpaceJunkRound.StreakLength}回続けると +{SpaceJunkRound.StreakBonus}", lineStyle);
+            GUI.color = saved;
+        }
+
+        GUILayout.EndHorizontal();
+    }
+
     /// <summary>決着後の表示。</summary>
     private void DrawResult(SpaceJunkRound round, float viewWidth, float viewHeight)
     {
@@ -223,9 +264,15 @@ public class SpaceJunkMatchUI : MonoBehaviour
             {
                 color = SpaceJunkTeams.TeamColor(winner);
             }
+
+            // 得点制なら、各チームの得点も出す（何点差だったかが分かるように）
+            if (round.Rule == SpaceJunkWinRule.Score)
+            {
+                text = text.Replace("\n\nまもなく", $"\n{ScoreSummary(round)}\n\nまもなく");
+            }
         }
 
-        Rect box = new Rect(viewWidth * 0.5f - 200f, viewHeight * 0.5f - 90f, 400f, 180f);
+        Rect box = new Rect(viewWidth * 0.5f - 220f, viewHeight * 0.5f - 115f, 440f, 230f);
 
         GUI.Box(box, GUIContent.none);
 
@@ -233,6 +280,20 @@ public class SpaceJunkMatchUI : MonoBehaviour
         GUI.color = color;
         GUI.Label(box, text, resultStyle);
         GUI.color = saved;
+    }
+
+    /// <summary>「青 12点／赤 8点」のような、全チームの得点の一行。</summary>
+    private static string ScoreSummary(SpaceJunkRound round)
+    {
+        int teamCount = SpaceJunkSession.Current != null ? SpaceJunkSession.Current.TeamCount : 1;
+        var parts = new System.Collections.Generic.List<string>();
+
+        for (int team = 0; team < teamCount; team++)
+        {
+            parts.Add($"{SpaceJunkTeams.TeamName(team).Replace("チーム", string.Empty)} {round.ScoreOf(team)}点");
+        }
+
+        return string.Join("／", parts);
     }
 
     /// <summary>このPCで操作している人のチーム。分からなければ -1。</summary>
