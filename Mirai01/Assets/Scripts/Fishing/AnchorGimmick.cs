@@ -12,11 +12,20 @@ public class AnchorGimmick : MonoBehaviour
     [Tooltip("プレイヤーがここまで近づいたら引っ張りを終える。空ならオブジェクトの中心を使う")]
     [SerializeField] private Transform pullPoint;
 
-    [Tooltip("1秒あたりにプレイヤーを引っ張る距離")]
-    [SerializeField] private float pullSpeed = 8f;
+    [Tooltip("チャージ0のときの、1秒あたりにプレイヤーを引っ張る距離")]
+    [SerializeField] private float minPullSpeed = 4f;
 
-    [Tooltip("フックが当たったあと、1回だけ引っ張る秒数。終わると釣り竿は手元へ戻る")]
-    [SerializeField] private float pullSeconds = 0.25f;
+    [Tooltip("チャージ最大のときの、1秒あたりにプレイヤーを引っ張る距離")]
+    [SerializeField] private float maxPullSpeed = 16f;
+
+    [Tooltip("チャージ0のときに、1回だけ引っ張る秒数")]
+    [SerializeField] private float minPullSeconds = 0.1f;
+
+    [Tooltip("チャージ最大のときに、1回だけ引っ張る秒数。終わると釣り竿は手元へ戻る")]
+    [SerializeField] private float maxPullSeconds = 0.7f;
+
+    private float activePullSpeed;
+    private float activePullSeconds;
 
     [Tooltip("この距離まで近づいたら引っ張りを終える")]
     [SerializeField] private float stopDistance = 1.2f;
@@ -24,8 +33,8 @@ public class AnchorGimmick : MonoBehaviour
     /// <summary>プレイヤーを引っ張る先。見た目を変えても空オブジェクトを指定すれば同じ位置を保てる。</summary>
     public Vector3 PullPosition => pullPoint != null ? pullPoint.position : transform.position;
 
-    /// <summary>1回ぶんの引っ張りを続ける秒数。</summary>
-    public float PullSeconds => Mathf.Max(0f, pullSeconds);
+    /// <summary>今回の1回ぶんの引っ張りを続ける秒数。</summary>
+    public float PullSeconds => activePullSeconds;
 
     private void Reset()
     {
@@ -35,6 +44,15 @@ public class AnchorGimmick : MonoBehaviour
     private void Awake()
     {
         MakeBodyFixed();
+        BeginPull(0f);
+    }
+
+    /// <summary>フックのチャージ量に応じて、今回だけ使う引っ張る強さと時間を決める。</summary>
+    public void BeginPull(float charge)
+    {
+        float strength = Mathf.Clamp01(charge);
+        activePullSpeed = Mathf.Lerp(minPullSpeed, maxPullSpeed, strength);
+        activePullSeconds = Mathf.Lerp(minPullSeconds, maxPullSeconds, strength);
     }
 
     /// <summary>
@@ -59,7 +77,7 @@ public class AnchorGimmick : MonoBehaviour
             return true;
         }
 
-        float moveDistance = Mathf.Min(pullSpeed * Time.deltaTime, distance - endDistance);
+        float moveDistance = Mathf.Min(activePullSpeed * Time.deltaTime, distance - endDistance);
         player.Move(direction / distance * moveDistance);
         return false;
     }

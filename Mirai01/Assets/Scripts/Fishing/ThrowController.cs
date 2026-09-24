@@ -206,6 +206,7 @@ public class ThrowController : MonoBehaviour
         anchorTarget = target != null ? target.GetComponent<AnchorGimmick>() : null;
         if (anchorTarget != null)
         {
+            anchorTarget.BeginPull(hook != null ? hook.Charge : 0f);
             pullingPlayer = hook != null ? hook.PlayerRoot.GetComponent<CharacterController>() : null;
             anchorPullTimer = 0f;
             if (hook != null && hook.UI != null)
