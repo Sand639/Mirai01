@@ -145,10 +145,10 @@ public class FishingNetPlayer : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        // ホストが参加番号を決める。**今いる人数がそのまま次の番号になる**
+        // ホストが参加番号を決める。**空いている一番小さい番号を使う**
         if (IsServer)
         {
-            playerIndex.Value = Mathf.Min(All.Count, FishingTeams.MaxPlayers - 1);
+            playerIndex.Value = FirstFreeIndex();
         }
 
         All.Add(this);
@@ -185,6 +185,42 @@ public class FishingNetPlayer : NetworkBehaviour
     private void OnPlayerIndexChanged(int before, int after)
     {
         ApplyTeamColor();
+    }
+
+    /// <summary>
+    /// **まだ誰も使っていない、一番小さい参加番号を返す**（ホストだけが呼ぶ）。
+    ///
+    /// 以前は「いまいる人数」をそのまま番号にしていたが、
+    /// **途中で抜けた人がいると番号が空き、次に入ってきた人が誰かと同じ番号になっていた**
+    /// （例：0〜4 の5人 → 2番が抜ける → 残りは 0・1・3・4 で人数は4 → 次の人も4番。2026/9/24・大槻さん）。
+    ///
+    /// 番号は画面の名前（プレイヤー1…）だけでなく、**物資を誰が引っ掛けているかの判断**にも使うので、
+    /// かぶると別の人の物資を投げられてしまう。
+    /// </summary>
+    private static int FirstFreeIndex()
+    {
+        for (int index = 0; index < FishingTeams.MaxPlayers; index++)
+        {
+            bool used = false;
+
+            foreach (FishingNetPlayer player in All)
+            {
+                if (player != null && player.playerIndex.Value == index)
+                {
+                    used = true;
+                    break;
+                }
+            }
+
+            if (!used)
+            {
+                return index;
+            }
+        }
+
+        // 満員のときの保険。ふだんは人数で先に断られるので、ここには来ない
+        Debug.LogWarning("[FISH] 参加番号がすべて使われています。一番大きい番号を使います。");
+        return FishingTeams.MaxPlayers - 1;
     }
 
     /// <summary>釣り会場に入って、配置とカメラを合わせ終わったか。</summary>
