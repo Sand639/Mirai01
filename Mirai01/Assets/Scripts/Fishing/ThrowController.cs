@@ -213,6 +213,9 @@ public class ThrowController : MonoBehaviour
     private Vector3 reelStart;
     private bool targetGravityWas;
     private bool targetKinematicWas;
+    private AnchorGimmick anchorTarget;
+    private CharacterController pullingPlayer;
+    private float anchorPullTimer;
 
     // ---- 宇宙ごみ式の途中経過 ----
 
@@ -302,6 +305,21 @@ public class ThrowController : MonoBehaviour
         timer = 0f;
         armDelay = 0.12f;
 
+        // アンカーは物資を引き寄せない。フックを固定したまま、プレイヤー自身を寄せる。
+        // AnchorGimmick が無い従来の物資は、これまでどおり下の引き寄せ・投げ処理へ進む。
+        anchorTarget = target != null ? target.GetComponent<AnchorGimmick>() : null;
+        if (anchorTarget != null)
+        {
+            anchorTarget.BeginPull(hook != null ? hook.Charge : 0f);
+            pullingPlayer = hook != null ? hook.PlayerRoot.GetComponent<CharacterController>() : null;
+            anchorPullTimer = 0f;
+            if (hook != null && hook.UI != null)
+            {
+                hook.UI.ShowTiming(false);
+            }
+            return;
+        }
+
         if (target != null)
         {
             reelStart = target.transform.position;
@@ -345,6 +363,19 @@ public class ThrowController : MonoBehaviour
 
         if (GamePause.BlocksInput)
         {
+            return;
+        }
+
+        if (anchorTarget != null)
+        {
+            anchorPullTimer += Time.deltaTime;
+
+            // アンカーは「1回だけ引っ張る」ギミック。
+            // 引っ張る時間が終わったら、まだ距離があっても釣り竿を手元へ戻す。
+            if (anchorTarget.PullPlayer(pullingPlayer) || anchorPullTimer >= anchorTarget.PullSeconds)
+            {
+                EndPull();
+            }
             return;
         }
 
@@ -810,6 +841,9 @@ public class ThrowController : MonoBehaviour
         }
 
         target = null;
+        anchorTarget = null;
+        pullingPlayer = null;
+        anchorPullTimer = 0f;
         active = false;
 
         if (hook != null && hook.UI != null)
@@ -826,6 +860,22 @@ public class ThrowController : MonoBehaviour
     {
         if (!active)
         {
+            return;
+        }
+
+        // **アンカーは物資を引き寄せていない**（フックを固定して、プレイヤーのほうが寄っていく）ので、
+        // 物理には触らずにやめるだけでよい（2026/9/24・アンカーとの合流時に追加）
+        if (anchorTarget != null)
+        {
+            anchorTarget = null;
+            target = null;
+            active = false;
+
+            if (hook != null && hook.UI != null)
+            {
+                hook.UI.ShowTiming(false);
+            }
+
             return;
         }
 
@@ -874,6 +924,9 @@ public class ThrowController : MonoBehaviour
     private void AbandonPull()
     {
         target = null;
+        anchorTarget = null;
+        pullingPlayer = null;
+        anchorPullTimer = 0f;
         active = false;
 
         if (hook != null)
@@ -911,6 +964,9 @@ public class ThrowController : MonoBehaviour
     {
         target.SetHooked(false);
         target = null;
+        anchorTarget = null;
+        pullingPlayer = null;
+        anchorPullTimer = 0f;
         active = false;
 
         if (hook.UI != null)

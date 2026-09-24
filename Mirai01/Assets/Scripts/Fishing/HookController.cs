@@ -195,6 +195,9 @@ public class HookController : MonoBehaviour
     /// <summary>いまの段階。UI などが参照する。</summary>
     public HookPhase Phase => phase;
 
+    /// <summary>最後にフックを放したときのチャージ量（0〜1）。アンカーなどが使う。</summary>
+    public float Charge => charge;
+
     private void Awake()
     {
         if (aim == null)
