@@ -6,13 +6,15 @@ using UnityEngine.InputSystem;
 ///
 /// | キー | すること |
 /// | --- | --- |
-/// | Space | Burst（一瞬だけ激しくする。攻撃した瞬間のイメージ） |
-/// | 1 | 電撃を出す／消す |
+/// | F（長押し） | ビームを溜める。**離すと撃つ。長く押すほど遠くまで届く** |
+/// | Space | Burst（体のまわりの電撃を一瞬だけ激しくする。攻撃した瞬間のイメージ） |
+/// | 1 | 体のまわりの電撃を出す／消す |
 /// | 2 | キャラクターを円を描いて動かす／止める（電撃がついてくるかの確認） |
 /// </summary>
 public class LightningTestDriver : MonoBehaviour
 {
     [SerializeField] private HelixLightning lightning;
+    [SerializeField] private HelixBeam beam;
     [SerializeField] private Transform character;
 
     [SerializeField] private float moveRadius = 3f;
@@ -25,22 +27,44 @@ public class LightningTestDriver : MonoBehaviour
     {
         Keyboard keyboard = Keyboard.current;
 
-        if (keyboard != null && lightning != null)
+        if (keyboard != null)
         {
-            if (keyboard.spaceKey.wasPressedThisFrame)
+            if (beam != null)
             {
-                lightning.Burst();
+                if (keyboard.fKey.wasPressedThisFrame)
+                {
+                    beam.BeginCharge();
+                }
+
+                if (keyboard.fKey.wasReleasedThisFrame)
+                {
+                    beam.Release();
+                }
             }
 
-            if (keyboard.digit1Key.wasPressedThisFrame)
+            if (lightning != null)
             {
-                lightning.IsOn = !lightning.IsOn;
+                if (keyboard.spaceKey.wasPressedThisFrame)
+                {
+                    lightning.Burst();
+                }
+
+                if (keyboard.digit1Key.wasPressedThisFrame)
+                {
+                    lightning.IsOn = !lightning.IsOn;
+                }
             }
 
             if (keyboard.digit2Key.wasPressedThisFrame)
             {
                 moving = !moving;
             }
+        }
+
+        // 溜めている間は、体のまわりの電撃も激しくする（溜めている感じを出す）
+        if (beam != null && lightning != null && beam.IsCharging)
+        {
+            lightning.Burst(0.15f);
         }
 
         if (moving && character != null)
@@ -53,7 +77,14 @@ public class LightningTestDriver : MonoBehaviour
 
     private void OnGUI()
     {
-        GUI.Label(new Rect(16, 16, 600, 80),
-            "Space：Burst（一瞬だけ激しく）\n1：電撃を出す／消す\n2：キャラクターを動かす／止める");
+        GUI.Label(new Rect(16, 16, 600, 100),
+            "F（長押し）：ビームを溜める → 離すと撃つ（長く押すほど遠くへ）\n" +
+            "Space：体の電撃を一瞬だけ激しく\n1：体の電撃を出す／消す\n2：キャラクターを動かす／止める");
+
+        if (beam != null && beam.IsCharging)
+        {
+            GUI.Label(new Rect(16, 110, 600, 24),
+                $"溜め {beam.Charge01 * 100f:0}%　→　{beam.CurrentLength:0.0} m");
+        }
     }
 }

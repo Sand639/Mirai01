@@ -112,7 +112,7 @@ public class HelixLightning : MonoBehaviour
     {
         if (lineMaterial == null)
         {
-            lineMaterial = CreateAdditiveMaterial();
+            lineMaterial = LightningLine.CreateAdditiveMaterial();
         }
 
         int total = boltCount + burstExtraBolts;
@@ -156,8 +156,8 @@ public class HelixLightning : MonoBehaviour
     private class Bolt
     {
         private readonly HelixLightning owner;
-        private readonly LinePair main;
-        private readonly LinePair branch;
+        private readonly LightningLine main;
+        private readonly LightningLine branch;
 
         private readonly Vector3[] controlPoints;
         private readonly Vector3[] points;
@@ -170,10 +170,10 @@ public class HelixLightning : MonoBehaviour
             this.owner = owner;
 
             controlPoints = new Vector3[Mathf.Max(3, owner.controlPointCount)];
-            points = new Vector3[(controlPoints.Length - 1) * Mathf.Max(1, owner.samplesPerSegment) + 1];
+            points = new Vector3[LightningShape.PointCount(controlPoints.Length, owner.samplesPerSegment)];
 
-            main = new LinePair(owner, $"Bolt_{index}");
-            branch = new LinePair(owner, $"Bolt_{index}_Branch");
+            main = new LightningLine(owner.transform, $"Bolt_{index}", owner.lineMaterial);
+            branch = new LightningLine(owner.transform, $"Bolt_{index}_Branch", owner.lineMaterial);
         }
 
         public void Tick(float deltaTime, bool active, float burst)
@@ -211,14 +211,15 @@ public class HelixLightning : MonoBehaviour
             float brightness = Mathf.Lerp(1f, owner.burstBrightnessScale, burst);
 
             BuildHelix(radiusScale);
-            int count = BuildJaggedLine(owner.jitter * jitterScale);
+            int count = LightningShape.SampleHermite(controlPoints, controlPoints.Length, owner.samplesPerSegment, points);
+            LightningShape.Jag(points, count, owner.jitter * jitterScale);
 
-            main.Set(points, count, brightness, jitterScale);
+            owner.SetLine(main, points, count, brightness, jitterScale);
 
             if (Random.value < owner.branchChance)
             {
                 BuildBranch(count, owner.jitter * jitterScale);
-                branch.Set(branchPoints, BranchPointCount, brightness * 0.8f, 0.7f);
+                owner.SetLine(branch, branchPoints, BranchPointCount, brightness * 0.8f, 0.7f);
             }
             else
             {
@@ -253,44 +254,6 @@ public class HelixLightning : MonoBehaviour
             }
         }
 
-        /// <summary>手順2・3：エルミート曲線でつなぎ、直角方向にずらしてギザギザにする。点の数を返す。</summary>
-        private int BuildJaggedLine(float jitterAmount)
-        {
-            int segments = controlPoints.Length - 1;
-            int samples = Mathf.Max(1, owner.samplesPerSegment);
-            int index = 0;
-
-            for (int s = 0; s < segments; s++)
-            {
-                Vector3 p0 = controlPoints[s];
-                Vector3 p1 = controlPoints[s + 1];
-                Vector3 m0 = Tangent(s);
-                Vector3 m1 = Tangent(s + 1);
-
-                // 最後の区間だけ終点も含める
-                int count = s == segments - 1 ? samples + 1 : samples;
-
-                for (int k = 0; k < count; k++)
-                {
-                    points[index++] = Hermite(p0, p1, m0, m1, k / (float)samples);
-                }
-            }
-
-            // 端はずらさない。真ん中ほど大きくずらす（両端が細く消えていくように見える）
-            for (int i = 1; i < index - 1; i++)
-            {
-                float t = i / (float)(index - 1);
-                float envelope = Mathf.Sqrt(Mathf.Sin(t * Mathf.PI));
-
-                Vector3 forward = (points[i + 1] - points[i - 1]).normalized;
-                Vector3 offset = Vector3.ProjectOnPlane(Random.insideUnitSphere, forward);
-
-                points[i] += offset * (jitterAmount * 2f * envelope);
-            }
-
-            return index;
-        }
-
         /// <summary>手順5：芯のどこかから、外向きに短い枝を生やす。</summary>
         private void BuildBranch(int mainCount, float jitterAmount)
         {
@@ -315,137 +278,14 @@ public class HelixLightning : MonoBehaviour
                 branchPoints[i] = p;
             }
         }
-
-        /// <summary>
-        /// 目印の点での曲線の向き（接線）。前後の点から求める（Catmull-Rom と同じ求め方）。
-        /// 両端は、となりの点との差をそのまま使う。
-        /// </summary>
-        private Vector3 Tangent(int i)
-        {
-            if (i == 0)
-            {
-                return controlPoints[1] - controlPoints[0];
-            }
-
-            if (i == controlPoints.Length - 1)
-            {
-                return controlPoints[i] - controlPoints[i - 1];
-            }
-
-            return (controlPoints[i + 1] - controlPoints[i - 1]) * 0.5f;
-        }
     }
 
-    /// <summary>
-    /// エルミート曲線。p0 から p1 へ、それぞれの点で向き m0・m1 を持つなめらかな曲線上の点を返す（s は 0〜1）。
-    /// </summary>
-    public static Vector3 Hermite(Vector3 p0, Vector3 p1, Vector3 m0, Vector3 m1, float s)
+    private void SetLine(LightningLine line, Vector3[] positions, int count, float brightness, float widthScale)
     {
-        float s2 = s * s;
-        float s3 = s2 * s;
-
-        return (2f * s3 - 3f * s2 + 1f) * p0
-             + (s3 - 2f * s2 + s) * m0
-             + (-2f * s3 + 3f * s2) * p1
-             + (s3 - s2) * m1;
-    }
-
-    // ------------------------------------------------------------
-    // 線の見た目（太い光 ＋ 細い芯 の2本セット）
-    // ------------------------------------------------------------
-
-    private class LinePair
-    {
-        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
-
-        private readonly HelixLightning owner;
-        private readonly LineRenderer glow;
-        private readonly LineRenderer core;
-        private readonly MaterialPropertyBlock block = new MaterialPropertyBlock();
-
-        public LinePair(HelixLightning owner, string name)
-        {
-            this.owner = owner;
-            glow = CreateLine(owner, name + "_Glow");
-            core = CreateLine(owner, name + "_Core");
-        }
-
-        public void Set(Vector3[] positions, int count, float brightness, float widthScale)
-        {
-            SetLine(glow, positions, count, owner.glowColor * brightness, owner.glowWidth * widthScale * Random.Range(0.7f, 1.2f));
-            SetLine(core, positions, count, owner.coreColor * brightness, owner.coreWidth * Random.Range(0.8f, 1.3f));
-        }
-
-        public void SetVisible(bool visible)
-        {
-            glow.enabled = visible;
-            core.enabled = visible;
-        }
-
-        private void SetLine(LineRenderer line, Vector3[] positions, int count, Color color, float width)
-        {
-            line.positionCount = count;
-            line.SetPositions(positions);
-            line.widthMultiplier = width;
-
-            block.SetColor(BaseColorId, color);
-            line.SetPropertyBlock(block);
-
-            line.enabled = true;
-        }
-
-        private static LineRenderer CreateLine(HelixLightning owner, string name)
-        {
-            var child = new GameObject(name);
-            child.transform.SetParent(owner.transform, false);
-
-            var line = child.AddComponent<LineRenderer>();
-            line.useWorldSpace = false;
-            line.sharedMaterial = owner.lineMaterial;
-            line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            line.receiveShadows = false;
-            line.numCapVertices = 2;
-            line.alignment = LineAlignment.View;
-
-            // 両端を細くする
-            line.widthCurve = new AnimationCurve(
-                new Keyframe(0f, 0.2f),
-                new Keyframe(0.3f, 1f),
-                new Keyframe(0.7f, 1f),
-                new Keyframe(1f, 0.2f));
-
-            line.enabled = false;
-            return line;
-        }
-    }
-
-    /// <summary>マテリアルが指定されていないときの予備。URP の Particles/Unlit を加算合成にする。</summary>
-    public static Material CreateAdditiveMaterial()
-    {
-        Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-
-        if (shader == null)
-        {
-            shader = Shader.Find("Sprites/Default");
-        }
-
-        var material = new Material(shader);
-        SetupAdditive(material);
-        return material;
-    }
-
-    /// <summary>URP の Particles/Unlit を「透明・加算合成」に設定する。</summary>
-    public static void SetupAdditive(Material material)
-    {
-        material.SetFloat("_Surface", 1f);    // 透明
-        material.SetFloat("_Blend", 2f);      // 加算
-        material.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
-        material.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.One);
-        material.SetFloat("_SrcBlendAlpha", (float)UnityEngine.Rendering.BlendMode.One);
-        material.SetFloat("_DstBlendAlpha", (float)UnityEngine.Rendering.BlendMode.One);
-        material.SetFloat("_ZWrite", 0f);
-        material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-        material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-        material.SetColor("_BaseColor", Color.white);
+        line.Set(positions, count,
+            glowColor * brightness,
+            coreColor * brightness,
+            glowWidth * widthScale * Random.Range(0.7f, 1.2f),
+            coreWidth * Random.Range(0.8f, 1.3f));
     }
 }
