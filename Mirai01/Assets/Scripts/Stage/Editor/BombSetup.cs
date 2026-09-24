@@ -8,8 +8,8 @@ using UnityEngine;
 ///
 /// | メニュー | すること |
 /// | --- | --- |
-/// | `Tools > Mirai01 > 爆弾を置く` | **いま開いているシーン**に、宙に浮いた爆弾を1つ置く |
-/// | `Tools > Mirai01 > 爆弾の検証シーンを作り直す` | 試すための専用シーンを作る |
+/// | `Tools > Mirai01 > アーカイブ > 爆弾 > 爆弾を置く` | **いま開いているシーン**に、宙に浮いた爆弾を1つ置く |
+/// | `Tools > Mirai01 > アーカイブ > 爆弾 > 爆弾の検証シーンを作り直す` | 試すための専用シーンを作る |
 ///
 /// ※ Editor フォルダにあるため、ゲームのビルドには含まれない。
 /// </summary>
@@ -22,8 +22,8 @@ public static class BombSetup
     private const string GroundMaterialPath = MaterialFolder + "/TestGround.mat";
     private const string LineMaterialPath = MaterialFolder + "/RaceStartLine.mat";
 
-    private const string PrefabPath = "Assets/Prefabs/Bomb.prefab";
-    private const string RobotPrefabPath = "Assets/Prefabs/RobotRig.prefab";
+    private const string PrefabPath = "Assets/Prefabs/GravityRace/Bomb.prefab";
+    private const string RobotPrefabPath = "Assets/Prefabs/Robot/RobotRig.prefab";
     private const string ScenePath = "Assets/Scenes/Test/BombTest.unity";
 
     /// <summary>爆弾の見た目の直径（メートル）。</summary>
@@ -33,7 +33,7 @@ public static class BombSetup
     // メニュー
     // ------------------------------------------------------------
 
-    [MenuItem("Tools/Mirai01/爆弾を置く")]
+    [MenuItem("Tools/Mirai01/アーカイブ/爆弾/爆弾を置く")]
     public static void PlaceBomb()
     {
         GameObject prefab = GetOrCreatePrefab();
@@ -51,7 +51,7 @@ public static class BombSetup
                   "重力が軽いほど遠くへ飛びます（Gravity Influence で効き方を変えられます）。", placed);
     }
 
-    [MenuItem("Tools/Mirai01/爆弾の検証シーンを作り直す")]
+    [MenuItem("Tools/Mirai01/アーカイブ/爆弾/爆弾の検証シーンを作り直す")]
     public static void CreateTestScene()
     {
         GameObject bombPrefab = GetOrCreatePrefab();

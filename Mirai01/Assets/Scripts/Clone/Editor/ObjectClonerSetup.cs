@@ -5,19 +5,20 @@ using UnityEngine;
 /// <summary>
 /// 複製配置システムの検証用シーンと、複製元のプレハブを作り直すツール。
 ///
-/// Unityのメニュー「Tools > Mirai01 > 複製配置の検証シーンを作り直す」から実行できる。
+/// Unityのメニュー「Tools > Mirai01 > アーカイブ > 共通の部品 > 複製配置の検証シーンを作り直す」から実行できる。
 /// 必要なタグ（Duplicable / PlacedClone）の登録も自動で行う。
 ///
 /// ※ Editor フォルダにあるため、ゲームのビルドには含まれない。
 /// </summary>
 public static class ObjectClonerSetup
 {
-    private const string PrefabFolder = "Assets/Prefabs";
-    private const string SceneFolder = "Assets/Scenes/Test";
+    private const string PrefabFolder = "Assets/Prefabs/ObjectCloner";
+    private const string CommonPrefabFolder = "Assets/Prefabs/Common";
+    private const string SceneFolder = "Assets/Scenes/Prototype/ObjectCloner";
     private const string MaterialFolder = "Assets/Art/Materials";
 
     private const string ScenePath = SceneFolder + "/ObjectClonerTest.unity";
-    private const string PlayerPrefabPath = PrefabFolder + "/PlayerRig.prefab";
+    private const string PlayerPrefabPath = CommonPrefabFolder + "/PlayerRig.prefab";
 
     private const string LightBoxPath = PrefabFolder + "/CloneSourceLightBox.prefab";
     private const string HeavyBoxPath = PrefabFolder + "/CloneSourceHeavyBox.prefab";
@@ -25,7 +26,7 @@ public static class ObjectClonerSetup
 
     private const string InputActionsPath = "Assets/InputSystem_Actions.inputactions";
 
-    [MenuItem("Tools/Mirai01/複製配置の検証シーンを作り直す")]
+    [MenuItem("Tools/Mirai01/アーカイブ/共通の部品/複製配置の検証シーンを作り直す")]
     public static void CreateAll()
     {
         EnsureFolder("Assets/Art");
@@ -256,6 +257,10 @@ public static class ObjectClonerSetup
         int lastSlash = path.LastIndexOf('/');
         string parent = path.Substring(0, lastSlash);
         string folderName = path.Substring(lastSlash + 1);
+
+        // 親が無ければ先に作る（Unity は1段ずつしか作れない）
+        EnsureFolder(parent);
+
         AssetDatabase.CreateFolder(parent, folderName);
     }
 }

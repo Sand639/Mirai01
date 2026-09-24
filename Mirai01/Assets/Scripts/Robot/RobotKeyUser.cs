@@ -43,6 +43,10 @@ public class RobotKeyUser : MonoBehaviour
     [Range(10f, 180f)]
     [SerializeField] private float maxAngle = 80f;
 
+    [Tooltip("ONにすると、**壁の向こうの扉は開けられなくなる**（間に何かあるかを調べる）。" +
+             "ガラスのように透ける物は、間にあっても開けられる。OFFにすると壁越しに開く（前の動き）")]
+    [SerializeField] private bool requireClearPath = true;
+
     [Header("キーの割り当て")]
     [Tooltip("鍵を使うキー。物を持つキーと同じにしてよい")]
     [SerializeField] private Key useKey = Key.F;
@@ -159,6 +163,13 @@ public class RobotKeyUser : MonoBehaviour
 
             // **頭を中心に、見ている方向から大きく外れている扉は無視する**
             if (!AimCheck.IsAimed(body.HeadPosition, point, maxAngle, body.transform.forward))
+            {
+                continue;
+            }
+
+            // **壁の向こうの扉は開けられない**（ガラスなど透ける物は通す）
+            if (requireClearPath &&
+                !AimCheck.HasClearPath(body.HeadPosition, point, transform.root, door.transform))
             {
                 continue;
             }

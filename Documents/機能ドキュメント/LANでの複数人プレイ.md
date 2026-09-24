@@ -80,7 +80,7 @@
 **エディタの再生ボタンだけでは1人分しか動かない。**
 通信は「2つ以上のゲームが同時に動いている」必要があるため、`.exe` を作って2つ起動する。
 
-1. Unityのメニュー **`Tools > Mirai01 > LAN検証用のビルドを作る`** を実行する
+1. Unityのメニュー **`Tools > Mirai01 > アーカイブ > 通信の土台 > LAN検証用のビルドを作る`** を実行する
    （数分かかる。終わるとフォルダが自動で開く）
 2. 開いたフォルダの **`2人で自動接続.bat`** をダブルクリックする
 
@@ -225,7 +225,7 @@ ping 192.168.10.1
 | スクリプト | `Assets/Scripts/Network/PushableBox.cs`（みんなで押せる箱） |
 | スクリプト（エディタ用） | `Assets/Scripts/Network/Editor/LanPlayTestSetup.cs`（シーン生成ツール） |
 | スクリプト（エディタ用） | `Assets/Scripts/Network/Editor/LanTestBuilder.cs`（検証用ビルド作成ツール） |
-| プレハブ | `Assets/Prefabs/NetworkPlayer.prefab` |
+| プレハブ | `Assets/Prefabs/Common/NetworkPlayer.prefab` |
 | シーン | `Assets/Scenes/Test/LanPlayTest.unity` |
 | マテリアル | `Assets/Art/Materials/NetworkPlayerBody.mat` ほか2つ |
 | 入力設定 | `Assets/InputSystem_Actions.inputactions`（**既存のものを使用。変更していない**） |
@@ -404,7 +404,7 @@ LanPlayTest
 
 ## 作り直したいとき
 
-**`Tools > Mirai01 > LAN通信の検証シーンを作り直す`**
+**`Tools > Mirai01 > アーカイブ > 通信の土台 > LAN通信の検証シーンを作り直す`**
 
 プレハブ・シーン・マテリアルがまとめて作り直される。
 **手で調整した内容は消える**ので、実行前に確認すること。
@@ -423,3 +423,4 @@ LanPlayTest
 | 2026/9/3 | Claude Code | **箱の押し方を「叩く」から「押し続ける」に作り直した。** 前回の修正で重くなりすぎ、しかも制限を箱ごとに1つしか持たず**押す人同士で奪い合っていた**。「押している向き」を人ごとに預かり、押している間ずっと力を加える形に変更 |
 | 2026/9/14 | Claude Code | **ドキュメント点検（第2回）。** 変更ログの「不具合2件を修正」の行が2回つながって書かれ、表が崩れていたのを1行に直した。インターネット接続が実装済みになったことを「遊ぶ人から見た動き」と「仕組み」に反映 |
 | 2026/9/14 | Claude Code | **接続画面（`LanConnectionUi`）と「通信の様子」（`NetworkStatusHud`）の枠を、ドラッグで動かせる・折りたためる・窓に合わせて縮む形に変更**（小野田さんの依頼。釣りのオンライン対戦で、小さい窓だとロビーの枠と重なって読めなかったため）。中身と設定項目は変えていない |
+| 2026/9/20 | Claude Code | `Tools > Mirai01` のメニュー整理にあわせて、メニューの場所の書き方を直した（`アーカイブ > ゲーム名 > …`）。**ツールの中身と動きは変わっていない** |

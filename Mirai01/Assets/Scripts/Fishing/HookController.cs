@@ -11,9 +11,13 @@ using UnityEngine.InputSystem;
 ///   4. 物資に当たる    → フックした状態にして、引き寄せ・投げを ThrowController に渡す
 ///   5. 何も当たらない  → 最大距離まで伸びて手元へ戻る
 ///
+/// **宇宙ごみ式（ThrowController の Style が TwoButtons）では、左クリック（LT）でも右クリック（RT）でも撃てる。**
+/// どちらで撃ったかを ThrowController に伝え、引っ掛けたあとの流れが変わる（左＝引っ張る／右＝投げる）。
+///
 /// フックの実際の飛び方の計算はここに置き、HookProjectile は当たり判定だけにしている。
 /// 引き寄せ・投げは ThrowController、糸の見た目は HookLine に分けてある。
 /// </summary>
+
 public class HookController : MonoBehaviour
 {
     /// <summary>フックがいまどの段階にいるか。</summary>
@@ -50,6 +54,9 @@ public class HookController : MonoBehaviour
 
     [Tooltip("オンライン用の部品。**1人用のシーンでは空のままでよい**（入っていればオンラインとして動く）")]
     [SerializeField] private FishingNetPlayer netPlayer;
+
+    [Tooltip("狙いの切り替え（近く／遠く／手動）。空なら同じ体から探し、無ければ自動で付ける")]
+    [SerializeField] private HookAimAssist aimAssist;
 
     [Tooltip("Assets/InputSystem_Actions を入れる")]
     [SerializeField] private InputActionAsset inputActions;
@@ -93,7 +100,28 @@ public class HookController : MonoBehaviour
     private Vector3 hookPosition;
     private HookableObject attached;
 
+    /// <summary>オートエイムで発射したときの相手。飛んでいる間だけ入っていて、フックはこれを追いかける。</summary>
+    private HookableObject autoTarget;
+
+    /// <summary>宇宙ごみ式で、いま右（投げる）のボタンでチャージしているか。false なら左（引っ張る）。</summary>
+    private bool chargingWithThrow;
+
+    /// <summary>
+    /// **宇宙ごみ式（<see cref="ThrowStyle.TwoButtons"/>）で撃つか。**
+    /// そのときは Attack ではなく、左クリック（LT）と右クリック（RT）を直接見る。釣り式では今までどおり Attack。
+    /// </summary>
+    private bool UsesTwoButtons => throwController != null && throwController.Style == ThrowStyle.TwoButtons;
+
+    /// <summary>オートエイムで飛ばすとき、届く範囲（Max Range）にどれだけ上乗せして伸ばすか（メートル）。</summary>
+    private const float AutoReachMargin = 1.5f;
+
     // ---- 他のスクリプトが読む用 ----
+
+    /// <summary>チャージ最大のときの飛距離。オートエイムはこの範囲の中から相手を選ぶ。</summary>
+    public float MaxRange => maxRange;
+
+    /// <summary>オートエイムで発射した相手（飛んでいる間だけ）。手動で撃ったときは null。</summary>
+    public HookableObject AutoTarget => autoTarget;
 
     /// <summary>フックが出てくる手元の位置。</summary>
     public Transform HandPoint => handPoint;
@@ -187,6 +215,17 @@ public class HookController : MonoBehaviour
             netPlayer = GetComponent<FishingNetPlayer>();
         }
 
+        // 狙いの切り替えは、付いていなければここで付ける。
+        // **既存のシーンやプレハブを作り直さなくても使える**ようにするため
+        if (aimAssist == null)
+        {
+            aimAssist = GetComponent<HookAimAssist>();
+        }
+        if (aimAssist == null)
+        {
+            aimAssist = gameObject.AddComponent<HookAimAssist>();
+        }
+
         if (inputActions == null)
         {
             Debug.LogError($"{name}: 入力の設定（InputSystem_Actions）が入っていません。", this);
@@ -244,7 +283,7 @@ public class HookController : MonoBehaviour
 
     private void Update()
     {
-        if (GamePause.IsPaused)
+        if (GamePause.BlocksInput)
         {
             return;
         }
@@ -268,6 +307,12 @@ public class HookController : MonoBehaviour
                 break;
         }
 
+        // オートエイムの相手を覚えておくのは、飛んでいる間だけ
+        if (phase != HookPhase.Flying)
+        {
+            autoTarget = null;
+        }
+
         UpdateHookVisual();
     }
 
@@ -282,7 +327,23 @@ public class HookController : MonoBehaviour
             return;
         }
 
-        if (attackAction.WasPressedThisFrame())
+        bool pressed;
+
+        if (UsesTwoButtons)
+        {
+            // **宇宙ごみ式：左（LT）でも右（RT）でも撃てる。** どちらで撃ったかで、引っ掛けたあとの流れが変わる
+            // （左＝くっついた場所で止まって引っ張る／右＝頭上で止まって投げる）
+            bool left = ThrowController.PullPressed();
+            bool right = !left && ThrowController.ThrowPressed();
+            pressed = left || right;
+            chargingWithThrow = right;
+        }
+        else
+        {
+            pressed = attackAction.WasPressedThisFrame();
+        }
+
+        if (pressed)
         {
             phase = HookPhase.Charging;
             charge = 0f;
@@ -304,8 +365,17 @@ public class HookController : MonoBehaviour
             ui.SetCharge(charge);
         }
 
-        if (attackAction.WasReleasedThisFrame())
+        bool released = UsesTwoButtons
+            ? (chargingWithThrow ? ThrowController.ThrowReleased() : ThrowController.PullReleased())
+            : attackAction.WasReleasedThisFrame();
+
+        if (released)
         {
+            if (UsesTwoButtons)
+            {
+                throwController.SetNextIsThrow(chargingWithThrow);
+            }
+
             Fire();
         }
     }
@@ -317,6 +387,23 @@ public class HookController : MonoBehaviour
         launchDirection.Normalize();
 
         targetDistance = Mathf.Lerp(minRange, maxRange, charge);
+
+        // **オートエイム（近く／遠く）なら、選んだ物資へ向けて飛ばす。**
+        // 相手がいれば、チャージ量に関係なく届くところまで伸ばす。
+        // 届く範囲に物資が無ければ、手動と同じくマウスの方向へ飛ぶ
+        autoTarget = aimAssist != null ? aimAssist.PickTarget() : null;
+        if (autoTarget != null)
+        {
+            Vector3 toTarget = HookAimAssist.AimPointOf(autoTarget) - handPoint.position;
+            toTarget.y = 0f;
+            if (toTarget.sqrMagnitude > 0.0001f)
+            {
+                launchDirection = toTarget.normalized;
+            }
+
+            targetDistance = maxRange + AutoReachMargin;
+        }
+
         traveled = 0f;
         hookPosition = handPoint.position;
         phase = HookPhase.Flying;
@@ -331,8 +418,41 @@ public class HookController : MonoBehaviour
     {
         float step = flySpeed * Time.deltaTime;
 
+        // オートエイムの相手が途中で消えたり、先に取られたりしたら、そこからはまっすぐ飛ぶ
+        if (autoTarget != null && (autoTarget.IsVanished || autoTarget.IsHooked))
+        {
+            autoTarget = null;
+        }
+
+        Vector3 moveDirection = launchDirection;
+        Vector3 destination = hookPosition + launchDirection * step;
+
+        if (autoTarget != null)
+        {
+            // **相手を追いかける。** 動いている物資や、高さの違う物資にも当たるように、毎フレーム向きを取り直す
+            Vector3 aimPoint = HookAimAssist.AimPointOf(autoTarget);
+            Vector3 toTarget = aimPoint - hookPosition;
+
+            // すでに相手の中まで来ている（球の判定は、中から始まると当たらない）
+            if (toTarget.magnitude <= hookCastRadius + 0.1f)
+            {
+                OnHookableTouched(autoTarget);
+
+                // オンラインで先に取られていて引っ掛けられなかったときは、追うのをやめて
+                // そのまままっすぐ飛ばす（その場に止まり続けないように）
+                if (phase == HookPhase.Flying)
+                {
+                    autoTarget = null;
+                }
+                return;
+            }
+
+            moveDirection = toTarget.normalized;
+            destination = Vector3.MoveTowards(hookPosition, aimPoint, step);
+        }
+
         // 動いた区間に物資があれば、その手前で引っ掛ける（速いフックがすり抜けないように）
-        if (Physics.SphereCast(hookPosition, hookCastRadius, launchDirection,
+        if (Physics.SphereCast(hookPosition, hookCastRadius, moveDirection,
                 out RaycastHit hit, step, hookableMask, QueryTriggerInteraction.Collide))
         {
             HookableObject touched = hit.collider.GetComponentInParent<HookableObject>();
@@ -343,7 +463,7 @@ public class HookController : MonoBehaviour
             }
         }
 
-        hookPosition += launchDirection * step;
+        hookPosition = destination;
         traveled += step;
 
         if (traveled >= targetDistance)
@@ -398,6 +518,15 @@ public class HookController : MonoBehaviour
             {
                 if (netSupply.IsClaimed)
                 {
+                    // **宇宙ごみ式では、ほかの人がつかんでいる物資にフックが当たったら、その人の引っ掛けを外す**
+                    // （2026/9/22・大槻さん）。こちらのフックは引っ掛けずに戻る。
+                    // 釣り式では今までどおり、何もせず素通りする
+                    if (throwController != null && throwController.BreaksOthersGrab)
+                    {
+                        netSupply.RequestInterfere(LocalPlayerIndex);
+                        phase = HookPhase.Returning;
+                    }
+
                     return;
                 }
 
@@ -441,6 +570,40 @@ public class HookController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// **フックを一瞬で手元に戻し、つかんでいる物資も離す。**（2026/9/22）
+    ///
+    /// 出てくる場所へ戻ったとき（R キー・落下）や、シーンが切り替わったときに呼ぶ。
+    /// 呼ばないと、**物資をつかんだまま戻ったり、伸ばしたフックがそのまま次のラウンドに残ったり**する。
+    /// つかんでいた物資はその場に落ちる（オンラインではホストへ「離した」と伝える）。
+    /// </summary>
+    public void ResetHook()
+    {
+        if (throwController != null)
+        {
+            throwController.ForceRelease();
+        }
+
+        if (attached != null && !attached.IsVanished)
+        {
+            attached.SetHooked(false);
+        }
+
+        attached = null;
+        autoTarget = null;
+        charge = 0f;
+        phase = HookPhase.Idle;
+        hookPosition = handPoint != null ? handPoint.position : transform.position;
+
+        if (ui != null)
+        {
+            ui.ShowCharge(false);
+            ui.ShowTiming(false);
+        }
+
+        UpdateHookVisual();
+    }
+
     /// <summary>ThrowController が投げ終わったら呼ぶ。フックを手元へ戻し始める。</summary>
     public void NotifyThrowFinished()
     {
@@ -472,6 +635,16 @@ public class HookController : MonoBehaviour
 
         phase = HookPhase.Returning;
         Debug.Log("[FISH] その物資は先に取られていました。フックを戻します。");
+    }
+
+    /// <summary>古い依頼への断りでは、現在引っ掛けている別の物資を外さない。</summary>
+    public void CancelAttachBecauseTaken(HookableObject expectedTarget)
+    {
+        if (attached != expectedTarget)
+        {
+            return;
+        }
+        CancelAttachBecauseTaken();
     }
 
     /// <summary>糸とフックの見た目を、いまの段階に合わせて更新する。</summary>

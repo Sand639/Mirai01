@@ -27,11 +27,11 @@ public class FishingObjectSpawner : MonoBehaviour
     [SerializeField] private GameObject bombPrefab;
 
     [Header("割合（出やすさ）")]
-    [Tooltip("物資の出やすさ。爆発物の値との比で決まる")]
-    [SerializeField] private int supplyWeight = 1;
+    [Tooltip("物資の出やすさ。爆発物の値との比で決まる（初期値は 物資5：爆発物1）")]
+    [SerializeField] private int supplyWeight = 5;
 
-    [Tooltip("爆発物の出やすさ。物資の値との比で決まる（初期値は 爆発物6：物資1）")]
-    [SerializeField] private int bombWeight = 6;
+    [Tooltip("爆発物の出やすさ。物資の値との比で決まる（初期値は 物資5：爆発物1）")]
+    [SerializeField] private int bombWeight = 1;
 
     [Header("数と間隔")]
     [Tooltip("マップにこの数以上あったら、もう出さない")]

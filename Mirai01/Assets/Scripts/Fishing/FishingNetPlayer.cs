@@ -61,6 +61,16 @@ public class FishingNetPlayer : NetworkBehaviour
     private readonly NetworkVariable<bool> lineVisible = new NetworkVariable<bool>(
         false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
+    /// <summary>「狙っている物資が無い」を表す値。</summary>
+    private const ulong NoAimTarget = ulong.MaxValue;
+
+    /// <summary>
+    /// オートエイムで狙っている物資（の通信上の番号）。**本人が送る。**
+    /// 他の人の画面でも、その物資の上に目印を出すために使う（<see cref="HookAimAssist"/>）。
+    /// </summary>
+    private readonly NetworkVariable<ulong> aimTargetId = new NetworkVariable<ulong>(
+        NoAimTarget, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+
     // ---- ロビーで選んでいるマップ（ホストのプレイヤーの値だけを使う） ----
 
     /// <summary>
@@ -135,10 +145,10 @@ public class FishingNetPlayer : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        // ホストが参加番号を決める。**今いる人数がそのまま次の番号になる**
+        // ホストが参加番号を決める。**空いている一番小さい番号を使う**
         if (IsServer)
         {
-            playerIndex.Value = Mathf.Min(All.Count, FishingTeams.MaxPlayers - 1);
+            playerIndex.Value = FirstFreeIndex();
         }
 
         All.Add(this);
@@ -175,6 +185,42 @@ public class FishingNetPlayer : NetworkBehaviour
     private void OnPlayerIndexChanged(int before, int after)
     {
         ApplyTeamColor();
+    }
+
+    /// <summary>
+    /// **まだ誰も使っていない、一番小さい参加番号を返す**（ホストだけが呼ぶ）。
+    ///
+    /// 以前は「いまいる人数」をそのまま番号にしていたが、
+    /// **途中で抜けた人がいると番号が空き、次に入ってきた人が誰かと同じ番号になっていた**
+    /// （例：0〜4 の5人 → 2番が抜ける → 残りは 0・1・3・4 で人数は4 → 次の人も4番。2026/9/24・大槻さん）。
+    ///
+    /// 番号は画面の名前（プレイヤー1…）だけでなく、**物資を誰が引っ掛けているかの判断**にも使うので、
+    /// かぶると別の人の物資を投げられてしまう。
+    /// </summary>
+    private static int FirstFreeIndex()
+    {
+        for (int index = 0; index < FishingTeams.MaxPlayers; index++)
+        {
+            bool used = false;
+
+            foreach (FishingNetPlayer player in All)
+            {
+                if (player != null && player.playerIndex.Value == index)
+                {
+                    used = true;
+                    break;
+                }
+            }
+
+            if (!used)
+            {
+                return index;
+            }
+        }
+
+        // 満員のときの保険。ふだんは人数で先に断られるので、ここには来ない
+        Debug.LogWarning("[FISH] 参加番号がすべて使われています。一番大きい番号を使います。");
+        return FishingTeams.MaxPlayers - 1;
     }
 
     /// <summary>釣り会場に入って、配置とカメラを合わせ終わったか。</summary>
@@ -242,6 +288,57 @@ public class FishingNetPlayer : NetworkBehaviour
             {
                 line.SetEnds(handPoint.position, hookPosition.Value);
             }
+        }
+    }
+
+    // ------------------------------------------------------------
+    // オートエイムの目印の共有
+    // ------------------------------------------------------------
+
+    /// <summary>
+    /// 狙っている物資を他の人へ配る。**本人のPCからだけ呼ぶ**（<see cref="HookAimAssist"/>）。
+    /// 値が変わったときだけ送られる。
+    /// </summary>
+    public void SetAimTarget(HookableObject target)
+    {
+        if (!IsSpawned || !IsOwner)
+        {
+            return;
+        }
+
+        ulong id = NoAimTarget;
+        if (target != null)
+        {
+            NetworkObject networkObject = target.GetComponent<NetworkObject>();
+            if (networkObject != null && networkObject.IsSpawned)
+            {
+                id = networkObject.NetworkObjectId;
+            }
+        }
+
+        if (aimTargetId.Value != id)
+        {
+            aimTargetId.Value = id;
+        }
+    }
+
+    /// <summary>この人がオートエイムで狙っている物資。狙っていなければ null。</summary>
+    public HookableObject AimTarget
+    {
+        get
+        {
+            if (!IsSpawned || aimTargetId.Value == NoAimTarget || NetworkManager == null)
+            {
+                return null;
+            }
+
+            if (NetworkManager.SpawnManager.SpawnedObjects.TryGetValue(aimTargetId.Value, out NetworkObject networkObject)
+                && networkObject != null)
+            {
+                return networkObject.GetComponent<HookableObject>();
+            }
+
+            return null;
         }
     }
 

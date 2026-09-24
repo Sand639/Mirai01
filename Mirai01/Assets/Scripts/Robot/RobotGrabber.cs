@@ -36,6 +36,10 @@ public class RobotGrabber : MonoBehaviour
     [Tooltip("一度に調べる物の数の上限。増やすと重くなる")]
     [SerializeField] private int maxCandidates = 16;
 
+    [Tooltip("ONにすると、**壁の向こうの物は持てなくなる**（間に何かあるかを調べる）。" +
+             "ガラスのように透ける物は、間にあっても持てる。OFFにすると壁越しに持てる（前の動き）")]
+    [SerializeField] private bool requireClearPath = true;
+
     [Header("キーの割り当て")]
     [Tooltip("持つ／離すを切り替えるキー")]
     [SerializeField] private Key grabKey = Key.F;
@@ -232,6 +236,13 @@ public class RobotGrabber : MonoBehaviour
             // （判断のしかたは AimCheck にまとめてある）
             if (!AimCheck.IsAimed(
                 body.HeadPosition, grabbable.transform.position, maxAngle, body.transform.forward))
+            {
+                continue;
+            }
+
+            // **壁の向こうの物は持てない**（ガラスなど透ける物は通す）
+            if (requireClearPath && !AimCheck.HasClearPath(
+                body.HeadPosition, grabbable.transform.position, transform.root, grabbable.transform))
             {
                 continue;
             }

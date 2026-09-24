@@ -7,9 +7,9 @@ using UnityEngine;
 ///
 /// Unityのメニューから実行できる。
 ///
-/// - `Tools > Mirai01 > ロープを1本置く`
+/// - `Tools > Mirai01 > アーカイブ > ロボットステージ > ロープを1本置く`
 ///   … いま開いているシーンにロープを1本作る。カメラが見ている場所の**床の上**に置かれる
-/// - `Tools > Mirai01 > ロボットにロープ機能を足す`
+/// - `Tools > Mirai01 > アーカイブ > ロボットステージ > ロボットにロープ機能を足す`
 ///   … `RobotRig` プレハブに、ロープにつかまる機能を足す（**一度やれば済む**）
 ///
 /// ※ Editor フォルダにあるため、ゲームのビルドには含まれない。
@@ -18,7 +18,7 @@ public static class RobotRopeSetup
 {
     private const string MaterialFolder = "Assets/Art/Materials";
     private const string RopeMaterialPath = MaterialFolder + "/Rope.mat";
-    private const string PrefabPath = "Assets/Prefabs/RobotRig.prefab";
+    private const string PrefabPath = "Assets/Prefabs/Robot/RobotRig.prefab";
 
     /// <summary>ロープの見た目の太さ（直径・メートル）。</summary>
     private const float RopeThickness = 0.1f;
@@ -29,7 +29,7 @@ public static class RobotRopeSetup
     /// <summary>横向きのロープを渡す高さ（メートル）。ぶら下がって足が着かない程度。</summary>
     private const float HorizontalRopeHeight = 2.8f;
 
-    [MenuItem("Tools/Mirai01/ロープを1本置く")]
+    [MenuItem("Tools/Mirai01/アーカイブ/ロボットステージ/ロープを1本置く")]
     public static void CreateRope()
     {
         GameObject rope = CreateRopeAt("Rope", FindGroundPosition(), DefaultHeight);
@@ -42,7 +42,7 @@ public static class RobotRopeSetup
                   "長さは Inspector の Height で変えられます（見た目も一緒に伸びます）。", rope);
     }
 
-    [MenuItem("Tools/Mirai01/横向きのロープを置く")]
+    [MenuItem("Tools/Mirai01/アーカイブ/ロボットステージ/横向きのロープを置く")]
     public static void CreateHorizontalRope()
     {
         // 床から `HorizontalRopeHeight` の高さに、奥（+Z）へ向けて渡す。
@@ -104,7 +104,7 @@ public static class RobotRopeSetup
         return rope;
     }
 
-    [MenuItem("Tools/Mirai01/ロボットにロープ機能を足す")]
+    [MenuItem("Tools/Mirai01/アーカイブ/ロボットステージ/ロボットにロープ機能を足す")]
     public static void AddClimberToPrefab()
     {
         GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);

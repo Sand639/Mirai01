@@ -132,6 +132,13 @@ public class CameraObstacleAvoid : MonoBehaviour
                 continue;
             }
 
+            // **ガラスのように透けて見える物は、壁として扱わない。**
+            // 向こう側が見えているのにカメラだけ寄ると、見え方と食い違う
+            if (SeeThrough.Is(hit.collider))
+            {
+                continue;
+            }
+
             safe = Mathf.Min(safe, hit.distance);
         }
 

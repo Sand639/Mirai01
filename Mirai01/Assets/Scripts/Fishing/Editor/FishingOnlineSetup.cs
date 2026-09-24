@@ -15,7 +15,7 @@ using UnityEngine.InputSystem;
 ///   ・`Assets/Scenes/Test/FishingLobby.unity` … つないで待ち合わせる部屋。
 ///     既存の接続画面（LAN／インターネット／1人）に、**ロビー表示とゲーム開始ボタン**を足したもの
 ///   ・`Assets/Scenes/Test/FishingOnline.unity` … みんなで釣る会場
-///   ・`Assets/Prefabs/FishingOnlinePlayer.prefab` … オンラインで1人分になる本体
+///   ・`Assets/Prefabs/Fish/Online/FishingOnlinePlayer.prefab` … オンラインで1人分になる本体
 ///
 /// **1人用のシーン（FishingHookTest / FishingArenaTest）は触らない。**
 ///

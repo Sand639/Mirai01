@@ -8,14 +8,14 @@ using UnityEngine.UI;
 /// <summary>
 /// PlayerRig のプレハブと、その検証用シーンを自動で作り直すツール。
 ///
-/// Unityのメニュー「Tools > Mirai01 > プレイヤーの検証シーンを作り直す」から実行できる。
+/// Unityのメニュー「Tools > Mirai01 > アーカイブ > 共通の部品 > プレイヤーの検証シーンを作り直す」から実行できる。
 /// 手で組み立てると付け忘れが起きるので、作り直したいときはこれを使う。
 ///
 /// ※ このスクリプトは Editor フォルダにあるため、ゲームのビルドには含まれない。
 /// </summary>
 public static class PlayerRigSetup
 {
-    private const string PrefabFolder = "Assets/Prefabs";
+    private const string PrefabFolder = "Assets/Prefabs/Common";
     private const string SceneFolder = "Assets/Scenes/Test";
 
     // マテリアルの置き場。フォルダ名を変えたらここも直すこと
@@ -28,7 +28,7 @@ public static class PlayerRigSetup
     private const string GroundMaterialPath = MaterialFolder + "/TestGround.mat";
     private const string InputActionsPath = "Assets/InputSystem_Actions.inputactions";
 
-    [MenuItem("Tools/Mirai01/プレイヤーの検証シーンを作り直す")]
+    [MenuItem("Tools/Mirai01/アーカイブ/共通の部品/プレイヤーの検証シーンを作り直す")]
     public static void CreateAll()
     {
         EnsureFolder("Assets/Scripts");
@@ -45,7 +45,7 @@ public static class PlayerRigSetup
         EnsureFolder(MaterialFolder);
 
         // 以前は Prefabs / Scenes の下にマテリアルを置いていた。Art/Materials へ移しておく
-        MoveAssetIfExists(PrefabFolder + "/PlayerRigBody.mat", BodyMaterialPath);
+        MoveAssetIfExists("Assets/Prefabs/PlayerRigBody.mat", BodyMaterialPath);
         MoveAssetIfExists(SceneFolder + "/TestGround.mat", GroundMaterialPath);
 
         Material bodyMaterial = CreateMaterial(BodyMaterialPath, new Color(0.35f, 0.62f, 0.90f));
@@ -299,6 +299,10 @@ public static class PlayerRigSetup
         int lastSlash = path.LastIndexOf('/');
         string parent = path.Substring(0, lastSlash);
         string folderName = path.Substring(lastSlash + 1);
+
+        // 親が無ければ先に作る（Unity は1段ずつしか作れない）
+        EnsureFolder(parent);
+
         AssetDatabase.CreateFolder(parent, folderName);
     }
 }

@@ -8,8 +8,8 @@ using UnityEngine;
 ///
 /// | メニュー | すること |
 /// | --- | --- |
-/// | `Tools > Mirai01 > 重力で割れるガラスの床を置く` | **いま開いているシーン**に1枚置く |
-/// | `Tools > Mirai01 > 割れるガラス床の検証シーンを作り直す` | 試すための専用シーンを作る |
+/// | `Tools > Mirai01 > アーカイブ > 月面運動会 > 重力で割れるガラスの床を置く` | **いま開いているシーン**に1枚置く |
+/// | `Tools > Mirai01 > アーカイブ > 月面運動会 > 割れるガラス床の検証シーンを作り直す` | 試すための専用シーンを作る |
 ///
 /// ※ Editor フォルダにあるため、ゲームのビルドには含まれない。
 /// </summary>
@@ -20,8 +20,8 @@ public static class GravityGlassSetup
     private const string CrackMaterialPath = MaterialFolder + "/GlassCrack.mat";
     private const string GroundMaterialPath = MaterialFolder + "/TestGround.mat";
 
-    private const string PrefabPath = "Assets/Prefabs/GravityGlassFloor.prefab";
-    private const string RobotPrefabPath = "Assets/Prefabs/RobotRig.prefab";
+    private const string PrefabPath = "Assets/Prefabs/GravityRace/GravityGlassFloor.prefab";
+    private const string RobotPrefabPath = "Assets/Prefabs/Robot/RobotRig.prefab";
     private const string ScenePath = "Assets/Scenes/Test/GravityGlassTest.unity";
 
     /// <summary>床1枚の大きさ。**人が乗れる広さと、ガラスと分かる厚み**にしてある。</summary>
@@ -31,7 +31,7 @@ public static class GravityGlassSetup
     // メニュー
     // ------------------------------------------------------------
 
-    [MenuItem("Tools/Mirai01/重力で割れるガラスの床を置く")]
+    [MenuItem("Tools/Mirai01/アーカイブ/月面運動会/重力で割れるガラスの床を置く")]
     public static void PlaceFloor()
     {
         GameObject prefab = GetOrCreatePrefab();
@@ -52,7 +52,7 @@ public static class GravityGlassSetup
                   "重力を変えるには、シーンに GravityShifter が必要です。", placed);
     }
 
-    [MenuItem("Tools/Mirai01/割れるガラス床の検証シーンを作り直す")]
+    [MenuItem("Tools/Mirai01/アーカイブ/月面運動会/割れるガラス床の検証シーンを作り直す")]
     public static void CreateTestScene()
     {
         GameObject floorPrefab = GetOrCreatePrefab();
