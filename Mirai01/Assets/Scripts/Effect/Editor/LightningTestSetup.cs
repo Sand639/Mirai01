@@ -9,7 +9,8 @@ using UnityEngine.Rendering.Universal;
 ///
 /// | メニュー | すること |
 /// | --- | --- |
-/// | `Tools > Mirai01 > 電撃エフェクトの検証シーンを作り直す` | 試すための専用シーンを作る |
+/// | `Tools > Mirai01 > 電撃エフェクトのプレハブを作る（無いものだけ）` | `Assets/Prefabs/Effect/` に体の電撃とビームのプレハブを作る。**あるものは作り直さない** |
+/// | `Tools > Mirai01 > 電撃エフェクトの検証シーンを作り直す` | 試すための専用シーンを作る（プレハブが無ければ先に作る） |
 ///
 /// ※ Editor フォルダにあるため、ゲームのビルドには含まれない。
 /// </summary>
@@ -20,13 +21,18 @@ public static class LightningTestSetup
     private const string CharacterMaterialPath = MaterialFolder + "/LightningTestCharacter.mat";
     private const string GroundMaterialPath = MaterialFolder + "/LightningTestGround.mat";
 
+    private const string PrefabFolder = "Assets/Prefabs/Effect";
+    private const string LightningPrefabPath = PrefabFolder + "/HelixLightning.prefab";
+    private const string BeamPrefabPath = PrefabFolder + "/HelixBeam.prefab";
+
     private const string VolumeProfilePath = "Assets/Settings/LightningTestVolume.asset";
     private const string ScenePath = "Assets/Scenes/Test/LightningTest.unity";
 
     [MenuItem("Tools/Mirai01/電撃エフェクトの検証シーンを作り直す")]
     public static void CreateTestScene()
     {
-        Material lightningMaterial = GetOrCreateLightningMaterial();
+        GameObject lightningPrefab = GetOrCreateLightningPrefab();
+        GameObject beamPrefab = GetOrCreateBeamPrefab();
         Material characterMaterial = GetOrCreateLitMaterial(CharacterMaterialPath, new Color(0.15f, 0.17f, 0.2f));
         Material ground = GetOrCreateLitMaterial(GroundMaterialPath, new Color(0.08f, 0.09f, 0.11f));
         VolumeProfile profile = GetOrCreateVolumeProfile();
@@ -81,44 +87,16 @@ public static class LightningTestSetup
         body.transform.localScale = new Vector3(0.6f, 1f, 0.6f);
         SetMaterial(body, characterMaterial);
 
-        GameObject lightningObject = new GameObject("HelixLightning");
+        // 体の電撃（プレハブ。足元が原点）
+        GameObject lightningObject = (GameObject)PrefabUtility.InstantiatePrefab(lightningPrefab);
         lightningObject.transform.SetParent(character.transform, false);
+        HelixLightning lightning = lightningObject.GetComponent<HelixLightning>();
 
-        GameObject glowLightObject = new GameObject("LightningGlow");
-        glowLightObject.transform.SetParent(lightningObject.transform, false);
-        glowLightObject.transform.localPosition = new Vector3(0f, 1f, 0f);
-        Light glowLight = glowLightObject.AddComponent<Light>();
-        glowLight.type = LightType.Point;
-        glowLight.color = new Color(0.4f, 1f, 0.55f);
-        glowLight.range = 4f;
-        glowLight.shadows = LightShadows.None;
-
-        HelixLightning lightning = lightningObject.AddComponent<HelixLightning>();
-
-        SerializedObject serialized = new SerializedObject(lightning);
-        serialized.FindProperty("lineMaterial").objectReferenceValue = lightningMaterial;
-        serialized.FindProperty("flickerLight").objectReferenceValue = glowLight;
-        serialized.ApplyModifiedPropertiesWithoutUndo();
-
-        // ----- ビーム（胸の高さから前へ） -----
-        GameObject beamObject = new GameObject("HelixBeam");
+        // ----- ビーム（プレハブ。胸の高さから前へ） -----
+        GameObject beamObject = (GameObject)PrefabUtility.InstantiatePrefab(beamPrefab);
         beamObject.transform.SetParent(character.transform, false);
         beamObject.transform.localPosition = new Vector3(0f, 1.1f, 0.4f);
-
-        GameObject headLightObject = new GameObject("BeamHeadLight");
-        headLightObject.transform.SetParent(beamObject.transform, false);
-        Light headLight = headLightObject.AddComponent<Light>();
-        headLight.type = LightType.Point;
-        headLight.color = new Color(0.4f, 1f, 0.55f);
-        headLight.range = 5f;
-        headLight.shadows = LightShadows.None;
-
-        HelixBeam beam = beamObject.AddComponent<HelixBeam>();
-
-        SerializedObject beamSerialized = new SerializedObject(beam);
-        beamSerialized.FindProperty("lineMaterial").objectReferenceValue = lightningMaterial;
-        beamSerialized.FindProperty("headLight").objectReferenceValue = headLight;
-        beamSerialized.ApplyModifiedPropertiesWithoutUndo();
+        HelixBeam beam = beamObject.GetComponent<HelixBeam>();
 
         // ----- 操作 -----
         GameObject driverObject = new GameObject("LightningTestDriver");
@@ -135,6 +113,102 @@ public static class LightningTestSetup
 
         Debug.Log($"電撃エフェクトの検証シーンを作りました：{ScenePath}\n" +
                   "再生して、F の長押しでビーム（長く押すほど遠くへ）、Space で Burst、1 で出す／消す、2 でキャラクターを動かせます。");
+    }
+
+    // ------------------------------------------------------------
+    // プレハブ
+    // ------------------------------------------------------------
+
+    /// <summary>
+    /// 2つのプレハブを作る。**すでにあるものは作り直さない**（手で調整した色や太さが消えないように）。
+    /// 作り直したいときは、そのプレハブを消してからもう一度押す。
+    /// </summary>
+    [MenuItem("Tools/Mirai01/電撃エフェクトのプレハブを作る（無いものだけ）")]
+    public static void CreatePrefabs()
+    {
+        bool hadLightning = AssetDatabase.LoadAssetAtPath<GameObject>(LightningPrefabPath) != null;
+        bool hadBeam = AssetDatabase.LoadAssetAtPath<GameObject>(BeamPrefabPath) != null;
+
+        GetOrCreateLightningPrefab();
+        GetOrCreateBeamPrefab();
+
+        Debug.Log($"{LightningPrefabPath}：{(hadLightning ? "すでにあるので、そのまま" : "作りました")}\n" +
+                  $"{BeamPrefabPath}：{(hadBeam ? "すでにあるので、そのまま" : "作りました")}");
+    }
+
+    /// <summary>体のまわりの電撃のプレハブ。キャラクターの子の、足元に置く。</summary>
+    private static GameObject GetOrCreateLightningPrefab()
+    {
+        GameObject existing = AssetDatabase.LoadAssetAtPath<GameObject>(LightningPrefabPath);
+
+        if (existing != null)
+        {
+            return existing;
+        }
+
+        GameObject root = new GameObject("HelixLightning");
+
+        Light glowLight = CreatePointLight(root.transform, "LightningGlow", new Vector3(0f, 1f, 0f), 4f);
+
+        HelixLightning lightning = root.AddComponent<HelixLightning>();
+
+        SerializedObject serialized = new SerializedObject(lightning);
+        serialized.FindProperty("lineMaterial").objectReferenceValue = GetOrCreateLightningMaterial();
+        serialized.FindProperty("flickerLight").objectReferenceValue = glowLight;
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+
+        return SavePrefab(root, LightningPrefabPath);
+    }
+
+    /// <summary>ビームのプレハブ。キャラクターの子の、撃ち出す位置に置き、前（Z）を撃つ向きに向ける。</summary>
+    private static GameObject GetOrCreateBeamPrefab()
+    {
+        GameObject existing = AssetDatabase.LoadAssetAtPath<GameObject>(BeamPrefabPath);
+
+        if (existing != null)
+        {
+            return existing;
+        }
+
+        GameObject root = new GameObject("HelixBeam");
+
+        Light headLight = CreatePointLight(root.transform, "BeamHeadLight", Vector3.zero, 5f);
+
+        HelixBeam beam = root.AddComponent<HelixBeam>();
+
+        SerializedObject serialized = new SerializedObject(beam);
+        serialized.FindProperty("lineMaterial").objectReferenceValue = GetOrCreateLightningMaterial();
+        serialized.FindProperty("headLight").objectReferenceValue = headLight;
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+
+        return SavePrefab(root, BeamPrefabPath);
+    }
+
+    private static Light CreatePointLight(Transform parent, string name, Vector3 localPosition, float range)
+    {
+        GameObject lightObject = new GameObject(name);
+        lightObject.transform.SetParent(parent, false);
+        lightObject.transform.localPosition = localPosition;
+
+        Light light = lightObject.AddComponent<Light>();
+        light.type = LightType.Point;
+        light.color = new Color(0.4f, 1f, 0.55f);
+        light.range = range;
+        light.shadows = LightShadows.None;
+
+        return light;
+    }
+
+    private static GameObject SavePrefab(GameObject root, string path)
+    {
+        if (!AssetDatabase.IsValidFolder(PrefabFolder))
+        {
+            AssetDatabase.CreateFolder("Assets/Prefabs", "Effect");
+        }
+
+        GameObject prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
+        Object.DestroyImmediate(root);
+        return prefab;
     }
 
     // ------------------------------------------------------------
