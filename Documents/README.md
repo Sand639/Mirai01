@@ -1,11 +1,17 @@
-# 未来創造展 2027 出展作品プロジェクト（Mirai01）
+# 未来創造展 2027 出展作品プロジェクト（StarSweepers）
 
 | 項目 | 内容 |
 | --- | --- |
 | 製作者 | 大槻 海斗 |
 | 作成日 | 2026年8月28日（金） |
-| 最終更新日 | 2026年9月17日（木）　変更者：Codex |
-| リポジトリ | https://github.com/Sand639/Mirai01 |
+| 最終更新日 | 2026年9月28日（月）　変更者：Claude Code |
+| リポジトリ | https://github.com/Sand639/StarSweepers |
+
+> **2026/9/28 に、リポジトリ名を `Mirai01` から `StarSweepers` に変えました。**
+> すでにクローンしている人は、次の2つをしてください。
+> ①`git remote set-url origin https://github.com/Sand639/StarSweepers.git`
+> ②`git pull` のあと、**Unity Hub でプロジェクトを開き直す**（フォルダ名が `StarSweepers/` に変わったため）。
+> 詳しくは `リポジトリ名をStarSweepersにした記録.md`。
 
 > このドキュメントはプロジェクトの入口です。**参加したらまずこれを最後まで読むこと。**
 > 分からない用語が出てきたら、リーダーかAI（Codex / Claude Code）に聞いて構いません。
@@ -123,7 +129,7 @@
 | 入力 | Input System 1.19.0（新入力システム。旧 `Input.GetKey` 系は使わない） |
 | 通信（複数人プレイ） | Netcode for GameObjects 2.13.2（Unity公式）／Multiplayer Services SDK 2.3.1（**インターネット越しの合言葉接続用**） |
 | エディタ（IDE） | **Visual Studio**（Riderを使っている人はいない。Unity側には両方のパッケージが入っている） |
-| リポジトリ | https://github.com/Sand639/Mirai01 |
+| リポジトリ | https://github.com/Sand639/StarSweepers |
 | 連絡手段 | チームDiscord |
 
 > **Unityのバージョンは 6000.3.14f1 で固定する。**
@@ -192,7 +198,7 @@
 ## リポジトリ構成
 
 ```
-Mirai01/                          ← リポジトリのルート
+StarSweepers/                          ← リポジトリのルート
 ├── .claude/                      Claude Code の設定（`/Auto` コマンドの定義。ターミナル版でのみ使う別名）
 ├── .gitattributes                改行コードとマージのしかたの設定（触らなくてよい）
 ├── AGENTS.md                     AI（Codex）が起動時に読む指示書
@@ -215,7 +221,7 @@ Mirai01/                          ← リポジトリのルート
 │   ├── ネットワークの制作工程.md 通信を完成させるまでの工程と順番
 │   └── 作品制作およびAI活用ガイドライン.pdf
 │                                 学校が配布した公式ガイドライン（必読）
-└── Mirai01/                      Unityプロジェクト本体（Unity Hubではここを開く）
+└── StarSweepers/                      Unityプロジェクト本体（Unity Hubではここを開く）
     ├── Assets/                   ゲーム本体（中の名前は半角英数字で付ける）
     │   └── Scenes/               本番で使うシーン
     │       ├── Test/             機能ごとの検証用シーン（ビルドには含めない）
@@ -260,12 +266,12 @@ Mirai01/                          ← リポジトリのルート
 | 場所 | 名前の付け方 | 理由 |
 | --- | --- | --- |
 | `Documents/` | **日本語**。中身が一目で分かる名前にする（例：`制作ログ.md`） | 全員が読む場所だから。英語の略語（`DevLog` `RiskList` など）は使わない |
-| `Mirai01/Assets/` | **半角の英数字**。日本語もスペースも使わない（例：`PlayerMove.cs`） | Unity（ゲームエンジン）が直接読み込む場所であり、**半角英数字のほうが不具合が起きにくい**ため |
+| `StarSweepers/Assets/` | **半角の英数字**。日本語もスペースも使わない（例：`PlayerMove.cs`） | Unity（ゲームエンジン）が直接読み込む場所であり、**半角英数字のほうが不具合が起きにくい**ため |
 
 `Assets/` の中では、単語の区切りを大文字にする（`PlayerMove` のように）。
 また、**C#スクリプトのファイル名は中のクラス名と必ず同じ**にすること。違うとUnityが認識しない。
 
-> `Mirai01/Assets/` の中の構成は、まだ全体が決まっていない。
+> `StarSweepers/Assets/` の中の構成は、まだ全体が決まっていない。
 > AIは `Assets/` 以下に新しいフォルダを勝手に作らず、**置き場所を確認してから**作業すること。
 > ただし**検証用シーンの置き場所は `Assets/Scenes/Test/`、プロトタイプのステージは `Assets/Scenes/Prototype/` に決まっている**
 > （`Documents/シーンとプレハブの作り方.md`）。
@@ -287,10 +293,10 @@ Mirai01/                          ← リポジトリのルート
 4. リポジトリを取得する。置き場所はパスに**日本語や空白を含まない場所**を推奨する。
 
    ```bash
-   git clone https://github.com/Sand639/Mirai01.git
+   git clone https://github.com/Sand639/StarSweepers.git
    ```
 
-5. Unity Hub の「プロジェクトを開く」で、`Mirai01/Mirai01`（`Assets` が入っている方）フォルダを選ぶ。
+5. Unity Hub の「プロジェクトを開く」で、`StarSweepers/StarSweepers`（`Assets` が入っている方）フォルダを選ぶ。
    - リポジトリのルートを選ぶと開けないので注意。
 6. 初回起動はライブラリ生成のため時間がかかる。エラーが出た場合はリーダーかAIに相談すること。
 7. `Assets/Scenes/SampleScene.unity` が開ければ成功。
@@ -458,7 +464,7 @@ AIは次のように動く。
 
 - `Documents/` 配下のドキュメントは、**いちいち確認を取らずに自動で変更してよい**。
 - 変更点や改善点がある場合は、そのドキュメントの**一番下の変更ログに1行足したうえで**更新すること。
-- ただし `Mirai01/Assets/` 以下のファイルは、指示された内容の範囲でのみ編集すること。
+- ただし `StarSweepers/Assets/` 以下のファイルは、指示された内容の範囲でのみ編集すること。
 
 #### ドキュメントは自由に使ってよい
 
@@ -565,7 +571,7 @@ AIは次のように動く。
 
 ### ファイル操作の禁止事項
 
-> ⚠️ `Mirai01/Assets/` 以下のファイルを、**OS側でのファイル操作によって移動・リネーム・削除しないこと。**
+> ⚠️ `StarSweepers/Assets/` 以下のファイルを、**OS側でのファイル操作によって移動・リネーム・削除しないこと。**
 
 Unityは `.meta` ファイルで各アセットの参照を管理しているため、これらの操作を行うと**プレハブやシーンの参照が外れる**。
 必要な場合は実行せず、Unityエディタ上で行う手順を提示すること。
