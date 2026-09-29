@@ -207,6 +207,7 @@ public class ThrowController : MonoBehaviour
     private InputAction attackAction;
 
     private HookableObject target;
+    private IHookPullable pullableTarget;
     private bool active;
     private float armDelay;   // Begin 直後の1入力を誤爆しないための短い待ち
     private float timer;
@@ -301,6 +302,7 @@ public class ThrowController : MonoBehaviour
     public void Begin(HookableObject hookable)
     {
         target = hookable;
+        pullableTarget = null;
         active = true;
         timer = 0f;
         armDelay = 0.12f;
@@ -347,10 +349,36 @@ public class ThrowController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// HookController から呼ばれる。大型物件はその場で待ち、
+    /// プレイヤーがもう一度左入力を押した時だけ <see cref="IHookPullable"/> を呼ぶ。
+    /// </summary>
+    public void BeginPullable(IHookPullable pullable)
+    {
+        target = null;
+        anchorTarget = null;
+        pullableTarget = pullable;
+        active = pullable != null;
+        timer = 0f;
+        armDelay = 0.12f;
+        stage = TwoButtonStage.AimPull;
+
+        if (active)
+        {
+            StartBar();
+        }
+    }
+
     private void Update()
     {
         if (!active)
         {
+            return;
+        }
+
+        if (pullableTarget != null)
+        {
+            UpdatePullableTarget();
             return;
         }
 
@@ -418,6 +446,62 @@ public class ThrowController : MonoBehaviour
         {
             FinishAsMiss("ゲージが通り過ぎた");
         }
+    }
+
+    private void UpdatePullableTarget()
+    {
+        Component component = pullableTarget.HookComponent;
+        if (component == null || !pullableTarget.IsHooked)
+        {
+            AbandonPull();
+            return;
+        }
+
+        if (GamePause.BlocksInput)
+        {
+            return;
+        }
+
+        if (hook != null && hook.IsStunned)
+        {
+            pullableTarget.SetHooked(false);
+            AbandonPull();
+            return;
+        }
+
+        if (armDelay > 0f)
+        {
+            armDelay -= Time.deltaTime;
+        }
+
+        TickBar();
+        if (armDelay <= 0f && PullPressed())
+        {
+            FinishPullable(Accuracy(BarPosition()));
+        }
+    }
+
+    private void FinishPullable(float accuracy)
+    {
+        Vector3 playerPosition = hook != null ? hook.PlayerRoot.position : transform.position;
+        CompletePullable(pullableTarget, playerPosition, accuracy);
+        pullableTarget = null;
+        active = false;
+
+        if (hook != null)
+        {
+            if (hook.UI != null)
+            {
+                hook.UI.ShowTiming(false);
+            }
+            hook.NotifyThrowFinished();
+        }
+    }
+
+    /// <summary>拉扯ゲージが確定した時だけ、対象の介面を呼ぶ。</summary>
+    public static void CompletePullable(IHookPullable pullable, Vector3 playerPosition, float accuracy)
+    {
+        pullable?.CompletePull(new HookPullContext(playerPosition, accuracy));
     }
 
     // ------------------------------------------------------------
@@ -863,6 +947,19 @@ public class ThrowController : MonoBehaviour
             return;
         }
 
+        if (pullableTarget != null)
+        {
+            pullableTarget.SetHooked(false);
+            pullableTarget = null;
+            active = false;
+
+            if (hook != null && hook.UI != null)
+            {
+                hook.UI.ShowTiming(false);
+            }
+            return;
+        }
+
         // **アンカーは物資を引き寄せていない**（フックを固定して、プレイヤーのほうが寄っていく）ので、
         // 物理には触らずにやめるだけでよい（2026/9/24・アンカーとの合流時に追加）
         if (anchorTarget != null)
@@ -923,6 +1020,11 @@ public class ThrowController : MonoBehaviour
     /// <summary>引き寄せ中に物資が消えた場合。物理には触らず、フックだけ戻す。</summary>
     private void AbandonPull()
     {
+        if (pullableTarget != null)
+        {
+            pullableTarget.SetHooked(false);
+            pullableTarget = null;
+        }
         target = null;
         anchorTarget = null;
         pullingPlayer = null;

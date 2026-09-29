@@ -17,6 +17,9 @@ public class HookProjectile : MonoBehaviour
     /// <summary>物資に触れた瞬間に呼ばれる。相手の <see cref="HookableObject"/> を渡す。</summary>
     public System.Action<HookableObject> HookableTouched;
 
+    /// <summary>大型の拉扯対象に触れた瞬間に呼ばれる。</summary>
+    public System.Action<IHookPullable> PullableTouched;
+
     private Rigidbody body;
 
     private void Awake()
@@ -41,6 +44,13 @@ public class HookProjectile : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        IHookPullable pullable = HookController.FindPullable(other);
+        if (pullable != null && pullable.CanBeHooked)
+        {
+            PullableTouched?.Invoke(pullable);
+            return;
+        }
+
         HookableObject hookable = other.GetComponentInParent<HookableObject>();
 
         if (hookable != null && !hookable.IsHooked && !hookable.IsVanished)

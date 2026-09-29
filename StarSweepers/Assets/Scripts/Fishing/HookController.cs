@@ -99,6 +99,7 @@ public class HookController : MonoBehaviour
     private Vector3 launchDirection = Vector3.forward;
     private Vector3 hookPosition;
     private HookableObject attached;
+    private IHookPullable attachedPullable;
 
     /// <summary>オートエイムで発射したときの相手。飛んでいる間だけ入っていて、フックはこれを追いかける。</summary>
     private HookableObject autoTarget;
@@ -256,6 +257,7 @@ public class HookController : MonoBehaviour
         if (hook != null)
         {
             hook.HookableTouched += OnHookableTouched;
+            hook.PullableTouched += OnPullableTouched;
         }
     }
 
@@ -266,6 +268,7 @@ public class HookController : MonoBehaviour
         if (hook != null)
         {
             hook.HookableTouched -= OnHookableTouched;
+            hook.PullableTouched -= OnPullableTouched;
         }
     }
 
@@ -455,6 +458,13 @@ public class HookController : MonoBehaviour
         if (Physics.SphereCast(hookPosition, hookCastRadius, moveDirection,
                 out RaycastHit hit, step, hookableMask, QueryTriggerInteraction.Collide))
         {
+            IHookPullable pullable = FindPullable(hit.collider);
+            if (!chargingWithThrow && pullable != null && pullable.CanBeHooked)
+            {
+                OnPullableTouched(pullable);
+                return;
+            }
+
             HookableObject touched = hit.collider.GetComponentInParent<HookableObject>();
             if (touched != null && !touched.IsHooked && !touched.IsVanished)
             {
@@ -489,6 +499,20 @@ public class HookController : MonoBehaviour
         // 投げ終わると ThrowController が NotifyThrowFinished() を呼ぶ
 
         // 引き寄せ中に物資が消えた（爆発した）場合は、ここで取り残されないよう戻る
+        if (attachedPullable != null)
+        {
+            Component pullableComponent = attachedPullable.HookComponent;
+            if (pullableComponent == null || !attachedPullable.IsHooked)
+            {
+                attachedPullable = null;
+                phase = HookPhase.Returning;
+                return;
+            }
+
+            hookPosition = attachedPullable.HookAnchorPoint;
+            return;
+        }
+
         if (attached == null || attached.IsVanished)
         {
             attached = null;
@@ -497,6 +521,51 @@ public class HookController : MonoBehaviour
         }
 
         hookPosition = attached.AnchorPoint;
+    }
+
+    /// <summary>命中した Collider またはその親から、拉扯対象を探す。</summary>
+    public static IHookPullable FindPullable(Collider hitCollider)
+    {
+        if (hitCollider == null)
+        {
+            return null;
+        }
+
+        foreach (MonoBehaviour behaviour in hitCollider.GetComponentsInParent<MonoBehaviour>(true))
+        {
+            if (behaviour is IHookPullable pullable)
+            {
+                return pullable;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>左ボタンで飛ばした Hook が大型の拉扯対象に触れたときに呼ばれる。</summary>
+    private void OnPullableTouched(IHookPullable pullable)
+    {
+        if (phase != HookPhase.Flying || chargingWithThrow || pullable == null || !pullable.CanBeHooked)
+        {
+            return;
+        }
+
+        pullable.SetHooked(true);
+        attached = null;
+        attachedPullable = pullable;
+        hookPosition = pullable.HookAnchorPoint;
+        phase = HookPhase.Attached;
+
+        if (throwController != null)
+        {
+            throwController.BeginPullable(pullable);
+        }
+        else
+        {
+            pullable.SetHooked(false);
+            attachedPullable = null;
+            phase = HookPhase.Returning;
+        }
     }
 
     /// <summary>飛んでいるフックが物資に触れたときに呼ばれる。</summary>
@@ -535,6 +604,7 @@ public class HookController : MonoBehaviour
         }
 
         hookable.SetHooked(true);
+        attachedPullable = null;
         attached = hookable;
         hookPosition = hookable.AnchorPoint;
         phase = HookPhase.Attached;
@@ -589,7 +659,13 @@ public class HookController : MonoBehaviour
             attached.SetHooked(false);
         }
 
+        if (attachedPullable != null)
+        {
+            attachedPullable.SetHooked(false);
+        }
+
         attached = null;
+        attachedPullable = null;
         autoTarget = null;
         charge = 0f;
         phase = HookPhase.Idle;
@@ -608,6 +684,7 @@ public class HookController : MonoBehaviour
     public void NotifyThrowFinished()
     {
         attached = null;
+        attachedPullable = null;
         phase = HookPhase.Returning;
     }
 

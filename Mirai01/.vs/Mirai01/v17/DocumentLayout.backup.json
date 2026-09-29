@@ -1,0 +1,106 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Hal\\miraisouzo\\Mirai01\\Mirai01\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{C5DEC9B1-F21C-30F0-C9CB-178B053D5EEB}|Assembly-CSharp.csproj|c:\\hal\\miraisouzo\\mirai01\\mirai01\\assets\\scripts\\fishing\\explosiveobject.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C5DEC9B1-F21C-30F0-C9CB-178B053D5EEB}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\fishing\\explosiveobject.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C5DEC9B1-F21C-30F0-C9CB-178B053D5EEB}|Assembly-CSharp.csproj|c:\\hal\\miraisouzo\\mirai01\\mirai01\\assets\\scripts\\fishing\\hookableobject.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C5DEC9B1-F21C-30F0-C9CB-178B053D5EEB}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\fishing\\hookableobject.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C5DEC9B1-F21C-30F0-C9CB-178B053D5EEB}|Assembly-CSharp.csproj|C:\\Hal\\miraisouzo\\Mirai01\\Mirai01\\assets\\scripts\\fishing\\hookchargeui.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C5DEC9B1-F21C-30F0-C9CB-178B053D5EEB}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\fishing\\hookchargeui.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C5DEC9B1-F21C-30F0-C9CB-178B053D5EEB}|Assembly-CSharp.csproj|C:\\Hal\\miraisouzo\\Mirai01\\Mirai01\\assets\\scripts\\fishing\\hookcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C5DEC9B1-F21C-30F0-C9CB-178B053D5EEB}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\fishing\\hookcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C5DEC9B1-F21C-30F0-C9CB-178B053D5EEB}|Assembly-CSharp.csproj|C:\\Hal\\miraisouzo\\Mirai01\\Mirai01\\assets\\scripts\\fishing\\throwcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C5DEC9B1-F21C-30F0-C9CB-178B053D5EEB}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\fishing\\throwcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ExplosiveObject.cs",
+              "DocumentMoniker": "C:\\Hal\\miraisouzo\\Mirai01\\Mirai01\\Assets\\Scripts\\Fishing\\ExplosiveObject.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Fishing\\ExplosiveObject.cs",
+              "ToolTip": "C:\\Hal\\miraisouzo\\Mirai01\\Mirai01\\Assets\\Scripts\\Fishing\\ExplosiveObject.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Fishing\\ExplosiveObject.cs",
+              "ViewState": "AgIAALkAAAAAAAAAAAAiwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-17T06:00:52.148Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "HookableObject.cs",
+              "DocumentMoniker": "C:\\Hal\\miraisouzo\\Mirai01\\Mirai01\\Assets\\Scripts\\Fishing\\HookableObject.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Fishing\\HookableObject.cs",
+              "ToolTip": "C:\\Hal\\miraisouzo\\Mirai01\\Mirai01\\Assets\\Scripts\\Fishing\\HookableObject.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Fishing\\HookableObject.cs",
+              "ViewState": "AgIAAHoAAAAAAAAAAAAmwIcAAAAjAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-16T01:42:48.843Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "ThrowController.cs",
+              "DocumentMoniker": "C:\\Hal\\miraisouzo\\Mirai01\\Mirai01\\Assets\\Scripts\\Fishing\\ThrowController.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Fishing\\ThrowController.cs",
+              "ToolTip": "C:\\Hal\\miraisouzo\\Mirai01\\Mirai01\\Assets\\Scripts\\Fishing\\ThrowController.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Fishing\\ThrowController.cs",
+              "ViewState": "AgIAACIBAAAAAAAAAAAswAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-16T01:20:43.518Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "HookController.cs",
+              "DocumentMoniker": "C:\\Hal\\miraisouzo\\Mirai01\\Mirai01\\Assets\\Scripts\\Fishing\\HookController.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Fishing\\HookController.cs",
+              "ToolTip": "C:\\Hal\\miraisouzo\\Mirai01\\Mirai01\\Assets\\Scripts\\Fishing\\HookController.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Fishing\\HookController.cs",
+              "ViewState": "AgIAAPIBAAAAAAAAAADwvxMAAAAqAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-16T01:19:33.281Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "HookChargeUI.cs",
+              "DocumentMoniker": "C:\\Hal\\miraisouzo\\Mirai01\\Mirai01\\Assets\\Scripts\\Fishing\\HookChargeUI.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Fishing\\HookChargeUI.cs",
+              "ToolTip": "C:\\Hal\\miraisouzo\\Mirai01\\Mirai01\\Assets\\Scripts\\Fishing\\HookChargeUI.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Fishing\\HookChargeUI.cs",
+              "ViewState": "AgIAAAIAAAAAAAAAAAAxwCcAAAAZAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-16T01:17:26.374Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
