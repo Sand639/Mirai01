@@ -210,6 +210,8 @@ public class ThrowController : MonoBehaviour
     private bool active;
     private float armDelay;   // Begin 直後の1入力を誤爆しないための短い待ち
     private float timer;
+    private float distancePullElapsed;
+    private float distancePullStartDistance;
     private Vector3 reelStart;
     private bool targetGravityWas;
     private bool targetKinematicWas;
@@ -238,6 +240,9 @@ public class ThrowController : MonoBehaviour
 
     /// <summary>いま引き寄せ中か。UI などが参照する。</summary>
     public bool IsPulling => active;
+
+    /// <summary>操作タイプBで距離ベースの引き抜きを使うか。入力方式と軌道処理から独立させる。</summary>
+    private bool UsesDistanceBasedPull => GameSettings.ControllerOperation == ControllerOperationType.TypeB;
 
     /// <summary>いまの操作のしかた。</summary>
     public ThrowStyle Style => style;
@@ -323,6 +328,8 @@ public class ThrowController : MonoBehaviour
         if (target != null)
         {
             reelStart = target.transform.position;
+            distancePullStartDistance = Vector3.Distance(reelStart, hook.PlayerRoot.position);
+            distancePullElapsed = 0f;
 
             // 引き寄せ中は決まった軌道を通らせたいので、物理を一時的に止める。
             // （物理で引っ張ると、ゲージの真ん中で真上に来るように揃えられない）
@@ -332,6 +339,15 @@ public class ThrowController : MonoBehaviour
             target.Body.angularVelocity = Vector3.zero;
             target.Body.useGravity = false;
             target.Body.isKinematic = true;
+        }
+
+        if (UsesDistanceBasedPull)
+        {
+            if (hook != null && hook.UI != null)
+            {
+                hook.UI.ShowTiming(false);
+            }
+            return;
         }
 
         if (style == ThrowStyle.TwoButtons)
@@ -386,6 +402,12 @@ public class ThrowController : MonoBehaviour
             return;
         }
 
+        if (UsesDistanceBasedPull)
+        {
+            UpdateDistanceBasedPull();
+            return;
+        }
+
         timer += Time.deltaTime;
         if (armDelay > 0f)
         {
@@ -418,6 +440,111 @@ public class ThrowController : MonoBehaviour
         {
             FinishAsMiss("ゲージが通り過ぎた");
         }
+    }
+
+    /// <summary>
+    /// タイプBの引き寄せ入力を処理する。
+    /// 入力の判定、距離から強さを決める計算、物資の移動は別メソッドに分け、
+    /// 将来は移動処理だけを物理による引きずりへ差し替えられるようにする。
+    /// </summary>
+    private void UpdateDistanceBasedPull()
+    {
+        distancePullElapsed += Time.deltaTime;
+        MoveDistanceBasedTarget();
+
+        float distanceRatio = GetDistanceRatio();
+        if (IsDistancePullInputPressed())
+        {
+            FinishDistanceBasedPull(distanceRatio, false);
+            return;
+        }
+
+        // 目の前まで引ききったら、再発動できなかった扱いで弱く後ろへ落とす。
+        if (distancePullElapsed >= skillCheckDuration || distanceRatio <= 0.03f)
+        {
+            FinishDistanceBasedPull(distanceRatio, true);
+        }
+    }
+
+    /// <summary>距離ベース処理の現在の軌道。将来の物理式に置き換える独立した境界。</summary>
+    private void MoveDistanceBasedTarget()
+    {
+        Vector3 destination = hook.PlayerRoot.position + Vector3.up * 0.45f;
+        float duration = Mathf.Max(0.1f, skillCheckDuration);
+        float speed = Mathf.Max(0.1f, distancePullStartDistance / duration);
+        Vector3 position = Vector3.MoveTowards(target.Body.position, destination, speed * Time.deltaTime);
+        target.Body.position = position;
+        target.transform.position = position;
+
+        if (reelSpinSpeed != 0f)
+        {
+            target.transform.Rotate(Vector3.right, reelSpinSpeed * Time.deltaTime, Space.Self);
+        }
+    }
+
+    /// <summary>引き抜き入力。現在はフックボタン（Attack）またはLT。</summary>
+    private bool IsDistancePullInputPressed()
+    {
+        return attackAction.WasPressedThisFrame() || PullPressed();
+    }
+
+    /// <summary>残り距離をフックの最大飛距離に対する割合（0〜1）で返す。</summary>
+    private float GetDistanceRatio()
+    {
+        if (hook == null || hook.MaxRange <= 0f)
+        {
+            return 0f;
+        }
+
+        return Mathf.Clamp01(Vector3.Distance(target.transform.position, hook.PlayerRoot.position) / hook.MaxRange);
+    }
+
+    /// <summary>距離割合から従来のクリティカル力に対する倍率を計算する。</summary>
+    private static float CalculateDistancePullStrength(float distanceRatio)
+    {
+        if (distanceRatio <= 0.15f)
+        {
+            return 1f;
+        }
+        if (distanceRatio <= 0.5f)
+        {
+            return Mathf.Lerp(1f, 0.7f, Mathf.InverseLerp(0.15f, 0.5f, distanceRatio));
+        }
+        return Mathf.Lerp(0.7f, 0.05f, Mathf.InverseLerp(0.5f, 1f, distanceRatio));
+    }
+
+    /// <summary>距離判定後の引き抜き。強さ計算と飛ばす方向を物理実行から分ける。</summary>
+    private void FinishDistanceBasedPull(float distanceRatio, bool missed)
+    {
+        Vector3 direction = ResolveDistancePullDirection(missed);
+        float strength = missed ? 0.1f : CalculateDistancePullStrength(distanceRatio);
+        float force = throwForcePerfect * strength;
+
+        Debug.Log($"距離ベース引き抜き：残り距離 {distanceRatio:P0} / 力 {force:0.0}" +
+                  (missed ? "（引ききりミス）" : ""));
+        Launch(direction, force, 0f);
+    }
+
+    /// <summary>成功時はプレイヤーへ斜めに引き、時間切れ時は後方へ転がす方向を作る。</summary>
+    private Vector3 ResolveDistancePullDirection(bool missed)
+    {
+        Vector3 forward = hook.CurrentAimDirection;
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.0001f)
+        {
+            forward = hook.PlayerRoot.forward;
+            forward.y = 0f;
+        }
+        forward.Normalize();
+
+        Vector3 side = Vector3.Cross(Vector3.up, forward).normalized;
+        Vector3 towardPlayer = hook.PlayerRoot.position - target.transform.position;
+        towardPlayer.y = 0f;
+        Vector3 baseDirection = missed
+            ? -forward
+            : (towardPlayer.sqrMagnitude > 0.0001f ? towardPlayer.normalized : -forward);
+        Vector3 direction = baseDirection + side * 0.35f;
+        return direction.normalized;
     }
 
     // ------------------------------------------------------------

@@ -1,9 +1,16 @@
 using UnityEngine;
 
+/// <summary>コントローラーの操作方法。</summary>
+public enum ControllerOperationType
+{
+    TypeA = 0,
+    TypeB = 1
+}
+
 /// <summary>
 /// **設定画面で変えられる値**を、どこからでも見られるようにしたもの。
 ///
-/// いまのところ2つだけ。
+/// 音量・マウス感度・コントローラー操作方法を保存する。
 ///
 /// | 設定 | 効く場所 |
 /// | **音量** | ゲーム全体（`AudioListener.volume`） |
@@ -20,10 +27,31 @@ public static class GameSettings
 {
     private const string VolumeKey = "StarSweepers.Volume";
     private const string SensitivityKey = "StarSweepers.MouseSensitivity";
+    private const string ControllerOperationKey = "StarSweepers.ControllerOperationType";
 
     private static float volume = 1f;
     private static float mouseSensitivity = 1f;
     private static bool loaded;
+    private static ControllerOperationType controllerOperationType = ControllerOperationType.TypeA;
+
+    /// <summary>コントローラーの操作方法。タイプAが従来の操作。</summary>
+    public static ControllerOperationType ControllerOperation
+    {
+        get
+        {
+            Load();
+            return controllerOperationType;
+        }
+        set
+        {
+            Load();
+            controllerOperationType = value == ControllerOperationType.TypeB
+                ? ControllerOperationType.TypeB
+                : ControllerOperationType.TypeA;
+            PlayerPrefs.SetInt(ControllerOperationKey, (int)controllerOperationType);
+            PlayerPrefs.Save();
+        }
+    }
 
     /// <summary>音の大きさ（0で無音、1でそのまま）。</summary>
     public static float Volume
@@ -75,6 +103,9 @@ public static class GameSettings
 
         volume = PlayerPrefs.GetFloat(VolumeKey, 1f);
         mouseSensitivity = PlayerPrefs.GetFloat(SensitivityKey, 1f);
+        controllerOperationType = PlayerPrefs.GetInt(ControllerOperationKey, 0) == 1
+            ? ControllerOperationType.TypeB
+            : ControllerOperationType.TypeA;
 
         AudioListener.volume = volume;
     }

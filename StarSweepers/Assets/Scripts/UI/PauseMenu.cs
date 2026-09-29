@@ -376,8 +376,37 @@ public class PauseMenu : MonoBehaviour
         CreateSlider(settingsPage.transform, "マウス感度", 90f - 96f, GameSettings.MouseSensitivity, 0.2f, 3f,
             value => GameSettings.MouseSensitivity = value);
 
-        CreateMenuItem(settingsPage.transform, "もどる", 90f - (ItemHeight + ItemGap) * 2f,
+        CreateMenuItem(settingsPage.transform, ControllerOperationLabel(), 90f - (ItemHeight + ItemGap) * 2f,
+            ToggleControllerOperation);
+
+        CreateMenuItem(settingsPage.transform, "もどる", 90f - (ItemHeight + ItemGap) * 3f,
             () => ShowSettings(false));
+    }
+
+    private static string ControllerOperationLabel()
+    {
+        return GameSettings.ControllerOperation == ControllerOperationType.TypeB
+            ? "操作タイプ：タイプB"
+            : "操作タイプ：タイプA";
+    }
+
+    private void ToggleControllerOperation()
+    {
+        GameSettings.ControllerOperation = GameSettings.ControllerOperation == ControllerOperationType.TypeA
+            ? ControllerOperationType.TypeB
+            : ControllerOperationType.TypeA;
+        BuildSettingsPageRefresh();
+    }
+
+    // 表示中の設定ページを作り直し、切り替えた値をすぐに見せる。
+    private void BuildSettingsPageRefresh()
+    {
+        settingsPage.SetActive(false);
+        Destroy(settingsPage);
+        settingsPage = CreatePage("SettingsPage", "設定");
+        BuildSettingsPage();
+        settingsPage.SetActive(true);
+        SelectFirstForGamepad(settingsPage);
     }
 
     /// <summary>押せる項目を1つ作る。マウスが重なったときの見せ方もここで付ける。</summary>
