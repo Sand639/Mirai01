@@ -354,6 +354,7 @@ GameObject:
   m_Component:
   - component: {fileID: 133209899}
   - component: {fileID: 133209898}
+  - component: {fileID: 133209900}
   m_Layer: 0
   m_Name: Directional Light
   m_TagString: Untagged
@@ -441,6 +442,35 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &133209900
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 133209897}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
+  m_UsePipelineSettings: 1
+  m_AdditionalLightsShadowResolutionTier: 2
+  m_CustomShadowLayers: 0
+  m_LightCookieSize: {x: 1, y: 1}
+  m_LightCookieOffset: {x: 0, y: 0}
+  m_SoftShadowQuality: 0
+  m_RenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_ShadowRenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_Version: 4
+  m_LightLayerMask: 1
+  m_ShadowLayerMask: 1
+  m_RenderingLayers: 1
+  m_ShadowRenderingLayers: 1
 --- !u!1 &158920237
 GameObject:
   m_ObjectHideFlags: 0
@@ -2564,6 +2594,63 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6957888629230261634}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1001 &2462322712079146533
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 952427175098134349, guid: aac7cd2f38da9224fa619f1e7c0062d7, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 8.39
+      objectReference: {fileID: 0}
+    - target: {fileID: 952427175098134349, guid: aac7cd2f38da9224fa619f1e7c0062d7, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 952427175098134349, guid: aac7cd2f38da9224fa619f1e7c0062d7, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 952427175098134349, guid: aac7cd2f38da9224fa619f1e7c0062d7, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 952427175098134349, guid: aac7cd2f38da9224fa619f1e7c0062d7, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 952427175098134349, guid: aac7cd2f38da9224fa619f1e7c0062d7, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 952427175098134349, guid: aac7cd2f38da9224fa619f1e7c0062d7, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 952427175098134349, guid: aac7cd2f38da9224fa619f1e7c0062d7, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 952427175098134349, guid: aac7cd2f38da9224fa619f1e7c0062d7, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 952427175098134349, guid: aac7cd2f38da9224fa619f1e7c0062d7, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2097426903417399385, guid: aac7cd2f38da9224fa619f1e7c0062d7, type: 3}
+      propertyPath: m_Name
+      value: MoveBox
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: aac7cd2f38da9224fa619f1e7c0062d7, type: 3}
 --- !u!23 &2464595466793093083
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -2799,6 +2886,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ThrowController
   hook: {fileID: 4695398410262310963}
   inputActions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  style: 0
+  barSweepsPerSecond: 1.2
+  pullForceMin: 4
+  pullForceMax: 16
+  pullLift: 3
+  pullTravelSeconds: 0.6
+  liftSeconds: 0.45
+  twoButtonThrowForceMin: 6
+  twoButtonThrowForceMax: 22
   skillCheckDuration: 1.6
   overheadHeight: 2.6
   passDistance: 3.5
@@ -2843,6 +2939,7 @@ MonoBehaviour:
   ui: {fileID: 615675205}
   stun: {fileID: 4695398410262310965}
   netPlayer: {fileID: 0}
+  aimAssist: {fileID: 0}
   inputActions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   chargeTime: 1
   minRange: 4
@@ -2868,6 +2965,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FishingPlayerController
   moveSpeed: 6
   gravity: -20
+  launchDamping: 4
   turnSpeed: 900
   aim: {fileID: 4695398410262310966}
   inputActions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
@@ -2909,6 +3007,11 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   rayDistance: 300
+  stickCursorSpeed: 1.2
+  stickDeadZone: 0.2
+  reticleSprite: {fileID: 0}
+  reticleSize: 1.5
+  reticleColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!222 &4870651841898539377
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -3325,3 +3428,4 @@ SceneRoots:
   - {fileID: 940476757}
   - {fileID: 615675208}
   - {fileID: 872815604}
+  - {fileID: 2462322712079146533}
