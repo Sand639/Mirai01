@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="10" result="Passed" total="10" passed="10" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-09-29 07:58:03Z" end-time="2026-09-29 07:58:03Z" duration="0.0628041">
+  <test-suite type="TestSuite" id="1000" name="StarSweepers" fullname="StarSweepers" runstate="Runnable" testcasecount="10" result="Passed" start-time="2026-09-29 07:58:03Z" end-time="2026-09-29 07:58:03Z" duration="0.062804" total="10" passed="10" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1013" name="Assembly-CSharp-Editor.dll" fullname="C:/Hal/miraisouzo/Mirai01/StarSweepers/Library/ScriptAssemblies/Assembly-CSharp-Editor.dll" runstate="Runnable" testcasecount="10" result="Passed" start-time="2026-09-29 07:58:03Z" end-time="2026-09-29 07:58:03Z" duration="0.056210" total="10" passed="10" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="30660" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestFixture" id="1001" name="MovableBlockTests" fullname="MovableBlockTests" classname="MovableBlockTests" runstate="Runnable" testcasecount="10" result="Passed" start-time="2026-09-29 07:58:03Z" end-time="2026-09-29 07:58:03Z" duration="0.055475" total="10" passed="10" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-case id="1008" name="FourDirectionsRotatesWithBlock" fullname="MovableBlockTests.FourDirectionsRotatesWithBlock" methodname="FourDirectionsRotatesWithBlock" classname="MovableBlockTests" runstate="Runnable" seed="1940666697" result="Passed" start-time="2026-09-29 07:58:03Z" end-time="2026-09-29 07:58:03Z" duration="0.012581" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-suite type="ParameterizedMethod" id="1007" name="FourDirectionsUsesNamedLocalSide" fullname="MovableBlockTests.FourDirectionsUsesNamedLocalSide" classname="MovableBlockTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2026-09-29 07:58:03Z" end-time="2026-09-29 07:58:03Z" duration="0.002457" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-case id="1003" name="FourDirectionsUsesNamedLocalSide(Front,0.0f,0.0f,1.0f)" fullname="MovableBlockTests.FourDirectionsUsesNamedLocalSide(Front,0.0f,0.0f,1.0f)" methodname="FourDirectionsUsesNamedLocalSide" classname="MovableBlockTests" runstate="Runnable" seed="1507961351" result="Passed" start-time="2026-09-29 07:58:03Z" end-time="2026-09-29 07:58:03Z" duration="0.000391" asserts="0">
+            <properties>
+              <property name="retryIteration" value="0" />
+              <property name="repeatIteration" value="0" />
+            </properties>
+          </test-case>
+          <test-case id="1004" name="FourDirectionsUsesNamedLocalSide(Back,0.0f,0.0f,-1.0f)" fullname="MovableBlockTests.FourDirectionsUsesNamedLocalSide(Back,0.0f,0.0f,-1.0f)" methodname="FourDirectionsUsesNamedLocalSide" classname="MovableBlockTests" runstate="Runnable" seed="1514782684" result="Passed" start-time="2026-09-29 07:58:03Z" end-time="2026-09-29 07:58:03Z" duration="0.000063" asserts="0">
+            <properties>
+              <property name="retryIteration" value="0" />
+              <property name="repeatIteration" value="0" />
+            </properties>
+          </test-case>
+          <test-case id="1005" name="FourDirectionsUsesNamedLocalSide(Left,-1.0f,0.0f,0.0f)" fullname="MovableBlockTests.FourDirectionsUsesNamedLocalSide(Left,-1.0f,0.0f,0.0f)" methodname="FourDirectionsUsesNamedLocalSide" classname="MovableBlockTests" runstate="Runnable" seed="891192874" result="Passed" start-time="2026-09-29 07:58:03Z" end-time="2026-09-29 07:58:03Z" duration="0.000051" asserts="0">
+            <properties>
+              <property name="retryIteration" value="0" />
+              <property name="repeatIteration" value="0" />
+            </properties>
+          </test-case>
+          <test-case id="1006" name="FourDirectionsUsesNamedLocalSide(Right,1.0f,0.0f,0.0f)" fullname="MovableBlockTests.FourDirectionsUsesNamedLocalSide(Right,1.0f,0.0f,0.0f)" methodname="FourDirectionsUsesNamedLocalSide" classname="MovableBlockTests" runstate="Runnable" seed="1979115183" result="Passed" start-time="2026-09-29 07:58:03Z" end-time="2026-09-29 07:58:03Z" duration="0.000058" asserts="0">
+            <properties>
+              <property name="retryIteration" value="0" />
+              <property name="repeatIteration" value="0" />
+            </properties>
+          </test-case>
+        </test-suite>
+        <test-case id="1010" name="HookFindsPullableFromTheColliderItHit" fullname="MovableBlockTests.HookFindsPullableFromTheColliderItHit" methodname="HookFindsPullableFromTheColliderItHit" classname="MovableBlockTests" runstate="Runnable" seed="1310625831" result="Passed" start-time="2026-09-29 07:58:03Z" end-time="2026-09-29 07:58:03Z" duration="0.011710" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1012" name="MovableBlockPrefabHasFourNamedTriggerPullPoints" fullname="MovableBlockTests.MovableBlockPrefabHasFourNamedTriggerPullPoints" methodname="MovableBlockPrefabHasFourNamedTriggerPullPoints" classname="MovableBlockTests" runstate="Runnable" seed="1349716520" result="Passed" start-time="2026-09-29 07:58:03Z" end-time="2026-09-29 07:58:03Z" duration="0.008677" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1009" name="PullPointCompletesPullOnlyWhenHookCallsCompletion" fullname="MovableBlockTests.PullPointCompletesPullOnlyWhenHookCallsCompletion" methodname="PullPointCompletesPullOnlyWhenHookCallsCompletion" classname="MovableBlockTests" runstate="Runnable" seed="9825563" result="Passed" start-time="2026-09-29 07:58:03Z" end-time="2026-09-29 07:58:03Z" duration="0.005806" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1011" name="ThrowControllerCallsPullableWhenPullIsCompleted" fullname="MovableBlockTests.ThrowControllerCallsPullableWhenPullIsCompleted" methodname="ThrowControllerCallsPullableWhenPullIsCompleted" classname="MovableBlockTests" runstate="Runnable" seed="1651131805" result="Passed" start-time="2026-09-29 07:58:03Z" end-time="2026-09-29 07:58:03Z" duration="0.001000" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1002" name="TowardPlayerUsesHorizontalDirectionFromBlockToPlayer" fullname="MovableBlockTests.TowardPlayerUsesHorizontalDirectionFromBlockToPlayer" methodname="TowardPlayerUsesHorizontalDirectionFromBlockToPlayer" classname="MovableBlockTests" runstate="Runnable" seed="1151186892" result="Passed" start-time="2026-09-29 07:58:03Z" end-time="2026-09-29 07:58:03Z" duration="0.000250" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+          <output><![CDATA[Saving results to: C:/Users/cyrus/AppData/LocalLow/DefaultCompany/StarSweepers\TestResults.xml
+]]></output>
+        </test-case>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>
