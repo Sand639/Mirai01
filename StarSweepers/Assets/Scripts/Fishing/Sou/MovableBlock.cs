@@ -5,7 +5,8 @@ using UnityEngine;
 public enum MovableBlockMoveMode
 {
     TowardPlayer,
-    FourDirections
+    FourDirections,
+    FourCorners
 }
 
 /// <summary>方塊四周可被拉扯的位置。</summary>
@@ -14,7 +15,11 @@ public enum MovableBlockPullSide
     Front,
     Back,
     Left,
-    Right
+    Right,
+    FrontLeft,
+    FrontRight,
+    BackLeft,
+    BackRight
 }
 
 /// <summary>可由玩家拉動的大型方塊。</summary>
@@ -107,6 +112,18 @@ public class MovableBlock : MonoBehaviour
         Vector3 localDirection;
         switch (side)
         {
+            case MovableBlockPullSide.FrontLeft:
+                localDirection = new Vector3(-1f, 0f, 1f);
+                break;
+            case MovableBlockPullSide.FrontRight:
+                localDirection = new Vector3(1f, 0f, 1f);
+                break;
+            case MovableBlockPullSide.BackLeft:
+                localDirection = new Vector3(-1f, 0f, -1f);
+                break;
+            case MovableBlockPullSide.BackRight:
+                localDirection = new Vector3(1f, 0f, -1f);
+                break;
             case MovableBlockPullSide.Back:
                 localDirection = Vector3.back;
                 break;
