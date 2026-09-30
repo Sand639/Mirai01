@@ -15,3 +15,6 @@
 /*/[Ll]ogs/
 /*/[Uu]ser[Ss]ettings/
 /*/.vs/
+
+# Unity のテストの結果ファイル（テストを動かすたびに作られる。2026/9/30 追加）
+/StarSweepers/TestResults*.xml
