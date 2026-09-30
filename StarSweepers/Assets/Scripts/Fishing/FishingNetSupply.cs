@@ -176,6 +176,10 @@ public class FishingNetSupply : NetworkBehaviour
         hookedByPlayerIndex.Value = -1;
         lastThrownByPlayerIndex.Value = playerIndex;
 
+        // **ここからはホストが物資を動かすので、ホストでも「投げた本人の体に当たらない」ようにする**
+        // （本人のPCだけでやっても、ホスト側で頭にぶつかって跳ねてしまう。2026/9/30）
+        ThrowPassThrough.Apply(gameObject, FindThrowerCollider(playerIndex));
+
         if (body != null && !body.isKinematic)
         {
             if (!preserveVelocity)
@@ -279,6 +283,20 @@ public class FishingNetSupply : NetworkBehaviour
     }
 
     /// <summary>ホストが持ち主を取り戻し、物理を自分で回せる状態にする。</summary>
+    /// <summary>参加番号 <paramref name="playerIndex"/> の人の体（CharacterController）。見つからなければ null。</summary>
+    private static Collider FindThrowerCollider(int playerIndex)
+    {
+        foreach (FishingNetPlayer player in FishingNetPlayer.All)
+        {
+            if (player != null && player.PlayerIndex == playerIndex)
+            {
+                return player.GetComponent<CharacterController>();
+            }
+        }
+
+        return null;
+    }
+
     private void TakeBackOwnership()
     {
         if (NetworkObject.OwnerClientId != NetworkManager.ServerClientId)

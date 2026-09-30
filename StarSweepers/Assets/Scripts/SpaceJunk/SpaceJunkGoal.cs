@@ -117,6 +117,21 @@ public class SpaceJunkGoal : NetworkBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        TryCollect(other);
+    }
+
+    /// <summary>
+    /// **中に入ったまま、あとから数えられる状態になった物も拾う**（2026/9/29）。
+    /// 重いデブリはフックで引きずられて（つかまれたまま）ゴールに入り、中で手を離されるので、
+    /// 入った瞬間（OnTriggerEnter）だけ見ていると数えそこねる。
+    /// </summary>
+    private void OnTriggerStay(Collider other)
+    {
+        TryCollect(other);
+    }
+
+    private void TryCollect(Collider other)
+    {
         // **数えるのはホストだけ。**
         if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
         {
@@ -154,7 +169,7 @@ public class SpaceJunkGoal : NetworkBehaviour
 
         // **もう持っている種類でも、素材は消える（何も起きない）。**
         bool counted = SpaceJunkRound.Current != null
-                    && SpaceJunkRound.Current.ServerCollect(OwnerTeam, material.Kind);
+                    && SpaceJunkRound.Current.ServerCollect(OwnerTeam, material.Kind, item.GetComponent<NetworkObject>());
 
         netSupply?.ClearLastThrower();
 

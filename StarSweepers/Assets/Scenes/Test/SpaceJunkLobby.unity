@@ -496,6 +496,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SpaceJunkLobbyTerminal
   interactRange: 3
   interactKey: 19
+  interactButton: 6
   highlightRenderer: {fileID: 974692458}
   nearColor: {r: 0.4, g: 1, b: 0.6, a: 1}
 --- !u!23 &974692458
