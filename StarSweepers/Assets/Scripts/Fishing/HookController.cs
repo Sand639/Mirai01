@@ -576,6 +576,14 @@ public class HookController : MonoBehaviour
             return;
         }
 
+        // **右クリック（投げる）で撃ったフックは、重い物には引っ掛からない**（宇宙ごみ式だけ。2026/9/29）。
+        // 重い物は投げられないため。引っ掛けずにそのまま戻る
+        if (throwController != null && throwController.RefusesHook(hookable))
+        {
+            phase = HookPhase.Returning;
+            return;
+        }
+
         // オンラインでは、**早い者勝ちの判定をホストが行う。**
         // ここでは先に手元で引っ掛けた形にしておき（待たせると操作が重くなる）、
         // すでに取られていた場合はホストから断りが来て CancelAttachBecauseTaken() で戻す

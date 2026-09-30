@@ -517,7 +517,7 @@ public class SpaceJunkLobbyUI : MonoBehaviour
 
         GUILayout.Label("　※ 打ち込んだら「決定」か Enter で反映します。", labelStyle);
         GUILayout.Label(session.WinRule == SpaceJunkWinRule.Score
-            ? $"　※ 時間いっぱい遊び、得点の高いチームがラウンドを取ります（1個 {SpaceJunkRound.PointPerItem} 点、同じ種類を{SpaceJunkRound.StreakLength}回続けると +{SpaceJunkRound.StreakBonus}）。"
+            ? $"　※ 時間いっぱい遊び、得点の高いチームがラウンドを取ります（1個 {SpaceJunkRound.PointPerItem} 点。{session.Events.startSeconds:0} 秒たつとイベントが起きます）。"
             : "　※ 3種類そろえたチームが出たら、その時点でラウンドは終わります。", labelStyle);
     }
 

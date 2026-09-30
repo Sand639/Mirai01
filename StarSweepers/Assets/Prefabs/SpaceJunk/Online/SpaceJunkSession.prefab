@@ -45,7 +45,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 0
+  GlobalObjectIdHash: 1611748419
   InScenePlacedSourceGlobalObjectIdHash: 0
   m_InScenePlacedDisabledByDefault: 0
   DeferredDespawnTick: 0
@@ -76,3 +76,36 @@ MonoBehaviour:
   lobbySceneName: SpaceJunkLobby
   roundResultSeconds: 5
   matchResultSeconds: 8
+  winRule: 0
+  events:
+    startSeconds: 20
+    pool:
+    - kind: 2
+      displayName: "\u671F\u9593\u9650\u5B9A\u9AD8\u4FA1\u5024\u30C7\u30D6\u30EA"
+      description: 
+      durationSeconds: 40
+      weight: 1
+    - kind: 1
+      displayName: "\u30BB\u30C3\u30C8\u30C7\u30D6\u30EA"
+      description: 
+      durationSeconds: 40
+      weight: 1
+    - kind: 3
+      displayName: "\u7279\u6B8A\u30C7\u30D6\u30EA"
+      description: 
+      durationSeconds: 40
+      weight: 1
+    debrisSetOrdered: 1
+    debrisSetMinSize: 4
+    debrisSetMaxSize: 6
+    debrisSetGoal: 3
+    debrisSetBonus: 10
+    highValueBonus: 2
+    heavyWeights:
+    - 1
+    - 2
+    - 3
+    heavyPoints: 20
+    heavyBaseScale: 1.6
+    heavyScalePerWeight: 0.3
+    heavyColor: {r: 0.35, g: 0.85, b: 1, a: 1}
