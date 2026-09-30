@@ -4,7 +4,7 @@
 | --- | --- |
 | 製作者 | 大槻 海斗 |
 | 作成日 | 2026年8月28日（金） |
-| 最終更新日 | 2026年9月28日（月）　変更者：Claude Code |
+| 最終更新日 | 2026年9月30日（水）　変更者：Claude Code |
 | リポジトリ | https://github.com/Sand639/StarSweepers |
 
 > ⚠️ **2026/9/28 に、プロジェクトの名前を `Mirai01` から `StarSweepers` に変えました。**
@@ -200,6 +200,7 @@
 StarSweepers/                          ← リポジトリのルート
 ├── .claude/                      Claude Code の設定（`/Auto` コマンドの定義。ターミナル版でのみ使う別名）
 ├── .gitattributes                改行コードとマージのしかたの設定（触らなくてよい）
+├── .gitignore                    ルートに紛れ込んだキャッシュをGitに入れない設定（Unity用の設定は StarSweepers/.gitignore）
 ├── AGENTS.md                     AI（Codex）が起動時に読む指示書
 ├── CLAUDE.md                     AI（Claude Code）が起動時に読む指示書
 ├── Documents/                    ドキュメント（このREADMEがある場所）
@@ -672,3 +673,4 @@ Unityは `.meta` ファイルで各アセットの参照を管理しているた
 | 9/16（水） | Codex | プログラマーとしてソウホイチョンをメンバー構成に追加 |
 | 9/17（木） | Codex | プログラマーとして鈴木 翔太郎をメンバー構成に追加 |
 | 9/22（火） | Claude Code | Git の運用ルールに「修正が入っている・コミットが多いブランチは develop へスカッシュマージしてよい」を追加（大槻さんの指示） |
+| 9/30（水） | Claude Code | リポジトリ構成にルートの `.gitignore` を追加（名前変更前の古いフォルダ `Mirai01/` がキャッシュごとコミットされていたため削除し、再発を防ぐ設定を置いた。大槻さんの依頼） |

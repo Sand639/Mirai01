@@ -99,6 +99,15 @@ public class SkillCheckZone
 ///
 /// 押すまでずっと待つ（時間切れなし）。**ほかの人のフックが当たる**か、爆風を受けると外れる。
 /// 釣り式に戻したいときは、プレハブの Style を SweepOnce にするだけでよい。
+///
+/// ## 重い物（<see cref="HeavyHookable"/> が付いた物。宇宙ごみ式のときだけ。2026/9/29）
+///
+///   ・**投げられない。** 右クリック（RT）で撃ったフックは引っ掛からない（<see cref="RefusesHook"/>）
+///   ・左で引っ掛けると、その場で止まってゲージ。**ゲージは往復せず、右端まで行ったら終わり**（重いほど速い）
+///   ・左で押すと、**頭上は越えずに地面を引きずる。** 距離（m）＝ 引っ張る強さ ÷ 重さ ×（1 − 真ん中からのずれ）。
+///     右端まで押さなかったときや端で押したときも、少しだけ引きずる（2026/9/29 に「中間まで」から固定の距離に変えた）
+///
+///   **釣りでは重い物を出していないので、釣りの動きは変わらない。**
 /// </summary>
 public class ThrowController : MonoBehaviour
 {
@@ -141,6 +150,32 @@ public class ThrowController : MonoBehaviour
 
     [Tooltip("投げるとき、真ん中ちょうどで押したときの力")]
     [SerializeField] private float twoButtonThrowForceMax = 22f;
+
+    [Header("重い物（宇宙ごみ式のとき。HeavyHookable が付いた物）")]
+    [Tooltip("重さ1のとき、ゲージのマーカーが1秒間に進む量（1で1秒かけて左端→右端）。**往復せず、右端まで行ったら終わる**")]
+    [Min(0.1f)]
+    [SerializeField] private float heavyBarSweepsPerSecond = 0.8f;
+
+    [Tooltip("重さが1増えるごとに、ゲージがどれだけ速くなるか（0.3 なら重さ2で1.3倍、重さ3で1.6倍）")]
+    [Min(0f)]
+    [SerializeField] private float heavyBarSpeedUpPerWeight = 0.3f;
+
+    [Tooltip("**引っ張る強さ（メートル）。** 引きずれる距離 ＝ 引っ張る強さ ÷ 重さ ×（1 − ゲージの真ん中からのずれ）。\n" +
+             "重さ1でど真ん中なら、この距離だけ引きずる")]
+    [Min(0f)]
+    [SerializeField] private float heavyDragStrength = 6f;
+
+    [Tooltip("いちばん短く引きずる距離（メートル。重さで割る）。端で押した・押さずに右端まで行ったときでも、これだけは動く（少し引っ張る）")]
+    [Min(0f)]
+    [SerializeField] private float heavyDragMinDistance = 0.8f;
+
+    [Tooltip("プレイヤーにこれ以上近づけない距離（メートル）。引きずりすぎてプレイヤーに重ならない・追い越さないように")]
+    [Min(0f)]
+    [SerializeField] private float heavyDragStopDistance = 1.5f;
+
+    [Tooltip("引きずるのにかける秒数")]
+    [Min(0.05f)]
+    [SerializeField] private float heavyDragSeconds = 0.6f;
 
     [Header("引き寄せの動き")]
     [Tooltip("引き寄せ〜スキルチェックが終わるまでの秒数。短いほど難しい")]
@@ -226,13 +261,25 @@ public class ThrowController : MonoBehaviour
         AimPull,     // 【左で撃った】くっついた場所で止まってゲージ。左＝引っ張る
         PullTravel,  // 【左で撃った】引っ張って、頭上を越えて後ろへ抜けている途中（ゲージは出さない）
         Lifting,     // 【右で撃った】頭上へ持ち上げている途中（ゲージは出さない）
-        AimThrow     // 【右で撃った】頭上で止まってゲージ。右＝投げる
+        AimThrow,    // 【右で撃った】頭上で止まってゲージ。右＝投げる
+        HeavyDrag    // 【重い物】地面を引きずっている途中（ゲージは出さない）
     }
 
     private TwoButtonStage stage;
     private float barTimer;
     private float liftTimer;
     private float pullAccuracy;
+
+    // ---- 重い物の途中経過 ----
+
+    /// <summary>いま引っ張っている物が重い物か（宇宙ごみ式のときだけ true になる）。</summary>
+    private bool heavy;
+
+    /// <summary>重い物の重さ。</summary>
+    private float heavyWeight = 1f;
+
+    private Vector3 dragFrom;
+    private Vector3 dragTo;
 
     /// <summary>次に引っ掛けたときに「投げる」ほうか（右で撃った）。false なら「引っ張る」ほう（左で撃った）。</summary>
     private bool nextIsThrow;
@@ -256,6 +303,15 @@ public class ThrowController : MonoBehaviour
     public void SetNextIsThrow(bool isThrow)
     {
         nextIsThrow = isThrow;
+    }
+
+    /// <summary>
+    /// **このフックで、その物資を引っ掛けてはいけないか。** <see cref="HookController"/> が当たったときに聞く。
+    /// 宇宙ごみ式で、**右クリック（投げる）で撃ったフックは、重い物には引っ掛からない**（2026/9/29・大槻さん。重い物は投げられない）。
+    /// </summary>
+    public bool RefusesHook(HookableObject hookable)
+    {
+        return style == ThrowStyle.TwoButtons && nextIsThrow && HeavyHookable.TryGetWeight(hookable, out _);
     }
 
     private void Awake()
@@ -306,6 +362,8 @@ public class ThrowController : MonoBehaviour
         active = true;
         timer = 0f;
         armDelay = 0.12f;
+        heavy = false;
+        heavyWeight = 1f;
 
         // アンカーは物資を引き寄せない。フックを固定したまま、プレイヤー自身を寄せる。
         // AnchorGimmick が無い従来の物資は、これまでどおり下の引き寄せ・投げ処理へ進む。
@@ -324,6 +382,11 @@ public class ThrowController : MonoBehaviour
 
         if (target != null)
         {
+            // **持っている間は、自分の体に当たらないようにする**（2026/9/30）。
+            // 頭上や体のそばを通すので、当たると歩いたときに体が押されたり引っかかったりする。
+            // 手を離したら、体から離れたところで自動で元に戻る（ThrowPassThrough）
+            ThrowPassThrough.Hold(target.gameObject, hook.PlayerRoot.GetComponent<CharacterController>());
+
             reelStart = target.transform.position;
 
             // 引き寄せ中は決まった軌道を通らせたいので、物理を一時的に止める。
@@ -362,6 +425,10 @@ public class ThrowController : MonoBehaviour
         timer = 0f;
         armDelay = 0.12f;
         stage = TwoButtonStage.AimPull;
+
+        // 直前に重い物（特殊デブリ）を引きずっていても、大型物件のゲージは往復させる
+        heavy = false;
+        heavyWeight = 1f;
 
         if (active)
         {
@@ -559,6 +626,16 @@ public class ThrowController : MonoBehaviour
     /// </summary>
     private void BeginTwoButtons()
     {
+        // **重い物は投げられない。** どちらで撃っていても、その場で止まってゲージを出し、引きずるだけ
+        heavy = HeavyHookable.TryGetWeight(target, out heavyWeight);
+
+        if (heavy)
+        {
+            stage = TwoButtonStage.AimPull;
+            StartBar();
+            return;
+        }
+
         if (nextIsThrow)
         {
             stage = TwoButtonStage.Lifting;
@@ -599,6 +676,13 @@ public class ThrowController : MonoBehaviour
     /// </summary>
     private float BarPosition()
     {
+        if (heavy)
+        {
+            // 重い物は**往復しない**。左端から右端へ1回だけ進み、重いほど速い
+            float speed = heavyBarSweepsPerSecond * (1f + heavyBarSpeedUpPerWeight * Mathf.Max(0f, heavyWeight - 1f));
+            return Mathf.Clamp01(barTimer * speed);
+        }
+
         return Mathf.PingPong(barTimer * barSweepsPerSecond, 1f);
     }
 
@@ -614,6 +698,35 @@ public class ThrowController : MonoBehaviour
     {
         switch (stage)
         {
+            case TwoButtonStage.AimPull when heavy:
+                TickBar();
+
+                if (armDelay <= 0f && PullPressed())
+                {
+                    // 引きずる距離 ＝ 引っ張る強さ ÷ 重さ ×（1 − 真ん中からのずれ）。真ん中に近いほど遠くまで
+                    StartHeavyDrag(heavyDragStrength * Accuracy(BarPosition()));
+                }
+                else if (BarPosition() >= 1f)
+                {
+                    // 右端まで押さなかった。**少しだけ引っ張って終わる**
+                    StartHeavyDrag(0f);
+                }
+                break;
+
+            case TwoButtonStage.HeavyDrag:
+                liftTimer += Time.deltaTime;
+                float drag = Mathf.Clamp01(liftTimer / heavyDragSeconds);
+
+                Vector3 dragged = Vector3.Lerp(dragFrom, dragTo, Mathf.SmoothStep(0f, 1f, drag));
+                target.Body.position = dragged;
+                target.transform.position = dragged;
+
+                if (drag >= 1f)
+                {
+                    FinishHeavyDrag();
+                }
+                break;
+
             case TwoButtonStage.AimPull:
                 TickBar();
 
@@ -763,12 +876,68 @@ public class ThrowController : MonoBehaviour
     }
 
     /// <summary>
+    /// **重い物を引きずり始める。** プレイヤーへ向かって、<paramref name="strength"/> ÷ 重さ（メートル）だけ、
+    /// 地面の高さのまま動かす。頭上は越えない。
+    /// いちばん短くても <see cref="heavyDragMinDistance"/> ÷ 重さ は動き、プレイヤーの手前 <see cref="heavyDragStopDistance"/> で止まる。
+    /// </summary>
+    private void StartHeavyDrag(float strength)
+    {
+        float weight = Mathf.Max(0.1f, heavyWeight);
+        float distance = Mathf.Max(strength, heavyDragMinDistance) / weight;
+
+        dragFrom = target.transform.position;
+
+        Vector3 toPlayer = hook.PlayerRoot.position - dragFrom;
+        toPlayer.y = 0f;
+
+        // プレイヤーに重ならない・追い越さないように、手前で止める
+        float room = Mathf.Max(0f, toPlayer.magnitude - heavyDragStopDistance);
+        distance = Mathf.Min(distance, room);
+
+        dragTo = dragFrom + (toPlayer.sqrMagnitude > 0.0001f ? toPlayer.normalized : Vector3.zero) * distance;
+
+        Debug.Log($"重い物を引きずった：重さ {heavyWeight:0.#}／{distance:0.0}m");
+
+        stage = TwoButtonStage.HeavyDrag;
+        liftTimer = 0f;
+
+        if (hook != null && hook.UI != null)
+        {
+            hook.UI.ShowTiming(false);
+        }
+    }
+
+    /// <summary>引きずり終わった。その場で手を離す（飛ばさない）。</summary>
+    private void FinishHeavyDrag()
+    {
+        Rigidbody body = target.Body;
+        RestorePhysics(body);
+
+        FishingNetSupply netSupply = GetNetSupply();
+
+        if (netSupply != null)
+        {
+            netSupply.RequestRelease(Vector3.zero, 0f, hook.LocalPlayerIndex);
+        }
+        else
+        {
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+        }
+
+        EndPull();
+    }
+
+    /// <summary>
     /// 物資に力を加えて手を離す。**オンラインではホストが力を加える**（どこへ飛んだかを全員でそろえるため）。
     /// </summary>
     private void Launch(Vector3 direction, float force, float lift)
     {
         Rigidbody body = target.Body;
         RestorePhysics(body);
+
+        // **頭上から投げるので、投げた直後は自分の体に当たらないようにする**（頭にぶつかって跳ねるのを防ぐ。2026/9/30）
+        ThrowPassThrough.Apply(target.gameObject, hook.PlayerRoot.GetComponent<CharacterController>());
 
         FishingNetSupply netSupply = GetNetSupply();
 
@@ -789,14 +958,17 @@ public class ThrowController : MonoBehaviour
     /// <summary>宇宙ごみ式のとき、いま押せるボタンを案内する（ゲージの少し上）。</summary>
     private void OnGUI()
     {
-        if (!active || style != ThrowStyle.TwoButtons || stage == TwoButtonStage.Lifting || stage == TwoButtonStage.PullTravel || GamePause.IsPaused)
+        if (!active || style != ThrowStyle.TwoButtons || stage == TwoButtonStage.Lifting || stage == TwoButtonStage.PullTravel ||
+            stage == TwoButtonStage.HeavyDrag || GamePause.IsPaused)
         {
             return;
         }
 
-        string text = stage == TwoButtonStage.AimPull
-            ? "左クリック（LT）：引っ張る　真ん中ほど強い"
-            : "右クリック（RT）：投げる　真ん中ほど強い";
+        string text = heavy
+            ? $"重い！（重さ {heavyWeight:0.#}）　左クリック（LT）：引きずる　真ん中ほど遠くまで"
+            : stage == TwoButtonStage.AimPull
+                ? "左クリック（LT）：引っ張る　真ん中ほど強い"
+                : "右クリック（RT）：投げる　真ん中ほど強い";
 
         GUIStyle labelStyle = new GUIStyle(GUI.skin.label)
         {
@@ -1070,6 +1242,8 @@ public class ThrowController : MonoBehaviour
         pullingPlayer = null;
         anchorPullTimer = 0f;
         active = false;
+        heavy = false;
+        heavyWeight = 1f;
 
         if (hook.UI != null)
         {

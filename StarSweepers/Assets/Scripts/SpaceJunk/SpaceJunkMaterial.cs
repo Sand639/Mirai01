@@ -47,6 +47,14 @@ public static class SpaceJunkMaterials
         return Names[Mathf.Clamp((int)kind, 0, Names.Length - 1)];
     }
 
+    private static readonly string[] ColorNames = { "白", "紫", "橙" };
+
+    /// <summary>種類の色の呼び名（画面の表示に使う。例：「紫」）。</summary>
+    public static string ColorName(SpaceJunkMaterialKind kind)
+    {
+        return ColorNames[Mathf.Clamp((int)kind, 0, ColorNames.Length - 1)];
+    }
+
     /// <summary>種類の色。</summary>
     public static Color Color(SpaceJunkMaterialKind kind)
     {

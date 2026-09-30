@@ -128,9 +128,14 @@ public class SpaceJunkRadar : MonoBehaviour
                 continue;
             }
 
+            // 重い（特殊）デブリは、その色の大きめの点で出す
+            bool highValue = item.TryGetComponent(out SpaceJunkHighValueMark mark) && mark.enabled;
+
             if (ToRadar(item.transform.position, heading, dotRadius, false, out Vector2 offset))
             {
-                DrawDot(center + offset, dot, supplyColor);
+                DrawDot(center + offset,
+                        highValue ? dot * 1.6f : dot,
+                        highValue ? mark.MarkColor : supplyColor);
             }
         }
     }

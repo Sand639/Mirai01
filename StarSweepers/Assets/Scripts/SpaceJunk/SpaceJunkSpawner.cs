@@ -125,22 +125,36 @@ public class SpaceJunkSpawner : MonoBehaviour
         return SpaceJunkRound.PlayAllowed;
     }
 
+    /// <summary>
+    /// **イベント用に、数の上限を気にせず1つ出す**（期間限定高価値デブリで使う）。**ホストだけが呼ぶ。**
+    /// 置き場所が見つからなければ null。
+    /// </summary>
+    public GameObject ServerSpawnExtra()
+    {
+        return SpawnOne(ignoreLimit: true);
+    }
+
     private void TrySpawnOne()
     {
-        if (HookableObject.CountActive() >= maxObjects)
+        SpawnOne(ignoreLimit: false);
+    }
+
+    private GameObject SpawnOne(bool ignoreLimit)
+    {
+        if (!ignoreLimit && HookableObject.CountActive() >= maxObjects)
         {
-            return;
+            return null;
         }
 
         GameObject prefab = ChoosePrefab();
         if (prefab == null)
         {
-            return;
+            return null;
         }
 
         if (!TryFindPlace(out Vector3 position))
         {
-            return;
+            return null;
         }
 
         Quaternion rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
@@ -161,6 +175,8 @@ public class SpaceJunkSpawner : MonoBehaviour
                                  "オンライン用のプレハブを入れてください。");
             }
         }
+
+        return spawned;
     }
 
     /// <summary>重みの割合で、3種類のうち1つのプレハブを選ぶ。</summary>

@@ -8,7 +8,8 @@ using UnityEngine;
 ///
 ///   ・**いま何ラウンド目か**と、何本先取か
 ///   ・**残り時間**（残り10秒を切ると赤くなる）
-///   ・得点制 … **チームごとの得点**と、**同じ種類を何回続けているか**
+///   ・得点制 … **チームごとの得点**と、**イベントの進み具合**（デブリセットなら、お題のデブリの印）
+///   ・**イベントの始まる前のカウントダウンと、始まった合図**
 ///   ・3種類ルール … **チームごとに、どの素材をそろえたか**（3種類ぶんの印）
 ///   ・**チームごとのラウンドの勝ち数**
 ///   ・決着後 … **このラウンドを取ったチーム**（引き分けならその旨）
@@ -62,6 +63,11 @@ public class SpaceJunkMatchUI : MonoBehaviour
 
         DrawHeader(round, viewWidth);
         DrawTeamProgress(round, viewWidth);
+
+        if (round.Phase == SpaceJunkRoundPhase.Playing)
+        {
+            DrawEventNotice(round, viewWidth, Screen.height / scale);
+        }
 
         if (round.Phase == SpaceJunkRoundPhase.Result)
         {
@@ -150,7 +156,7 @@ public class SpaceJunkMatchUI : MonoBehaviour
         int teamCount = session != null ? session.TeamCount : 1;
         int myTeam = MyTeam();
 
-        float y = 80f;
+        float y = 96f;
 
         GUILayout.BeginArea(new Rect(12f, y, 260f, 240f));
 
@@ -167,7 +173,7 @@ public class SpaceJunkMatchUI : MonoBehaviour
                 GUILayout.Label($"{mark}{SpaceJunkTeams.TeamName(team)}　{round.ScoreOf(team)} 点　（{wins} 本）", lineStyle);
                 GUI.color = saved;
 
-                DrawStreak(round, team);
+                DrawEventProgress(round, team);
                 GUILayout.Space(4f);
                 continue;
             }
@@ -211,33 +217,149 @@ public class SpaceJunkMatchUI : MonoBehaviour
     }
 
     /// <summary>
-    /// 得点制のとき、**同じ種類を何回続けているか**を出す（例：「燃料タンク ×2　あと1回で +5」）。
-    /// 続けている種類の色で出すので、次に何を入れればよいかが分かる。
+    /// 得点制のとき、**イベントの進み具合**を出す。
+    /// デブリセットなら「お題 1/3 → +10　■■□ ■ □」のように、入れた数と、素材の色の印を並べる
+    /// （■＝もう入れた、□＝まだ）。順不同のときは、種類ごとにまとめて並べている。
     /// </summary>
-    private void DrawStreak(SpaceJunkRound round, int team)
+    private void DrawEventProgress(SpaceJunkRound round, int team)
     {
+        if (round.ActiveEvent != SpaceJunkEventKind.DebrisSet || !round.IsEventRunning)
+        {
+            return;
+        }
+
         GUILayout.BeginHorizontal();
         GUILayout.Space(16f);
 
-        if (round.TryGetStreak(team, out SpaceJunkMaterialKind kind, out int count))
-        {
-            Color saved = GUI.color;
-            GUI.color = SpaceJunkMaterials.Color(kind);
+        Color saved = GUI.color;
+        GUI.color = new Color(0.85f, 0.85f, 0.9f);
+        GUILayout.Label($"お題 {round.SetDoneOf(team)}/{round.SetGoalOf(team)} → +{round.SetBonusOf(team)}", lineStyle, GUILayout.ExpandWidth(false));
 
-            int left = SpaceJunkRound.StreakLength - count;
-            GUILayout.Label($"■ {SpaceJunkMaterials.Name(kind)} ×{count}　あと{left}回で +{SpaceJunkRound.StreakBonus}", lineStyle);
+        if (round.SetOrdered)
+        {
+            // 順番どおり … お題を左から順に並べる。次に入れる1個は ▶ を付けて目立たせる
+            int size = round.SetSizeOf(team);
+            int step = round.SetStepOf(team);
+
+            for (int n = 0; n < size; n++)
+            {
+                SpaceJunkMaterialKind kind = SpaceJunkMaterials.FromIndex(round.SetItemAt(team, n));
+                Color color = SpaceJunkMaterials.Color(kind);
+
+                if (n > step)
+                {
+                    color = new Color(color.r * 0.7f, color.g * 0.7f, color.b * 0.7f, 1f);
+                }
+
+                GUI.color = color;
+                string mark = n < step ? "■" : n == step ? "▶□" : "□";
+                GUILayout.Label(mark, lineStyle, GUILayout.ExpandWidth(false));
+            }
 
             GUI.color = saved;
-        }
-        else
-        {
-            Color saved = GUI.color;
-            GUI.color = new Color(0.55f, 0.55f, 0.6f);
-            GUILayout.Label($"同じ種類を{SpaceJunkRound.StreakLength}回続けると +{SpaceJunkRound.StreakBonus}", lineStyle);
-            GUI.color = saved;
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            return;
         }
 
+        for (int k = 0; k < SpaceJunkMaterials.Count; k++)
+        {
+            SpaceJunkMaterialKind kind = SpaceJunkMaterials.FromIndex(k);
+            int required = round.SetRequiredOf(team, kind);
+            int done = round.SetProgressOf(team, kind);
+
+            if (required <= 0)
+            {
+                continue;
+            }
+
+            Color color = SpaceJunkMaterials.Color(kind);
+            string marks = new string('■', Mathf.Min(done, required)) + new string('□', Mathf.Max(0, required - done));
+
+            GUI.color = color;
+            GUILayout.Label(marks, lineStyle, GUILayout.ExpandWidth(false));
+        }
+
+        GUI.color = saved;
+        GUILayout.FlexibleSpace();
         GUILayout.EndHorizontal();
+    }
+
+    /// <summary>
+    /// イベントの**始まる前のカウントダウン**（残り5秒から）と、**始まった合図**（4秒間）を出す。
+    /// </summary>
+    private void DrawEventNotice(SpaceJunkRound round, float viewWidth, float viewHeight)
+    {
+        float until = round.SecondsUntilEvent;
+
+        if (until > 0f && until <= 5f)
+        {
+            GUI.Label(new Rect(0f, 70f, viewWidth, 24f), $"イベントまで {Mathf.CeilToInt(until)}", titleStyle);
+            return;
+        }
+
+        float since = round.SecondsSinceEventStarted;
+
+        if (since < 0f)
+        {
+            return;
+        }
+
+        if (since < 4f)
+        {
+            Color saved = GUI.color;
+            GUI.color = new Color(1f, 0.9f, 0.4f);
+            GUI.Label(new Rect(0f, viewHeight * 0.3f - 55f, viewWidth, 110f),
+                      $"イベント発生！　{round.EventName}\n" +
+                      $"<size=16>{round.EventDescription}{HighValueText(round, "\n")}</size>",
+                      resultStyle);
+            GUI.color = saved;
+            return;
+        }
+
+        if (!round.IsEventRunning)
+        {
+            GUI.Label(new Rect(0f, 70f, viewWidth, 24f), $"イベント終了：{round.EventName}", titleStyle);
+            return;
+        }
+
+        // 続いている間 … 名前と、時間の決まったイベントなら残り秒数
+        string line = $"イベント：{round.EventName}";
+
+        float remaining = round.EventRemainingSeconds;
+        if (remaining >= 0f)
+        {
+            line += $"　残り {Mathf.CeilToInt(remaining)} 秒";
+        }
+
+        if (round.ActiveEvent == SpaceJunkEventKind.HighValueDebris)
+        {
+            line += HighValueText(round, "　");
+        }
+        else if (round.ActiveEvent == SpaceJunkEventKind.HeavyDebris)
+        {
+            string points = round.HeavyBonusPerWeight > 0
+                ? $"重さ1で {round.HeavyPoints} 点・重さが1増えるごとに +{round.HeavyBonusPerWeight}"
+                : $"1個 {round.HeavyPoints} 点";
+            line += $"　特殊デブリ あと {round.HeavyRemaining} 個（{points}・引きずるだけ）";
+        }
+
+        GUI.Label(new Rect(0f, 70f, viewWidth, 24f), line, titleStyle);
+    }
+
+    /// <summary>
+    /// 期間限定高価値デブリのとき、「紫（回路基板）のデブリが +2点」の一文（種類の色つき）。
+    /// ほかのイベント、またはまだ選ばれていなければ空。
+    /// </summary>
+    private static string HighValueText(SpaceJunkRound round, string prefix)
+    {
+        if (round.ActiveEvent != SpaceJunkEventKind.HighValueDebris || !round.TryGetHighValueKind(out SpaceJunkMaterialKind kind))
+        {
+            return string.Empty;
+        }
+
+        string hex = ColorUtility.ToHtmlStringRGB(SpaceJunkMaterials.Color(kind));
+        return $"{prefix}<color=#{hex}>{SpaceJunkMaterials.ColorName(kind)}（{SpaceJunkMaterials.Name(kind)}）</color>のデブリが +{round.HighValueBonus}点";
     }
 
     /// <summary>決着後の表示。</summary>

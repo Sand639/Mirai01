@@ -95,6 +95,13 @@ public class SpaceJunkSession : NetworkBehaviour
     /// <summary>ラウンドの勝ち方。**ホストの値が使われる**（<see cref="SpaceJunkRound"/> が開始時に全員へ配る）。</summary>
     public SpaceJunkWinRule WinRule => winRule;
 
+    [Header("イベント（得点制のときだけ起きる）")]
+    [Tooltip("ラウンドの途中で起きるイベントの設定。何秒後に始めるか・候補の一覧・お題セットの個数とボーナス")]
+    [SerializeField] private SpaceJunkEventSettings events = new SpaceJunkEventSettings();
+
+    /// <summary>イベントの設定。**ホストの値が使われる**（<see cref="SpaceJunkRound"/> がホストで読む）。</summary>
+    public SpaceJunkEventSettings Events => events;
+
     // ------------------------------------------------------------
     // ホストが決めて全員へ配るもの
     // ------------------------------------------------------------
