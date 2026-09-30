@@ -42,6 +42,9 @@ public static class SpaceJunkMapListSetup
         SpaceJunkMapList list = EnsureList();
         WireLobby(list);
 
+        // どの方角にゴールがあるかを控える（ロビーでチーム数に合わないマップを外すため）
+        RefreshGoalInfo();
+
         Selection.activeObject = list;
         EditorGUIUtility.PingObject(list);
 
@@ -152,6 +155,102 @@ public static class SpaceJunkMapListSetup
         }
 
         return paths;
+    }
+
+    /// <summary>
+    /// **一覧のマップを1つずつ開いて、どの方角にゴールがあるかを控える**（2026/9/30）。
+    ///
+    /// ロビーは、これを見て「そのチーム数では遊べないマップ」を候補から外す。
+    /// シーンの中身はビルドしたゲームから読めないので、ここ（エディタ）で調べておく必要がある。
+    /// いま開いているシーンは閉じない（裏で開いて、調べたら閉じる）。
+    ///
+    /// 一覧を開いたとき・マップを点検したとき・検証用ビルドを作るとき・マップを作ったときに自動で呼ばれる。
+    /// **ゴールを足したり消したりしたら、どれか1つを実行し直すこと**（控えが古いままになるため）。
+    /// </summary>
+    public static void RefreshGoalInfo()
+    {
+        SpaceJunkMapList list = AssetDatabase.LoadAssetAtPath<SpaceJunkMapList>(ListPath);
+
+        if (list == null)
+        {
+            return;
+        }
+
+        bool changed = false;
+
+        foreach (SpaceJunkMapList.Entry entry in list.Maps)
+        {
+            if (entry == null || !entry.IsValid || !File.Exists(entry.ScenePath))
+            {
+                continue;
+            }
+
+            int mask = ReadGoalMask(entry.ScenePath);
+
+            if (mask != entry.GoalMask)
+            {
+                entry.EditorSetGoalMask(mask);
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            EditorUtility.SetDirty(list);
+            AssetDatabase.SaveAssets();
+            Debug.Log("[JUNK] マップの一覧に、各マップのゴールの場所を控えました（ロビーでチーム数に合わないマップを外すため）。");
+        }
+    }
+
+    /// <summary>そのシーンにあるゴールの番号（北=1 / 東=2 / 南=4 / 西=8 を足したもの）。</summary>
+    private static int ReadGoalMask(string scenePath)
+    {
+        Scene scene = SceneManager.GetSceneByPath(scenePath);
+        bool openedHere = !scene.IsValid() || !scene.isLoaded;
+
+        if (openedHere)
+        {
+            scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
+        }
+
+        int mask = 0;
+
+        foreach (GameObject root in scene.GetRootGameObjects())
+        {
+            foreach (SpaceJunkGoal goal in root.GetComponentsInChildren<SpaceJunkGoal>(true))
+            {
+                if (goal.GoalIndex >= 0 && goal.GoalIndex < SpaceJunkTeams.GoalCount)
+                {
+                    mask |= 1 << goal.GoalIndex;
+                }
+            }
+        }
+
+        if (openedHere)
+        {
+            EditorSceneManager.CloseScene(scene, true);
+        }
+
+        return mask;
+    }
+
+    /// <summary>ゴールの控えを、人が読める形にする（例：「北・南 → 2チームまで」）。</summary>
+    public static string DescribeGoals(int mask)
+    {
+        List<string> places = new List<string>();
+
+        for (int i = 0; i < SpaceJunkTeams.GoalCount; i++)
+        {
+            if ((mask & (1 << i)) != 0)
+            {
+                places.Add(SpaceJunkTeams.GoalPlaceName(i));
+            }
+        }
+
+        int maxTeams = SpaceJunkTeams.MaxPlayableTeams(mask);
+        string placeText = places.Count > 0 ? string.Join("・", places) : "なし";
+
+        return maxTeams > 0 ? $"ゴール {placeText} → {maxTeams}チームまで" : $"ゴール {placeText} → 遊べない";
     }
 
     /// <summary>

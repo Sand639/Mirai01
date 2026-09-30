@@ -79,6 +79,10 @@ public static class SpaceJunkBuilder
             return;
         }
 
+        // **どの方角にゴールがあるかを一覧に控えてからビルドする**（一覧はビルドに焼き込まれるので、
+        // 古い控えのままだと、ロビーでチーム数に合わないマップを外せない）
+        SpaceJunkMapListSetup.RefreshGoalInfo();
+
         List<string> maps = FindMapScenePaths();
 
         if (maps.Count == 0)

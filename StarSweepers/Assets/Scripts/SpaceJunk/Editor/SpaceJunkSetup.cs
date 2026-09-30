@@ -159,6 +159,9 @@ public static class SpaceJunkSetup
             return;
         }
 
+        // どの方角にゴールがあるかを一覧に控える（ロビーでチーム数に合わないマップを外すため）
+        SpaceJunkMapListSetup.RefreshGoalInfo();
+
         Debug.Log($"[JUNK] 宇宙ごみのマップ {checkedCount} 個を点検しました。" +
                   "**赤いエラーが出ていなければ、全部そろっています。**");
     }
@@ -353,10 +356,11 @@ public static class SpaceJunkSetup
         SpaceJunkGoal[] goals = Object.FindObjectsByType<SpaceJunkGoal>(
             FindObjectsInactive.Include, FindObjectsSortMode.None);
 
-        if (goals.Length != SpaceJunkTeams.GoalCount)
+        // **ゴールは4つでなくてもよい**（1対1のマップは2つ。2026/9/30）。
+        // 何チームまで遊べるかは、どの方角にゴールがあるかで決まり、ロビーはそれに合わせて候補を絞る
+        if (goals.Length == 0)
         {
-            problems.Add($"ゴールが {goals.Length} 個です。**{SpaceJunkTeams.GoalCount} 個必要**。" +
-                         "足りないと、そのゴールを持つはずのチームは**絶対にラウンドを取れません**");
+            problems.Add("ゴールが1つもありません。**どのチームも点を入れられません**");
         }
 
         // ゴールの番号（北=0/東=1/南=2/西=3）が重複していないか
@@ -396,9 +400,25 @@ public static class SpaceJunkSetup
             problems.Add($"プレイ中の画面（SpaceJunkMatchUI）が {uis} 個です。**1個必要**");
         }
 
+        int goalMask = 0;
+        for (int i = 0; i < used.Length; i++)
+        {
+            if (used[i])
+            {
+                goalMask |= 1 << i;
+            }
+        }
+
+        if (goals.Length > 0 && SpaceJunkTeams.MaxPlayableTeams(goalMask) < 2)
+        {
+            // エラーにはしない（1人で試すだけのマップもありうる）。ただ、対戦には使えないので知らせる
+            Debug.LogWarning($"[JUNK] {name} … {SpaceJunkMapListSetup.DescribeGoals(goalMask)}。" +
+                             "**2チームの対戦には使えません**（2チームは北と南、または東と西のゴールが要る）。");
+        }
+
         if (problems.Count == 0)
         {
-            Debug.Log($"[JUNK] {name} … 点検OK（ゴール4つ・進行役・スポナー・画面がそろっています）");
+            Debug.Log($"[JUNK] {name} … 点検OK（{SpaceJunkMapListSetup.DescribeGoals(goalMask)}。進行役・スポナー・画面がそろっています）");
             return;
         }
 

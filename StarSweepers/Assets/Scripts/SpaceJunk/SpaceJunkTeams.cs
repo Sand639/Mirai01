@@ -55,6 +55,33 @@ public static class SpaceJunkTeams
     /// </summary>
     public static int[] GoalOwners(int teamCount)
     {
+        return GoalOwners(teamCount, -1);
+    }
+
+    /// <summary>
+    /// **マップにあるゴール（<paramref name="goalMask"/>）も見て、ゴールの持ち主を決める。**
+    ///
+    /// ふだんは <see cref="GoalOwners(int)"/> と同じ。違うのは2チームのときだけで、
+    /// **北と南がそろっていないマップで、東と西がそろっていれば、東西を使う**（2026/9/30・大槻さん。東西の1対1マップ用）。
+    /// そのときは 東＝1チーム目、西＝2チーム目。
+    ///
+    /// <paramref name="goalMask"/> は北=1 / 東=2 / 南=4 / 西=8 を足したもの。-1（分からない）ならふだんどおり。
+    /// </summary>
+    public static int[] GoalOwners(int teamCount, int goalMask)
+    {
+        const int North = 1, East = 2, South = 4, West = 8;
+
+        if (Mathf.Clamp(teamCount, 1, MaxTeams) == 2 && goalMask >= 0)
+        {
+            bool northSouth = (goalMask & (North | South)) == (North | South);
+            bool eastWest = (goalMask & (East | West)) == (East | West);
+
+            if (!northSouth && eastWest)
+            {
+                return new[] { ClosedGoal, 0, ClosedGoal, 1 };
+            }
+        }
+
         switch (Mathf.Clamp(teamCount, 1, MaxTeams))
         {
             // 1チーム … 4つすべて自分たちのもの（1人で試すとき用）
@@ -74,6 +101,60 @@ public static class SpaceJunkTeams
             default:
                 return new[] { 0, 1, 2, 3 };
         }
+    }
+
+    /// <summary>
+    /// **ゴールの置き方（<paramref name="goalMask"/>）のマップで、そのチーム数を遊べるか。**
+    /// 全チームが、自分のゴールを少なくとも1つ持てれば遊べる（2026/9/30・大槻さん）。
+    ///
+    /// <paramref name="goalMask"/> は「マップにあるゴールの番号」を1ビットずつ（北=1 / 東=2 / 南=4 / 西=8）。
+    /// **数だけでなく場所も見る。** たとえば2チームは北と南を使うので、北と東の2つでは遊べない。
+    /// 分からない（-1）ときは、遊べるものとして扱う。
+    /// </summary>
+    public static bool GoalsSupportTeamCount(int goalMask, int teamCount)
+    {
+        if (goalMask < 0)
+        {
+            return true;
+        }
+
+        int teams = Mathf.Clamp(teamCount, 1, MaxTeams);
+        int[] owners = GoalOwners(teams, goalMask);
+
+        for (int team = 0; team < teams; team++)
+        {
+            bool hasGoal = false;
+
+            for (int goal = 0; goal < owners.Length; goal++)
+            {
+                if (owners[goal] == team && (goalMask & (1 << goal)) != 0)
+                {
+                    hasGoal = true;
+                    break;
+                }
+            }
+
+            if (!hasGoal)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>そのゴールの置き方で遊べる、いちばん多いチーム数。1チームも遊べなければ 0。</summary>
+    public static int MaxPlayableTeams(int goalMask)
+    {
+        for (int teams = MaxTeams; teams >= 1; teams--)
+        {
+            if (GoalsSupportTeamCount(goalMask, teams))
+            {
+                return teams;
+            }
+        }
+
+        return 0;
     }
 
     /// <summary>

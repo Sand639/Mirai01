@@ -244,14 +244,9 @@ public partial class SpaceJunkRound : NetworkBehaviour
     {
         int teamCount = SpaceJunkSession.Current != null ? SpaceJunkSession.Current.TeamCount : 1;
 
-        if (SpaceJunkGoal.All.Count < SpaceJunkTeams.GoalCount)
-        {
-            Debug.LogError(
-                $"[JUNK] このマップのゴールが {SpaceJunkGoal.All.Count} 個しかありません" +
-                $"（{SpaceJunkTeams.GoalCount} 個必要）。\n" +
-                "**ゴールを持てないチームは、絶対にラウンドを取れません。**\n" +
-                "Unity でこのマップを開き、足りないゴールを置いてください。");
-        }
+        // ゴールの数そのものは見ない（1対1のマップはゴールが2つ。2026/9/30）。
+        // 大事なのは「遊んでいる全チームが自分のゴールを持てるか」なので、下でそれを確かめる。
+        // （ロビーでも、遊べないマップはチーム数に合わせて候補から外している）
 
         // 遊んでいるチームに、持ち場のゴールがあるかを1つずつ見る
         for (int team = 0; team < teamCount; team++)
@@ -504,9 +499,31 @@ public partial class SpaceJunkRound : NetworkBehaviour
     public int OwnerTeamOfGoal(int goalIndex)
     {
         int teamCount = SpaceJunkSession.Current != null ? SpaceJunkSession.Current.TeamCount : 1;
-        int[] owners = SpaceJunkTeams.GoalOwners(teamCount);
+
+        // **このマップにあるゴールも見て決める**（東西だけのマップなら、2チームは東西を使う。2026/9/30）
+        int[] owners = SpaceJunkTeams.GoalOwners(teamCount, GoalMaskOfThisMap());
 
         return owners[Mathf.Clamp(goalIndex, 0, owners.Length - 1)];
+    }
+
+    /// <summary>
+    /// **このマップにあるゴールの番号**（北=1 / 東=2 / 南=4 / 西=8 を足したもの）。
+    /// シーンの切り替え途中に前のマップのゴールが残っていることがあるので、**このシーンのゴールだけ**数える。
+    /// </summary>
+    private int GoalMaskOfThisMap()
+    {
+        int mask = 0;
+
+        foreach (SpaceJunkGoal goal in SpaceJunkGoal.All)
+        {
+            if (goal != null && goal.gameObject.scene == gameObject.scene &&
+                goal.GoalIndex >= 0 && goal.GoalIndex < SpaceJunkTeams.GoalCount)
+            {
+                mask |= 1 << goal.GoalIndex;
+            }
+        }
+
+        return mask;
     }
 
     /// <summary>シーンにあるゴールへ、どのチームのものかをまとめて配る。</summary>
