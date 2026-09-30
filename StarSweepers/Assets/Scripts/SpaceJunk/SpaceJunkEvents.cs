@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 /// <summary>
 /// **ラウンドの途中で起きるイベントの種類。**
@@ -61,7 +62,9 @@ public static class SpaceJunkEvents
             case SpaceJunkEventKind.HighValueDebris:
                 return $"選ばれた種類のデブリが、時間内だけ +{settings.highValueBonus} 点！";
             case SpaceJunkEventKind.HeavyDebris:
-                return $"重い特殊デブリが出現！　引きずってゴールへ入れると {settings.heavyPoints} 点！（投げられない）";
+                return settings.heavyWeightBonus
+                    ? $"重い特殊デブリが出現！　引きずってゴールへ入れると {settings.heavyPoints} 点〜、重いほど高得点！（投げられない）"
+                    : $"重い特殊デブリが出現！　引きずってゴールへ入れると {settings.heavyPoints} 点！（投げられない）";
             default:
                 return string.Empty;
         }
@@ -165,9 +168,10 @@ public class SpaceJunkEventSettings
     public int highValueBonus = 2;
 
     [Header("特殊デブリ（重いデブリ）")]
-    [Tooltip("出す重いデブリの数")]
+    [Tooltip("**イベントが始まったときに出す、重いデブリの数。** 1回のイベントで出るのはこの数だけ（途中で増えない）")]
     [Min(1)]
-    public int heavyCount = 3;
+    [FormerlySerializedAs("heavyCount")]
+    public int heavyInitialCount = 3;
 
     [Tooltip("重さのいちばん軽い値（X）。**1個ずつ、X〜Y の間からランダムに決まる**（小数第1位まで）。\n" +
              "X と Y を同じにすると、全部その重さになる。\n" +
@@ -194,9 +198,32 @@ public class SpaceJunkEventSettings
         return Mathf.Clamp(Mathf.Round(Random.Range(low, high) * 10f) / 10f, low, high);
     }
 
-    [Tooltip("重いデブリを1個入れたときの得点（ふつうは1点。**これがそのまま入る**。重さには関係ない）")]
+    [Tooltip("重いデブリを1個入れたときの得点（ふつうは1点。**これがそのまま入る**）。" +
+             "下の「重さボーナス」が OFF なら、重さに関係なくこの点")]
     [Min(1)]
     public int heavyPoints = 20;
+
+    [Tooltip("**重さボーナスを付けるか。** ON にすると、重いほど得点が上がる：\n" +
+             "得点 ＝ 上の得点 ＋ 重さ1あたりのボーナス ×（重さ − 1）（小数は四捨五入）\n" +
+             "例：得点20・ボーナス10 なら、重さ1＝20点、重さ2＝30点、重さ2.5＝35点、重さ3＝40点")]
+    public bool heavyWeightBonus = false;
+
+    [Tooltip("重さボーナスが ON のとき、重さが1増えるごとに足す得点")]
+    [Min(0)]
+    public int heavyBonusPerWeight = 10;
+
+    /// <summary>その重さの重いデブリを1個入れたときの得点（重さボーナスが OFF なら、重さに関係なく同じ）。</summary>
+    public int HeavyPointsFor(float weight)
+    {
+        int points = heavyPoints;
+
+        if (heavyWeightBonus)
+        {
+            points += Mathf.RoundToInt(heavyBonusPerWeight * Mathf.Max(0f, weight - 1f));
+        }
+
+        return Mathf.Max(1, points);
+    }
 
     [Tooltip("重さ1のときの大きさ（ふつうのデブリの何倍か）")]
     [Min(0.1f)]

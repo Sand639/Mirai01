@@ -311,8 +311,16 @@ public partial class SpaceJunkRound
     /// <summary>まだ残っている重いデブリの数。</summary>
     public int HeavyRemaining => heavyIds.Count;
 
-    /// <summary>重いデブリを1個入れたときの得点。</summary>
+    /// <summary>
+    /// 重さが1増えるごとに足す得点（ホストの設定を全員へ配る。画面の表示用）。**重さボーナスが OFF なら 0。**
+    /// </summary>
+    private readonly NetworkVariable<int> heavyBonusPerWeight = new NetworkVariable<int>(0);
+
+    /// <summary>重いデブリを1個入れたときの得点（重さ1のとき）。</summary>
     public int HeavyPoints => heavyPoints.Value;
+
+    /// <summary>重さが1増えるごとに足す得点。重さボーナスが OFF なら 0。</summary>
+    public int HeavyBonusPerWeight => heavyBonusPerWeight.Value;
 
     // ------------------------------------------------------------
     // ホストだけが動かす
@@ -361,6 +369,7 @@ public partial class SpaceJunkRound
         highValueKind.Value = -1;
         highValueBonus.Value = Mathf.Max(0, settings.highValueBonus);
         heavyPoints.Value = Mathf.Max(1, settings.heavyPoints);
+        heavyBonusPerWeight.Value = settings.heavyWeightBonus ? Mathf.Max(0, settings.heavyBonusPerWeight) : 0;
 
         // **得点制のときだけ。** 3種類ルールはその場で決着がつくので、ボーナスの意味が無い
         bool hasCandidate = (settings.pool != null && settings.pool.Count > 0) ||
@@ -655,7 +664,7 @@ public partial class SpaceJunkRound
             return;
         }
 
-        for (int n = 0; n < Mathf.Max(1, settings.heavyCount); n++)
+        for (int n = 0; n < Mathf.Max(1, settings.heavyInitialCount); n++)
         {
             float weight = settings.PickHeavyWeight();
 
@@ -694,10 +703,13 @@ public partial class SpaceJunkRound
             heavyWeights.RemoveAt(index);
         }
 
-        Debug.Log($"[JUNK] {SpaceJunkTeams.TeamName(team)} が重さ {weight:0.#} の特殊デブリを入れました（{heavyPoints.Value} 点）。" +
+        // 重さボーナスが ON なら、重いほど高い（設定は HeavyPointsFor の1か所）
+        int points = EventSettings.HeavyPointsFor(weight);
+
+        Debug.Log($"[JUNK] {SpaceJunkTeams.TeamName(team)} が重さ {weight:0.#} の特殊デブリを入れました（{points} 点）。" +
                   $"残り {heavyIds.Count} 個。");
 
-        return Mathf.Max(0, heavyPoints.Value - PointPerItem);
+        return Mathf.Max(0, points - PointPerItem);
     }
 
     // ------------------------------------------------------------

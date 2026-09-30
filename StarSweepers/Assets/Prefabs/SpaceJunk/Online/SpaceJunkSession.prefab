@@ -95,17 +95,19 @@ MonoBehaviour:
       description: 
       durationSeconds: 40
       weight: 1
-    debrisSetOrdered: 1
+    debugForceEvent: 0
+    debrisSetOrdered: 0
     debrisSetMinSize: 4
     debrisSetMaxSize: 6
     debrisSetGoal: 3
     debrisSetBonus: 10
     highValueBonus: 2
-    heavyWeights:
-    - 1
-    - 2
-    - 3
-    heavyPoints: 20
+    heavyInitialCount: 1
+    heavyWeightMin: 2
+    heavyWeightMax: 2
+    heavyPoints: 10
+    heavyWeightBonus: 0
+    heavyBonusPerWeight: 10
     heavyBaseScale: 1.6
     heavyScalePerWeight: 0.3
     heavyColor: {r: 0.35, g: 0.85, b: 1, a: 1}

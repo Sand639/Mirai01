@@ -338,7 +338,10 @@ public class SpaceJunkMatchUI : MonoBehaviour
         }
         else if (round.ActiveEvent == SpaceJunkEventKind.HeavyDebris)
         {
-            line += $"　特殊デブリ あと {round.HeavyRemaining} 個（1個 {round.HeavyPoints} 点・引きずるだけ）";
+            string points = round.HeavyBonusPerWeight > 0
+                ? $"重さ1で {round.HeavyPoints} 点・重さが1増えるごとに +{round.HeavyBonusPerWeight}"
+                : $"1個 {round.HeavyPoints} 点";
+            line += $"　特殊デブリ あと {round.HeavyRemaining} 個（{points}・引きずるだけ）";
         }
 
         GUI.Label(new Rect(0f, 70f, viewWidth, 24f), line, titleStyle);

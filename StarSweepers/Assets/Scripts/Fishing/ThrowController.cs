@@ -382,6 +382,11 @@ public class ThrowController : MonoBehaviour
 
         if (target != null)
         {
+            // **持っている間は、自分の体に当たらないようにする**（2026/9/30）。
+            // 頭上や体のそばを通すので、当たると歩いたときに体が押されたり引っかかったりする。
+            // 手を離したら、体から離れたところで自動で元に戻る（ThrowPassThrough）
+            ThrowPassThrough.Hold(target.gameObject, hook.PlayerRoot.GetComponent<CharacterController>());
+
             reelStart = target.transform.position;
 
             // 引き寄せ中は決まった軌道を通らせたいので、物理を一時的に止める。
@@ -930,6 +935,9 @@ public class ThrowController : MonoBehaviour
     {
         Rigidbody body = target.Body;
         RestorePhysics(body);
+
+        // **頭上から投げるので、投げた直後は自分の体に当たらないようにする**（頭にぶつかって跳ねるのを防ぐ。2026/9/30）
+        ThrowPassThrough.Apply(target.gameObject, hook.PlayerRoot.GetComponent<CharacterController>());
 
         FishingNetSupply netSupply = GetNetSupply();
 
