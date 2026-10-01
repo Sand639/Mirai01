@@ -49,9 +49,9 @@ MonoBehaviour:
     sceneName: SpaceJunkMap01TeamCam
     scenePath: Assets/Scenes/Prototype/SpaceJunk/SpaceJunkMap01TeamCam.unity
     goalMask: 15
-  - scene: {fileID: 102900000, guid: ba102e973f896dd4591d3d7e04201efc, type: 3}
+  - scene: {fileID: 102900000, guid: e7bdbdc9ac9aaa14f968fe8859d7c13d, type: 3}
     showInLobby: 1
-    displayName: "1\u5BFE1\uFF08\u6771\u897F\uFF09"
-    sceneName: SpaceJunkMapDuelEW
-    scenePath: Assets/Scenes/Prototype/SpaceJunk/SpaceJunkMapDuelEW.unity
+    displayName: 1VS1
+    sceneName: 1VS1
+    scenePath: Assets/Scenes/Prototype/SpaceJunk/1VS1.unity
     goalMask: 10
