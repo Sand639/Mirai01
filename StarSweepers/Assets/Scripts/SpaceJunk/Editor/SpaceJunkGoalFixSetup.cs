@@ -20,8 +20,8 @@ using UnityEngine.SceneManagement;
 ///
 /// 1. 開いているシーンの `FishingNetPocket` を全部探し、プレハブから切り離す
 /// 2. `FishingNetPocket` を外して `SpaceJunkGoal` を付ける（床の見た目は引き継ぐ）
-/// 3. **方角（Goal Index）は、ステージの中心（原点）から見た置き場所で決める**
-///    （GoalArea の番号はコピーのたびにずれるので当てにしない。北＝奥（+Z）、東＝右（+X）、南＝手前、西＝左）
+/// 3. **番号（Goal Index）は、中心（原点）から見て北から時計回りの順に 0, 1, 2… と振る**
+///    （GoalArea の番号はコピーのたびにずれるので当てにしない。4つを四方に置けば 北0・東1・南2・西3、120度ずつ3つなら 0・1・2）
 /// 4. 保存して、マップの一覧にゴールの方角を控え、点検を走らせる
 /// </summary>
 public static class SpaceJunkGoalFixSetup
@@ -55,7 +55,7 @@ public static class SpaceJunkGoalFixSetup
             return;
         }
 
-        List<string> results = new List<string>();
+        int converted = 0;
 
         foreach (FishingNetPocket pocket in pockets)
         {
@@ -84,38 +84,67 @@ public static class SpaceJunkGoalFixSetup
                 goal = host.AddComponent<SpaceJunkGoal>();
             }
 
-            int index = DirectionIndex(host.transform.position);
-
             SerializedObject serialized = new SerializedObject(goal);
-            serialized.FindProperty("goalIndex").intValue = index;
             serialized.FindProperty("padRenderer").objectReferenceValue = padRenderer;
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
-            results.Add($"{host.name} → {SpaceJunkTeams.GoalPlaceName(index)}（Goal Index {index}）");
+            converted++;
         }
+
+        // **番号は、このマップのゴール全部を「中心から見て北から時計回り」に並べて 0, 1, 2… と振り直す**
+        List<string> results = RenumberClockwise();
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
 
-        // ロビーで候補を絞るために、ゴールの方角を一覧に控え直す
+        // ロビーで候補を絞るために、ゴールの番号を一覧に控え直す
         SpaceJunkMapListSetup.RefreshGoalInfo();
         SpaceJunkSetup.VerifyMap(scene.path);
 
         Debug.Log(
-            $"【宇宙ごみ】{scene.name} の釣りのゴール {results.Count} 個を、宇宙ごみのゴールに直して保存しました。\n・" +
+            $"【宇宙ごみ】{scene.name} の釣りのゴール {converted} 個を、宇宙ごみのゴールに直して保存しました。\n" +
+            "ゴールの番号（Goal Index）は、中心から見て北（奥）から時計回りの順に振りました：\n・" +
             string.Join("\n・", results) +
-            "\n\n方角は、ステージの中心（原点）から見た置き場所で決めました。違っていたら、ゴールの SpaceJunkGoal の Goal Index を直してください" +
-            "（0＝北・1＝東・2＝南・3＝西）。**直したら『宇宙ごみのマップを点検する』をもう一度実行すること。**");
+            "\n\n4つなら 北0・東1・南2・西3 になる。4つ未満なら、**番号の小さい順に 青・赤・緑…** のゴールになる。" +
+            "違っていたら Goal Index を直し、**『宇宙ごみのマップを点検する』をもう一度実行すること。**");
     }
 
-    /// <summary>ステージの中心（原点）から見た方角。北＝+Z、東＝+X、南＝-Z、西＝-X。</summary>
-    private static int DirectionIndex(Vector3 position)
+    /// <summary>
+    /// **シーンのゴールを全部、中心（原点）から見て北（+Z）から時計回りの順に並べ、0 から番号を振り直す。**
+    /// 4つを北・東・南・西に置けば 0・1・2・3 になり、120度ずつ3つ置けば 0・1・2 になる（2026/10/1）。
+    /// </summary>
+    private static List<string> RenumberClockwise()
     {
-        if (Mathf.Abs(position.x) > Mathf.Abs(position.z))
+        List<SpaceJunkGoal> goals = new List<SpaceJunkGoal>(Object.FindObjectsByType<SpaceJunkGoal>(
+            FindObjectsInactive.Include, FindObjectsSortMode.None));
+
+        goals.Sort((a, b) => ClockwiseAngle(a.transform.position).CompareTo(ClockwiseAngle(b.transform.position)));
+
+        List<string> results = new List<string>();
+
+        for (int i = 0; i < goals.Count; i++)
         {
-            return position.x >= 0f ? 1 : 3;
+            int index = Mathf.Min(i, SpaceJunkTeams.GoalCount - 1);
+
+            SerializedObject serialized = new SerializedObject(goals[i]);
+            serialized.FindProperty("goalIndex").intValue = index;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            results.Add($"{goals[i].name} → Goal Index {index}（北から時計回りに {ClockwiseAngle(goals[i].transform.position):0} 度）");
         }
 
-        return position.z >= 0f ? 0 : 2;
+        if (goals.Count > SpaceJunkTeams.GoalCount)
+        {
+            Debug.LogError($"[JUNK] ゴールが {goals.Count} 個あります。**{SpaceJunkTeams.GoalCount} 個まで**にしてください（番号がかぶります）。");
+        }
+
+        return results;
+    }
+
+    /// <summary>中心（原点）から見た向き。北（+Z）を 0 度として、時計回り（東＝90、南＝180、西＝270）。</summary>
+    private static float ClockwiseAngle(Vector3 position)
+    {
+        float angle = Mathf.Atan2(position.x, position.z) * Mathf.Rad2Deg;
+        return angle < 0f ? angle + 360f : angle;
     }
 }

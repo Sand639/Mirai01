@@ -61,28 +61,40 @@ public static class SpaceJunkTeams
     /// <summary>
     /// **マップにあるゴール（<paramref name="goalMask"/>）も見て、ゴールの持ち主を決める。**
     ///
-    /// ふだんは <see cref="GoalOwners(int)"/> と同じ。違うのは2チームのときだけで、
-    /// **北と南がそろっていないマップで、東と西がそろっていれば、東西を使う**（2026/9/30・大槻さん。東西の1対1マップ用）。
-    /// そのときは 東＝1チーム目、西＝2チーム目。
+    /// <paramref name="goalMask"/> は「マップにあるゴールの番号」を1ビットずつ（0番=1 / 1番=2 / 2番=4 / 3番=8）。
     ///
-    /// <paramref name="goalMask"/> は北=1 / 東=2 / 南=4 / 西=8 を足したもの。-1（分からない）ならふだんどおり。
+    /// | マップのゴール | 決め方 |
+    /// | --- | --- |
+    /// | **4つそろっている**（または分からない＝-1） | <see cref="GoalOwners(int)"/> と同じ（2チームは北と南など。方角で決まる） |
+    /// | **4つ未満** | **番号の小さい順に**、1チーム目・2チーム目…と1つずつ持つ。チームより多いゴールは閉ざす |
+    ///
+    /// 4つ未満のときは、番号は方角ではなく**順番**として使う（2026/10/1・大槻さん）。
+    /// これで 0と1 の1対1も、1と3 の東西の1対1も、120度ずつ置いた 0・1・2 の3チームのマップも遊べる。
+    /// 1チームのときは、どのマップでも全部のゴールが自分たちのもの。
     /// </summary>
     public static int[] GoalOwners(int teamCount, int goalMask)
     {
-        const int North = 1, East = 2, South = 4, West = 8;
+        int teams = Mathf.Clamp(teamCount, 1, MaxTeams);
+        int allGoals = (1 << GoalCount) - 1;
 
-        if (Mathf.Clamp(teamCount, 1, MaxTeams) == 2 && goalMask >= 0)
+        if (teams > 1 && goalMask >= 0 && (goalMask & allGoals) != allGoals)
         {
-            bool northSouth = (goalMask & (North | South)) == (North | South);
-            bool eastWest = (goalMask & (East | West)) == (East | West);
+            int[] owners = { ClosedGoal, ClosedGoal, ClosedGoal, ClosedGoal };
+            int nextTeam = 0;
 
-            if (!northSouth && eastWest)
+            for (int goal = 0; goal < GoalCount; goal++)
             {
-                return new[] { ClosedGoal, 0, ClosedGoal, 1 };
+                if ((goalMask & (1 << goal)) != 0 && nextTeam < teams)
+                {
+                    owners[goal] = nextTeam;
+                    nextTeam++;
+                }
             }
+
+            return owners;
         }
 
-        switch (Mathf.Clamp(teamCount, 1, MaxTeams))
+        switch (teams)
         {
             // 1チーム … 4つすべて自分たちのもの（1人で試すとき用）
             case 1:

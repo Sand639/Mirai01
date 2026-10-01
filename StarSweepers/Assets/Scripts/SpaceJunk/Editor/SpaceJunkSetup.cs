@@ -437,7 +437,7 @@ public static class SpaceJunkSetup
         {
             // エラーにはしない（1人で試すだけのマップもありうる）。ただ、対戦には使えないので知らせる
             Debug.LogWarning($"[JUNK] {name} … {SpaceJunkMapListSetup.DescribeGoals(goalMask)}。" +
-                             "**2チームの対戦には使えません**（2チームは北と南、または東と西のゴールが要る）。");
+                             "**2チームの対戦には使えません**（ゴールが2つ以上要る）。");
         }
 
         if (problems.Count == 0)
@@ -451,7 +451,8 @@ public static class SpaceJunkSetup
             string.Join("\n・", problems) +
             "\n\nUnity でこのシーンを開いて直してください。" +
             "ゴールを足すときは、**今あるマップのゴール（Goal_〜）をコピーして**貼り付け、" +
-            "その `SpaceJunkGoal` の Goal Index を空いている番号（0＝北・1＝東・2＝南・3＝西）にします。\n" +
+            "その `SpaceJunkGoal` の Goal Index を空いている番号にします" +
+            "（4つなら 0＝北・1＝東・2＝南・3＝西。4つ未満なら、番号の小さい順に 青・赤・緑… のゴールになる）。\n" +
             "**釣りの `GoalArea.prefab` をそのまま置いても、宇宙ごみのゴールにはなりません。** 置いてしまったときは、" +
             "`Tools > StarSweepers > 開いているマップの釣りのゴールを宇宙ごみのゴールに直す` を実行してください。");
     }

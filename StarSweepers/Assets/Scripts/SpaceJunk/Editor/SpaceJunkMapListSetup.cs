@@ -234,7 +234,7 @@ public static class SpaceJunkMapListSetup
         return mask;
     }
 
-    /// <summary>ゴールの控えを、人が読める形にする（例：「北・南 → 2チームまで」）。</summary>
+    /// <summary>ゴールの控えを、人が読める形にする（例：「ゴール番号 0・1（2個） → 2チームまで」）。</summary>
     public static string DescribeGoals(int mask)
     {
         List<string> places = new List<string>();
@@ -243,14 +243,14 @@ public static class SpaceJunkMapListSetup
         {
             if ((mask & (1 << i)) != 0)
             {
-                places.Add(SpaceJunkTeams.GoalPlaceName(i));
+                places.Add(i.ToString());
             }
         }
 
         int maxTeams = SpaceJunkTeams.MaxPlayableTeams(mask);
         string placeText = places.Count > 0 ? string.Join("・", places) : "なし";
 
-        return maxTeams > 0 ? $"ゴール {placeText} → {maxTeams}チームまで" : $"ゴール {placeText} → 遊べない";
+        return maxTeams > 0 ? $"ゴール番号 {placeText}（{places.Count}個） → {maxTeams}チームまで" : $"ゴール番号 {placeText} → 遊べない";
     }
 
     /// <summary>
