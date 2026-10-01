@@ -571,7 +571,18 @@ public class SpaceJunkLobbyUI : MonoBehaviour
     {
         GUILayout.Label("■ 使うマップ（この中からラウンドごとにランダム）", headerStyle);
 
-        List<KeyValuePair<string, string>> maps = GetAvailableMaps();
+        List<KeyValuePair<string, string>> maps = GetAvailableMaps(session.TeamCount, out int hiddenForTeams);
+
+        // **いまのチーム数で遊べないマップは、選んであっても外す**（チーム数をあとから増やしたとき用。2026/9/30）。
+        // 残しておくと、ゴールを持てないチームが出るマップでラウンドが始まってしまう
+        PruneUnplayableSelection(session, maps);
+
+        if (hiddenForTeams > 0)
+        {
+            GUI.color = new Color(0.8f, 0.8f, 0.85f);
+            GUILayout.Label($"　※ {session.TeamCount} チームでは遊べないマップ（ゴールが足りない）を {hiddenForTeams} 個隠しています。", labelStyle);
+            GUI.color = Color.white;
+        }
 
         if (maps.Count == 0)
         {
@@ -601,6 +612,39 @@ public class SpaceJunkLobbyUI : MonoBehaviour
         if (session.SelectedMapCount > 1)
         {
             GUILayout.Label("　※ 直前と同じマップは選ばれません。", labelStyle);
+        }
+    }
+
+    /// <summary>
+    /// 選んであるマップのうち、**いまの候補（チーム数で遊べるもの）に無いもの**を外す。
+    /// 一覧が無いとき（昔の拾い方）は、ゴールの控えが無いので何もしない。
+    /// </summary>
+    private void PruneUnplayableSelection(SpaceJunkSession session, List<KeyValuePair<string, string>> available)
+    {
+        if (mapList == null || session.SelectedMapCount == 0)
+        {
+            return;
+        }
+
+        HashSet<string> playable = new HashSet<string>();
+        foreach (KeyValuePair<string, string> map in available)
+        {
+            playable.Add(map.Key);
+        }
+
+        // SelectedMaps は使い回しの入れ物なので、先に写してから外す
+        List<string> selected = new List<string>(session.SelectedMaps);
+
+        foreach (string map in selected)
+        {
+            SpaceJunkMapList.Entry entry = mapList.Find(map);
+
+            // 一覧に無い・ロビーに出さないマップは、ここでは触らない（遊べるかどうかだけを見る）
+            if (entry != null && !entry.SupportsTeamCount(session.TeamCount) && !playable.Contains(map))
+            {
+                session.ServerToggleMap(map);
+                Debug.Log($"[JUNK] {map} は {session.TeamCount} チームでは遊べない（ゴールが足りない）ので、使うマップから外しました。");
+            }
         }
     }
 
@@ -688,9 +732,10 @@ public class SpaceJunkLobbyUI : MonoBehaviour
     ///
     /// 一覧が無いときだけ、昔どおり「名前が `SpaceJunkMap` で始まるシーン」を拾う。
     /// </summary>
-    private List<KeyValuePair<string, string>> GetAvailableMaps()
+    private List<KeyValuePair<string, string>> GetAvailableMaps(int teamCount, out int hiddenForTeams)
     {
         List<KeyValuePair<string, string>> maps = new List<KeyValuePair<string, string>>();
+        hiddenForTeams = 0;
 
         if (mapList != null)
         {
@@ -701,7 +746,19 @@ public class SpaceJunkLobbyUI : MonoBehaviour
                     continue;
                 }
 
-                maps.Add(new KeyValuePair<string, string>(entry.SceneName, entry.Label));
+                // **いまのチーム数で、全チームが自分のゴールを持てないマップは出さない**（2026/9/30・大槻さん）
+                if (!entry.SupportsTeamCount(teamCount))
+                {
+                    hiddenForTeams++;
+                    continue;
+                }
+
+                // 4チームまで遊べないマップは、何チームまでかを名前の横に出す
+                string label = entry.MaxTeams < SpaceJunkTeams.MaxTeams
+                    ? $"{entry.Label}（{entry.MaxTeams}チームまで）"
+                    : entry.Label;
+
+                maps.Add(new KeyValuePair<string, string>(entry.SceneName, label));
             }
 
             return maps;

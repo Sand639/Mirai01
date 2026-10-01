@@ -40,7 +40,7 @@ public static class SpaceJunkBuilder
     /// **起動したときに最初に開くシーン。** ロビーであること。
     /// このあとに、**マップの一覧（SpaceJunkMapList）に入っているマップ**が全部足される。
     /// </summary>
-    private const string LobbyScenePath = SpaceJunkSetup.LobbyScenePath;
+    private static string LobbyScenePath => SpaceJunkSetup.LobbyScenePath;
 
     /// <summary>マップのシーンを探す名前の始まり。</summary>
     private const string MapScenePrefix = "SpaceJunkMap";
@@ -78,6 +78,10 @@ public static class SpaceJunkBuilder
                 "先に `Tools > StarSweepers > 宇宙ごみ集めのシーンを作る（ロビー＋マップ）` を実行してください。");
             return;
         }
+
+        // **どの方角にゴールがあるかを一覧に控えてからビルドする**（一覧はビルドに焼き込まれるので、
+        // 古い控えのままだと、ロビーでチーム数に合わないマップを外せない）
+        SpaceJunkMapListSetup.RefreshGoalInfo();
 
         List<string> maps = FindMapScenePaths();
 

@@ -55,7 +55,46 @@ public static class SpaceJunkTeams
     /// </summary>
     public static int[] GoalOwners(int teamCount)
     {
-        switch (Mathf.Clamp(teamCount, 1, MaxTeams))
+        return GoalOwners(teamCount, -1);
+    }
+
+    /// <summary>
+    /// **マップにあるゴール（<paramref name="goalMask"/>）も見て、ゴールの持ち主を決める。**
+    ///
+    /// <paramref name="goalMask"/> は「マップにあるゴールの番号」を1ビットずつ（0番=1 / 1番=2 / 2番=4 / 3番=8）。
+    ///
+    /// | マップのゴール | 決め方 |
+    /// | --- | --- |
+    /// | **4つそろっている**（または分からない＝-1） | <see cref="GoalOwners(int)"/> と同じ（2チームは北と南など。方角で決まる） |
+    /// | **4つ未満** | **番号の小さい順に**、1チーム目・2チーム目…と1つずつ持つ。チームより多いゴールは閉ざす |
+    ///
+    /// 4つ未満のときは、番号は方角ではなく**順番**として使う（2026/10/1・大槻さん）。
+    /// これで 0と1 の1対1も、1と3 の東西の1対1も、120度ずつ置いた 0・1・2 の3チームのマップも遊べる。
+    /// 1チームのときは、どのマップでも全部のゴールが自分たちのもの。
+    /// </summary>
+    public static int[] GoalOwners(int teamCount, int goalMask)
+    {
+        int teams = Mathf.Clamp(teamCount, 1, MaxTeams);
+        int allGoals = (1 << GoalCount) - 1;
+
+        if (teams > 1 && goalMask >= 0 && (goalMask & allGoals) != allGoals)
+        {
+            int[] owners = { ClosedGoal, ClosedGoal, ClosedGoal, ClosedGoal };
+            int nextTeam = 0;
+
+            for (int goal = 0; goal < GoalCount; goal++)
+            {
+                if ((goalMask & (1 << goal)) != 0 && nextTeam < teams)
+                {
+                    owners[goal] = nextTeam;
+                    nextTeam++;
+                }
+            }
+
+            return owners;
+        }
+
+        switch (teams)
         {
             // 1チーム … 4つすべて自分たちのもの（1人で試すとき用）
             case 1:
@@ -74,6 +113,60 @@ public static class SpaceJunkTeams
             default:
                 return new[] { 0, 1, 2, 3 };
         }
+    }
+
+    /// <summary>
+    /// **ゴールの置き方（<paramref name="goalMask"/>）のマップで、そのチーム数を遊べるか。**
+    /// 全チームが、自分のゴールを少なくとも1つ持てれば遊べる（2026/9/30・大槻さん）。
+    ///
+    /// <paramref name="goalMask"/> は「マップにあるゴールの番号」を1ビットずつ（北=1 / 東=2 / 南=4 / 西=8）。
+    /// **数だけでなく場所も見る。** たとえば2チームは北と南を使うので、北と東の2つでは遊べない。
+    /// 分からない（-1）ときは、遊べるものとして扱う。
+    /// </summary>
+    public static bool GoalsSupportTeamCount(int goalMask, int teamCount)
+    {
+        if (goalMask < 0)
+        {
+            return true;
+        }
+
+        int teams = Mathf.Clamp(teamCount, 1, MaxTeams);
+        int[] owners = GoalOwners(teams, goalMask);
+
+        for (int team = 0; team < teams; team++)
+        {
+            bool hasGoal = false;
+
+            for (int goal = 0; goal < owners.Length; goal++)
+            {
+                if (owners[goal] == team && (goalMask & (1 << goal)) != 0)
+                {
+                    hasGoal = true;
+                    break;
+                }
+            }
+
+            if (!hasGoal)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>そのゴールの置き方で遊べる、いちばん多いチーム数。1チームも遊べなければ 0。</summary>
+    public static int MaxPlayableTeams(int goalMask)
+    {
+        for (int teams = MaxTeams; teams >= 1; teams--)
+        {
+            if (GoalsSupportTeamCount(goalMask, teams))
+            {
+                return teams;
+            }
+        }
+
+        return 0;
     }
 
     /// <summary>

@@ -50,6 +50,33 @@ public class SpaceJunkMapList : ScriptableObject
         [SerializeField, HideInInspector] private string sceneName;
         [SerializeField, HideInInspector] private string scenePath;
 
+        /// <summary>
+        /// **そのマップにあるゴールの番号**（北=1 / 東=2 / 南=4 / 西=8 を足したもの）。-1 ならまだ調べていない。
+        /// シーンの中身はビルドしたゲームから読めないので、エディタで調べて控えておく（2026/9/30）。
+        /// ロビーで「そのチーム数では遊べないマップ」を候補から外すのに使う。
+        /// </summary>
+        [SerializeField, HideInInspector] private int goalMask = -1;
+
+        /// <summary>そのマップにあるゴールの番号（-1 ならまだ調べていない）。</summary>
+        public int GoalMask => goalMask;
+
+        /// <summary>そのチーム数で遊べるか（全チームが自分のゴールを持てるか）。まだ調べていなければ遊べる扱い。</summary>
+        public bool SupportsTeamCount(int teamCount)
+        {
+            return SpaceJunkTeams.GoalsSupportTeamCount(goalMask, teamCount);
+        }
+
+        /// <summary>遊べるいちばん多いチーム数。まだ調べていなければ最大（4）。</summary>
+        public int MaxTeams => goalMask < 0 ? SpaceJunkTeams.MaxTeams : SpaceJunkTeams.MaxPlayableTeams(goalMask);
+
+#if UNITY_EDITOR
+        /// <summary>エディタで調べたゴールの番号を控える。</summary>
+        public void EditorSetGoalMask(int mask)
+        {
+            goalMask = mask;
+        }
+#endif
+
         /// <summary>シーンの名前（全員でシーンを切り替えるときに使う）。</summary>
         public string SceneName => sceneName;
 
