@@ -40,7 +40,7 @@ public static class SpaceJunkBuilder
     /// **起動したときに最初に開くシーン。** ロビーであること。
     /// このあとに、**マップの一覧（SpaceJunkMapList）に入っているマップ**が全部足される。
     /// </summary>
-    private const string LobbyScenePath = SpaceJunkSetup.LobbyScenePath;
+    private static string LobbyScenePath => SpaceJunkSetup.LobbyScenePath;
 
     /// <summary>マップのシーンを探す名前の始まり。</summary>
     private const string MapScenePrefix = "SpaceJunkMap";

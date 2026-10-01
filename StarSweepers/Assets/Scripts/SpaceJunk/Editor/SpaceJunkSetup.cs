@@ -15,7 +15,7 @@ using UnityEngine.SceneManagement;
 ///
 /// ## できるもの
 ///
-///   ・`Assets/Scenes/Test/SpaceJunkLobby.unity` … つないで待ち合わせる部屋。
+///   ・`SpaceJunkLobby.unity`（2026/10/1 から `Assets/Scenes/Prototype/SpaceJunk/`。ツールは名前で探す） … つないで待ち合わせる部屋。
 ///     **設定端末**が置いてあり、ホストだけが近づいて `E` で詳細設定を開ける
 ///   ・`Assets/Scenes/Prototype/SpaceJunk/SpaceJunkMap01〜03.unity` …
 ///     **釣りのマップをコピーして、中の部品を宇宙ごみ用に差し替えたもの**
@@ -44,9 +44,33 @@ using UnityEngine.SceneManagement;
 public static class SpaceJunkSetup
 {
     public const string LobbySceneName = "SpaceJunkLobby";
-    public const string LobbyScenePath = "Assets/Scenes/Test/" + LobbySceneName + ".unity";
-
     public const string MapSceneFolder = "Assets/Scenes/Prototype/SpaceJunk";
+
+    /// <summary>ロビーがどこにも無いときに、新しく作る場所。</summary>
+    private const string DefaultLobbyScenePath = MapSceneFolder + "/" + LobbySceneName + ".unity";
+
+    /// <summary>
+    /// **ロビーのシーンの置き場所。名前（SpaceJunkLobby）で探す**ので、Unity の中で移動しても追いかける。
+    /// （2026/10/1：ロビーを `Scenes/Test/` から `Scenes/Prototype/SpaceJunk/` へ移したら、
+    ///  置き場所を決め打ちしていたツールが「ロビーが見つかりません」になったため。`AIの申し送り.md` 2026/9/16 と同じ失敗）
+    /// 見つからなければ <see cref="DefaultLobbyScenePath"/>。
+    /// </summary>
+    public static string LobbyScenePath
+    {
+        get
+        {
+            foreach (string guid in AssetDatabase.FindAssets(LobbySceneName + " t:Scene"))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (System.IO.Path.GetFileNameWithoutExtension(path) == LobbySceneName)
+                {
+                    return path;
+                }
+            }
+
+            return DefaultLobbyScenePath;
+        }
+    }
 
     /// <summary>コピー元の釣りマップと、コピー先の宇宙ごみマップ。</summary>
     private static readonly string[,] MapSources =
@@ -426,8 +450,10 @@ public static class SpaceJunkSetup
             $"[JUNK] **{name} は、このままでは正しく遊べません。**\n・" +
             string.Join("\n・", problems) +
             "\n\nUnity でこのシーンを開いて直してください。" +
-            "ゴールを足すときは `Assets/Prefabs/Fish/Online/GoalArea.prefab` を置き、" +
-            "その `SpaceJunkGoal` の Goal Index を空いている番号にします。");
+            "ゴールを足すときは、**今あるマップのゴール（Goal_〜）をコピーして**貼り付け、" +
+            "その `SpaceJunkGoal` の Goal Index を空いている番号（0＝北・1＝東・2＝南・3＝西）にします。\n" +
+            "**釣りの `GoalArea.prefab` をそのまま置いても、宇宙ごみのゴールにはなりません。** 置いてしまったときは、" +
+            "`Tools > StarSweepers > 開いているマップの釣りのゴールを宇宙ごみのゴールに直す` を実行してください。");
     }
 
     /// <summary>試合のまとめ役 → 1ラウンドの進行役。**NetworkObject はそのまま使い回す。**</summary>
