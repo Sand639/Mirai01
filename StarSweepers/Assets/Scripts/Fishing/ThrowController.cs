@@ -95,7 +95,7 @@ public class SkillCheckZone
 ///   ・左クリック（LT）で撃つ … くっついた場所で**止まって**ゲージ → 左で押すと、釣り式と同じ軌道で
 ///     **頭上を越えて後ろへ抜け**、そのまま後ろへ飛ぶ（強いほど遠く）
 ///   ・右クリック（RT）で撃つ … 頭上まで来て**止まって**ゲージ → 右で押すと、
-///     プレイヤー→くっついていた場所の向きに**投げる**（強いほど遠く）
+///     **投げた瞬間にプレイヤーが向いている方向**へ**投げる**（強いほど遠く。2026/10/1 から。Throw Toward Facing を OFF にすると、くっついていた場所の向きへ投げ返す）
 ///
 /// 押すまでずっと待つ（時間切れなし）。**ほかの人のフックが当たる**か、爆風を受けると外れる。
 /// 釣り式に戻したいときは、プレハブの Style を SweepOnce にするだけでよい。
@@ -144,6 +144,10 @@ public class ThrowController : MonoBehaviour
     [Tooltip("右クリックで撃って引っ掛けてから、頭上まで持ち上がるまでの秒数")]
     [Min(0.05f)]
     [SerializeField] private float liftSeconds = 0.45f;
+
+    [Tooltip("ON＝**投げた瞬間にプレイヤーが向いている方向**へ投げる（2026/10/1 から。持ち上げている間に向きを変えれば、投げる方向も変わる）。\n" +
+             "OFF＝物資がくっついていた場所の方向へ投げ返す（前の動き）")]
+    [SerializeField] private bool throwTowardFacing = true;
 
     [Tooltip("投げるとき、真ん中から一番遠い（端で押した）ときの力")]
     [SerializeField] private float twoButtonThrowForceMin = 6f;
@@ -856,23 +860,36 @@ public class ThrowController : MonoBehaviour
     }
 
     /// <summary>
-    /// **投げる。** プレイヤーから「物資がくっついていた場所」へ向かって飛ばす（来た方へ投げ返す）。
+    /// **投げる。** 投げた瞬間にプレイヤーが向いている方向へ飛ばす（Throw Toward Facing が OFF なら、物資がくっついていた場所へ投げ返す）。
     /// 真ん中に近いほど強い。
     /// </summary>
     private void FinishAsTwoButtonThrow(float accuracy)
     {
-        Vector3 toOrigin = reelStart - hook.PlayerRoot.position;
-        toOrigin.y = 0f;
-        if (toOrigin.sqrMagnitude < 0.0001f)
+        Vector3 direction;
+
+        if (throwTowardFacing)
         {
-            toOrigin = hook.CurrentAimDirection;
+            // **投げた瞬間にプレイヤーが向いている方向**（マウス・右スティックで向けた方向）へ投げる（2026/10/1・大槻さん）
+            direction = hook.CurrentAimDirection;
+        }
+        else
+        {
+            // 前の動き：物資がくっついていた場所の方向へ投げ返す
+            direction = reelStart - hook.PlayerRoot.position;
+        }
+
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.0001f)
+        {
+            direction = hook.PlayerRoot.forward;
+            direction.y = 0f;
         }
 
         float force = Mathf.Lerp(twoButtonThrowForceMin, twoButtonThrowForceMax, accuracy);
 
-        Debug.Log($"投げた：真ん中への近さ {accuracy:0.00}（力 {force:0.0}）");
+        Debug.Log($"投げた：真ん中への近さ {accuracy:0.00}（力 {force:0.0}）／{(throwTowardFacing ? "向いている方向" : "くっついていた場所の方向")}へ");
 
-        Launch(toOrigin.normalized, force, throwLift);
+        Launch(direction.normalized, force, throwLift);
     }
 
     /// <summary>
@@ -968,7 +985,7 @@ public class ThrowController : MonoBehaviour
             ? $"重い！（重さ {heavyWeight:0.#}）　左クリック（LT）：引きずる　真ん中ほど遠くまで"
             : stage == TwoButtonStage.AimPull
                 ? "左クリック（LT）：引っ張る　真ん中ほど強い"
-                : "右クリック（RT）：投げる　真ん中ほど強い";
+                : "右クリック（RT）：向いている方向へ投げる　真ん中ほど強い";
 
         GUIStyle labelStyle = new GUIStyle(GUI.skin.label)
         {
