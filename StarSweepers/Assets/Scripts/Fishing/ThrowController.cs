@@ -242,14 +242,33 @@ public class ThrowController : MonoBehaviour
     [Tooltip("ミスしたときに、プレイヤー側へほんの少し引き寄せる力")]
     [SerializeField] private float missPullForce = 2.5f;
 
+    [Header("タイプBの物理引き寄せ")]
+    [Tooltip("タイプBでオブジェクトをプレイヤーへ引く力（加速度として加える）")]
+    [Min(0f)]
+    [SerializeField] private float pullForceB = 28f;
+
+    [Tooltip("タイプBで引きずっている間の重力倍率。0で重力なし、1で通常の重力")]
+    [Range(0f, 1f)]
+    [SerializeField] private float dragGravityScaleB = 0.35f;
+
+    [Tooltip("タイプBで投げるときに狙う、プレイヤー足元からの高さ")]
+    [Min(0f)]
+    [SerializeField] private float throwAimHeightB = 2f;
+
+    [Tooltip("タイプBの投げ先を横へずらす量。斜めの軌道を作る")]
+    [Min(0f)]
+    [SerializeField] private float throwSideOffsetB = 0.5f;
+
     private InputActionMap playerMap;
     private InputAction attackAction;
 
     private HookableObject target;
     private IHookPullable pullableTarget;
     private bool active;
+    private bool distanceBasedPullActive;
     private float armDelay;   // Begin 直後の1入力を誤爆しないための短い待ち
     private float timer;
+    private float distancePullElapsed;
     private Vector3 reelStart;
     private bool targetGravityWas;
     private bool targetKinematicWas;
@@ -290,6 +309,9 @@ public class ThrowController : MonoBehaviour
 
     /// <summary>いま引き寄せ中か。UI などが参照する。</summary>
     public bool IsPulling => active;
+
+    /// <summary>操作タイプBで距離ベースの引き抜きを使うか。入力方式と軌道処理から独立させる。</summary>
+    private bool UsesDistanceBasedPull => GameSettings.ControllerOperation == ControllerOperationType.TypeB;
 
     /// <summary>いまの操作のしかた。</summary>
     public ThrowStyle Style => style;
@@ -361,6 +383,7 @@ public class ThrowController : MonoBehaviour
     /// <summary>HookController から呼ばれる。引き寄せとスキルチェックを開始する。</summary>
     public void Begin(HookableObject hookable)
     {
+        distanceBasedPullActive = false;
         target = hookable;
         pullableTarget = null;
         active = true;
@@ -384,6 +407,11 @@ public class ThrowController : MonoBehaviour
             return;
         }
 
+        // **重い物（宇宙ごみの特殊デブリ）は、操作タイプBでも「引きずるだけ」の決まりを使う**（2026/10/1・PR #10 との合流時）。
+        // タイプBの物理の引き寄せを使うと、重い物も軽く引っ張れて投げられてしまうため
+        bool heavyTwoButtons = style == ThrowStyle.TwoButtons && HeavyHookable.TryGetWeight(hookable, out _);
+        distanceBasedPullActive = UsesDistanceBasedPull && !heavyTwoButtons;
+
         if (target != null)
         {
             // **持っている間は、自分の体に当たらないようにする**（2026/9/30）。
@@ -392,15 +420,34 @@ public class ThrowController : MonoBehaviour
             ThrowPassThrough.Hold(target.gameObject, hook.PlayerRoot.GetComponent<CharacterController>());
 
             reelStart = target.transform.position;
+            distancePullElapsed = 0f;
 
-            // 引き寄せ中は決まった軌道を通らせたいので、物理を一時的に止める。
-            // （物理で引っ張ると、ゲージの真ん中で真上に来るように揃えられない）
             targetGravityWas = target.Body.useGravity;
             targetKinematicWas = target.Body.isKinematic;
-            target.Body.linearVelocity = Vector3.zero;
-            target.Body.angularVelocity = Vector3.zero;
-            target.Body.useGravity = false;
-            target.Body.isKinematic = true;
+
+            if (distanceBasedPullActive)
+            {
+                // タイプBはRigidbodyを生かし、現在位置・速度・回転を保持して引きずる。
+                target.Body.isKinematic = false;
+                target.Body.useGravity = targetGravityWas;
+            }
+            else
+            {
+                // タイプAは従来どおり、決めたレール上を通すため物理を止める。
+                target.Body.linearVelocity = Vector3.zero;
+                target.Body.angularVelocity = Vector3.zero;
+                target.Body.useGravity = false;
+                target.Body.isKinematic = true;
+            }
+        }
+
+        if (distanceBasedPullActive)
+        {
+            if (hook != null && hook.UI != null)
+            {
+                hook.UI.ShowTiming(false);
+            }
+            return;
         }
 
         if (style == ThrowStyle.TwoButtons)
@@ -422,6 +469,7 @@ public class ThrowController : MonoBehaviour
     /// </summary>
     public void BeginPullable(IHookPullable pullable)
     {
+        distanceBasedPullActive = false;
         target = null;
         anchorTarget = null;
         pullableTarget = pullable;
@@ -485,6 +533,12 @@ public class ThrowController : MonoBehaviour
             return;
         }
 
+        if (distanceBasedPullActive)
+        {
+            UpdateDistanceBasedPull();
+            return;
+        }
+
         timer += Time.deltaTime;
         if (armDelay > 0f)
         {
@@ -517,6 +571,153 @@ public class ThrowController : MonoBehaviour
         {
             FinishAsMiss("ゲージが通り過ぎた");
         }
+    }
+
+    private void FixedUpdate()
+    {
+        if (!active || target == null || target.IsVanished || anchorTarget != null ||
+            !distanceBasedPullActive || GamePause.BlocksInput)
+        {
+            return;
+        }
+
+        ApplyDistanceBasedPullForces();
+    }
+
+    /// <summary>
+    /// タイプBの引き寄せ入力を処理する。
+    /// 入力の判定、距離から強さを決める計算、FixedUpdate内の物理的な引き寄せを分けている。
+    /// </summary>
+    private void UpdateDistanceBasedPull()
+    {
+        distancePullElapsed += Time.deltaTime;
+
+        float distanceRatio = GetDistanceRatio();
+        if (IsDistancePullInputPressed())
+        {
+            FinishDistanceBasedPull(distanceRatio, false);
+            return;
+        }
+
+        // 目の前まで引ききったら、再発動できなかった扱いで弱く後ろへ落とす。
+        if (distancePullElapsed >= skillCheckDuration || distanceRatio <= 0.03f)
+        {
+            FinishDistanceBasedPull(distanceRatio, true);
+        }
+    }
+
+    /// <summary>現在のプレイヤー位置に向けて、引力と重力補正を物理ステップごとに加える。</summary>
+    private void ApplyDistanceBasedPullForces()
+    {
+        Rigidbody body = target.Body;
+        if (body.isKinematic)
+        {
+            return;
+        }
+
+        Vector3 pullPoint = hook.PlayerRoot.position + Vector3.up * 0.45f;
+        Vector3 toPlayer = pullPoint - body.worldCenterOfMass;
+        if (toPlayer.sqrMagnitude > 0.0001f)
+        {
+            body.AddForce(toPlayer.normalized * pullForceB, ForceMode.Acceleration);
+        }
+
+        if (targetGravityWas && body.useGravity && Physics.gravity.y < 0f && dragGravityScaleB < 1f)
+        {
+            float upwardAcceleration = -Physics.gravity.y * (1f - dragGravityScaleB);
+            body.AddForce(Vector3.up * upwardAcceleration, ForceMode.Acceleration);
+        }
+    }
+
+    /// <summary>引き抜き入力。現在はフックボタン（Attack）またはLT。</summary>
+    private bool IsDistancePullInputPressed()
+    {
+        return attackAction.WasPressedThisFrame() || PullPressed();
+    }
+
+    /// <summary>残り距離をフックの最大飛距離に対する割合（0〜1）で返す。</summary>
+    private float GetDistanceRatio()
+    {
+        if (hook == null || hook.MaxRange <= 0f)
+        {
+            return 0f;
+        }
+
+        return Mathf.Clamp01(Vector3.Distance(target.transform.position, hook.PlayerRoot.position) / hook.MaxRange);
+    }
+
+    /// <summary>距離割合から従来のクリティカル力に対する倍率を計算する。</summary>
+    private static float CalculateDistancePullStrength(float distanceRatio)
+    {
+        if (distanceRatio <= 0.15f)
+        {
+            return 1f;
+        }
+        if (distanceRatio <= 0.5f)
+        {
+            return Mathf.Lerp(1f, 0.7f, Mathf.InverseLerp(0.15f, 0.5f, distanceRatio));
+        }
+        return Mathf.Lerp(0.7f, 0.05f, Mathf.InverseLerp(0.5f, 1f, distanceRatio));
+    }
+
+    /// <summary>距離判定後の引き抜き。強さ計算と飛ばす方向を物理実行から分ける。</summary>
+    private void FinishDistanceBasedPull(float distanceRatio, bool missed)
+    {
+        Vector3 direction = ResolveDistancePullDirection(missed);
+        float strength = missed ? 0.1f : CalculateDistancePullStrength(distanceRatio);
+        float force = throwForcePerfect * strength;
+
+        Debug.Log($"距離ベース引き抜き：残り距離 {distanceRatio:P0} / 力 {force:0.0}" +
+                  (missed ? "（引ききりミス）" : ""));
+        LaunchDistanceBasedThrow(direction, force);
+    }
+
+    /// <summary>成功時はプレイヤー頭上へ斜めに抜け、時間切れ時は後方へ転がす方向を作る。</summary>
+    private Vector3 ResolveDistancePullDirection(bool missed)
+    {
+        Vector3 forward = hook.CurrentAimDirection;
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.0001f)
+        {
+            forward = hook.PlayerRoot.forward;
+            forward.y = 0f;
+        }
+        forward.Normalize();
+
+        Vector3 side = Vector3.Cross(Vector3.up, forward).normalized;
+        if (missed)
+        {
+            return (-forward + side * 0.35f).normalized;
+        }
+
+        Vector3 overheadPoint = hook.PlayerRoot.position + Vector3.up * throwAimHeightB + side * throwSideOffsetB;
+        Vector3 towardOverhead = overheadPoint - target.Body.worldCenterOfMass;
+        return towardOverhead.sqrMagnitude > 0.0001f ? towardOverhead.normalized : Vector3.up;
+    }
+
+    /// <summary>
+    /// タイプB専用の投げ。タイプAのLaunchとは分け、接近時も頭上へ向かうImpulseを加える。
+    /// 引きずり中に得た速度も残して、物理的な慣性を保つ。
+    /// </summary>
+    private void LaunchDistanceBasedThrow(Vector3 direction, float force)
+    {
+        Rigidbody body = target.Body;
+        RestorePhysics(body);
+
+        FishingNetSupply netSupply = GetNetSupply();
+        if (netSupply != null)
+        {
+            netSupply.RequestThrow(direction, force, 0f, hook.LocalPlayerIndex,
+                preserveVelocity: true,
+                inheritedVelocity: body.linearVelocity,
+                inheritedAngularVelocity: body.angularVelocity);
+        }
+        else
+        {
+            body.AddForce(direction * force, ForceMode.Impulse);
+        }
+
+        EndPull();
     }
 
     private void UpdatePullableTarget()
@@ -1219,6 +1420,7 @@ public class ThrowController : MonoBehaviour
         pullingPlayer = null;
         anchorPullTimer = 0f;
         active = false;
+        distanceBasedPullActive = false;
 
         if (hook != null)
         {
@@ -1259,6 +1461,7 @@ public class ThrowController : MonoBehaviour
         pullingPlayer = null;
         anchorPullTimer = 0f;
         active = false;
+        distanceBasedPullActive = false;
         heavy = false;
         heavyWeight = 1f;
 

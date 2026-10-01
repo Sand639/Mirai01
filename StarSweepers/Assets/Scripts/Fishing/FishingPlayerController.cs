@@ -125,7 +125,15 @@ public class FishingPlayerController : MonoBehaviour, ILaunchable
         // 試合が終わったあと（結果画面）も動かせない
         if ((stun == null || !stun.IsStunned) && FishingMatch.PlayAllowed)
         {
-            Vector2 input = moveAction.ReadValue<Vector2>();
+            Gamepad pad = Gamepad.current;
+            bool typeB = pad != null && GameSettings.ControllerOperation == ControllerOperationType.TypeB;
+            Vector2 input = typeB ? pad.leftStick.ReadValue() : moveAction.ReadValue<Vector2>();
+
+            // タイプBはLTを押している間、左スティックを向き調整だけに使う。
+            if (typeB && pad.leftTrigger.isPressed)
+            {
+                input = Vector2.zero;
+            }
 
             direction = new Vector3(input.x, 0f, input.y);
             if (direction.sqrMagnitude > 1f)

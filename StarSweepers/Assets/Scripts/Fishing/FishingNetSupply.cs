@@ -152,14 +152,18 @@ public class FishingNetSupply : NetworkBehaviour
     /// 投げをホストへ知らせる。<see cref="ThrowController"/> から呼ばれる。
     /// **力を加えるのはホスト。** そうしないと、どこへ飛んだかが人によって変わる。
     /// </summary>
-    public void RequestThrow(Vector3 direction, float force, float lift, int playerIndex)
+    public void RequestThrow(Vector3 direction, float force, float lift, int playerIndex,
+        bool preserveVelocity = false, Vector3 inheritedVelocity = default,
+        Vector3 inheritedAngularVelocity = default)
     {
-        RequestThrowServerRpc(direction, force, lift, playerIndex, localClaimRevision);
+        RequestThrowServerRpc(direction, force, lift, playerIndex, localClaimRevision,
+            preserveVelocity, inheritedVelocity, inheritedAngularVelocity);
     }
 
     [ServerRpc(RequireOwnership = false)]
     private void RequestThrowServerRpc(Vector3 direction, float force, float lift,
-        int playerIndex, uint claimRevision, ServerRpcParams rpcParams = default)
+        int playerIndex, uint claimRevision, bool preserveVelocity, Vector3 inheritedVelocity,
+        Vector3 inheritedAngularVelocity, ServerRpcParams rpcParams = default)
     {
         // 掛けている本人からの指示だけを受け付ける
         if (claimRevision != explosionRevision.Value || hookedByPlayerIndex.Value != playerIndex)
@@ -178,8 +182,17 @@ public class FishingNetSupply : NetworkBehaviour
 
         if (body != null && !body.isKinematic)
         {
-            body.linearVelocity = Vector3.zero;
-            body.angularVelocity = Vector3.zero;
+            if (!preserveVelocity)
+            {
+                body.linearVelocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+            }
+            else
+            {
+                // タイプBは引きずっていた本人の速度をホストへ渡し、所有権移行後も慣性を保つ。
+                body.linearVelocity = inheritedVelocity;
+                body.angularVelocity = inheritedAngularVelocity;
+            }
             body.AddForce(direction * force + Vector3.up * lift, ForceMode.Impulse);
         }
     }

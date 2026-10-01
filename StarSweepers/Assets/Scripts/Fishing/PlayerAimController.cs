@@ -95,9 +95,50 @@ public class PlayerAimController : MonoBehaviour
 
     private void Update()
     {
+        Gamepad pad = Gamepad.current;
+        if (pad != null && GameSettings.ControllerOperation == ControllerOperationType.TypeB)
+        {
+            UpdateTypeBAim(pad);
+            UpdateReticle();
+            return;
+        }
+
         UpdateCursorSource();
         UpdateAim();
         UpdateReticle();
+    }
+
+    /// <summary>
+    /// タイプBでは左スティックを移動と向きに共用する。
+    /// 通常は移動方向へ向き、LT中は移動を止めて向き調整に使う。
+    /// 操作の割り当てだけをここで扱い、移動の実行は FishingPlayerController に任せる。
+    /// </summary>
+    private void UpdateTypeBAim(Gamepad pad)
+    {
+        Vector2 stick = pad.leftStick.ReadValue();
+        if (stick.magnitude < stickDeadZone)
+        {
+            UsingStickCursor = false;
+            return;
+        }
+
+        Vector3 direction = new Vector3(stick.x, 0f, stick.y);
+        Camera view = aimCamera != null ? aimCamera : Camera.main;
+        if (view != null)
+        {
+            direction = Quaternion.Euler(0f, view.transform.eulerAngles.y, 0f) * direction;
+        }
+
+        direction.y = 0f;
+        if (direction.sqrMagnitude > 0.0001f)
+        {
+            AimDirection = direction.normalized;
+            AimPoint = transform.position + AimDirection;
+            HasAim = true;
+        }
+
+        UsingStickCursor = false;
+        Cursor.visible = true;
     }
 
     private void OnDisable()
